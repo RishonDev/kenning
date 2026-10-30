@@ -9,6 +9,7 @@
 
 #include "daemon.h"
 #include "engine.h"
+#include "service.h"
 
 #include <opencv2/core/utils/logger.hpp>
 
@@ -121,7 +122,21 @@ int remove(const std::string &user, const std::string &idText)
 
 int list(const std::string &user, bool plain)
 {
-    const std::vector<FaceModel> models = loadModels(user);
+    // Face models belong to the service user; others can only ask whether there are any.
+    if (geteuid() != 0) {
+        const int code = askService("has-model", user, 5);
+        if (code == Recognized) {
+            if (!plain) {
+                std::cout << "Face recognition is set up for " << user << ". To see the face models, run:\n\n\tsudo kenning list\n";
+            }
+            return 0;
+        }
+        if (code < 0) {
+            std::cerr << "The Kenning service isn't reachable at " << socketPath << '\n';
+            return Error;
+        }
+    }
+    const std::vector<FaceModel> models = geteuid() == 0 ? loadModels(user) : std::vector<FaceModel>();
     if (models.empty()) {
         if (!plain) {
             std::cout << "No face model known for the user " << user << ", please run:\n\n\tsudo kenning -U " << user << " add\n";
@@ -153,9 +168,15 @@ int main(int argc, char **argv)
     bool plain = false;
     std::string user;
     std::vector<std::string> positional;
+    bool optionsDone = false;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
-        if (arg == "--plain") {
+        if (optionsDone) {
+            positional.push_back(arg);
+        } else if (arg == "--") {
+            // Everything after is positional, e.g. a face label starting with "-".
+            optionsDone = true;
+        } else if (arg == "--plain") {
             plain = true;
         } else if (arg == "-y") {
             // Nothing asks questions; accepted for Howdy compatibility.
@@ -174,9 +195,7 @@ int main(int argc, char **argv)
     const std::string command = positional[0];
 
     if (command == "daemon") {
-        if (const int error = requireRoot()) {
-            return error;
-        }
+        // Runs as the service user (systemd), or as root when started by hand.
         return runDaemon();
     }
     if (command == "compare") {
@@ -216,6 +235,21 @@ int main(int argc, char **argv)
     }
     if (command == "test") {
         const Config config;
+        if (geteuid() != 0) {
+            // Only the service can read the face models: ask it, without the details.
+            const int timeout = int(config.number("video/timeout", 4)) * 2 + 10;
+            const int code = askService("compare", user, timeout);
+            switch (code) {
+            case Recognized: std::cout << "Identified face as " << user << '\n'; break;
+            case NoModel: std::cout << "Failure, no face model known\n"; break;
+            case Timeout: std::cout << "Failure, timeout reached\n"; break;
+            case TooDark: std::cout << "Failure, image too dark\n"; break;
+            case -1: std::cout << "Failure, the Kenning service isn't reachable at " << socketPath << '\n'; return Error;
+            default: std::cout << "Failure, general abort\n"; break;
+            }
+            std::cout << "  (sudo kenning test shows the scores and timings)" << std::endl;
+            return code;
+        }
         const ScanResult result = compare(config, user);
         const ScanStats &s = result.stats;
         std::cout << result.message << '\n'

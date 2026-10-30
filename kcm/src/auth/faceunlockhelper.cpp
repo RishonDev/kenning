@@ -16,6 +16,7 @@
 #include <QFile>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -168,13 +169,15 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
 namespace
 {
-// Face models are root-only: the face unlock service reads them for everyone else.
-// The config stays readable, since pam_kenning checks it in the caller's process.
+// Face models belong to the Kenning service user (kenning.service), which reads them
+// for everyone else; nobody else can. The config stays readable, since pam_kenning
+// checks it in the caller's process.
 void secureModels()
 {
     const QString models = QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath();
     QDir().mkpath(models);
     QFile::setPermissions(models, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), FaceUnlock::serviceUser + QLatin1Char(':') + FaceUnlock::serviceUser, models});
     for (const QFileInfo &model : QDir(models).entryInfoList(QDir::Files)) {
         QFile::setPermissions(model.absoluteFilePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     }
@@ -204,9 +207,21 @@ void prepareEngine()
 
 ActionReply FaceUnlockHelper::list(const QVariantMap &)
 {
+    // Needs no password, so only what the page shows: never the face data itself.
+    QJsonArray models;
     QFile file(FaceUnlock::modelPath(callerName()));
+    if (file.open(QIODevice::ReadOnly)) {
+        for (const QJsonValue &value : QJsonDocument::fromJson(file.readAll()).array()) {
+            const QJsonObject model = value.toObject();
+            models.append(QJsonObject{
+                {QStringLiteral("id"), model.value(QStringLiteral("id"))},
+                {QStringLiteral("label"), model.value(QStringLiteral("label"))},
+                {QStringLiteral("time"), model.value(QStringLiteral("time"))},
+            });
+        }
+    }
     ActionReply reply = ActionReply::SuccessReply();
-    reply.addData(QStringLiteral("models"), file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()) : QStringLiteral("[]"));
+    reply.addData(QStringLiteral("models"), QString::fromUtf8(QJsonDocument(models).toJson(QJsonDocument::Compact)));
     return reply;
 }
 
@@ -218,7 +233,7 @@ ActionReply FaceUnlockHelper::add(const QVariantMap &args)
         label = QStringLiteral("Face");
     }
     prepareEngine();
-    ActionReply reply = runStreaming(FaceUnlock::engineBinary, {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
+    ActionReply reply = runStreaming(FaceUnlock::engineBinary, {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), QStringLiteral("--"), label});
     secureModels();
     return reply;
 }
@@ -232,12 +247,6 @@ ActionReply FaceUnlockHelper::remove(const QVariantMap &args)
     }
     return runStreaming(FaceUnlock::engineBinary,
                         {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("remove"), QString::number(id)});
-}
-
-ActionReply FaceUnlockHelper::test(const QVariantMap &)
-{
-    // Same check pam_kenning runs: exit 0 match, 10 no model, 11 timeout, 12 abort, 13 too dark.
-    return runStreaming(FaceUnlock::engineBinary, {QStringLiteral("compare"), callerName()});
 }
 
 ActionReply FaceUnlockHelper::save(const QVariantMap &args)

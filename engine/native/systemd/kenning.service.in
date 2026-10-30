@@ -6,7 +6,14 @@ Requires=kenning.socket
 
 [Service]
 ExecStart=@KENNING_BINARY@ daemon
-# Reads the camera, the config and the face models; writes nothing.
+# Reads the camera, the config and the face models (owned by this user); writes
+# nothing. Not root: it decodes frames from a USB device.
+User=@KENNING_SERVICE_USER@
+Group=@KENNING_SERVICE_USER@
+SupplementaryGroups=video
+DevicePolicy=closed
+DeviceAllow=char-video4linux rw
+CapabilityBoundingSet=
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
@@ -18,4 +25,10 @@ ProtectControlGroups=yes
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 LockPersonality=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
 SystemCallArchitectures=native
+SystemCallFilter=@system-service

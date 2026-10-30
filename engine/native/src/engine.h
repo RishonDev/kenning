@@ -27,6 +27,8 @@ struct FaceModel {
 
 std::vector<FaceModel> loadModels(const std::string &user);
 bool saveModels(const std::string &user, const std::vector<FaceModel> &models);
+// Hands a file in the models directory to the service user (when run as root).
+void giveToService(const std::string &path);
 
 // Score as Howdy reports it: lower means a closer match. For SFace this is
 // (1 - cosine similarity) * 10, so the recommended cosine of 0.363 is 6.37.
@@ -52,8 +54,9 @@ struct ScanResult {
     ScanStats stats;
 };
 
-// Looks for the user's face until config video/timeout runs out.
-ScanResult compare(const Config &config, const std::string &user);
+// Looks for the user's face until config video/timeout runs out, or until
+// cancelled() returns true (checked once per frame).
+ScanResult compare(const Config &config, const std::string &user, const std::function<bool()> &cancelled = {});
 
 // Captures encodings of exactly one face for a new model. progress receives
 // Howdy's messages ("Please look straight into the camera", "Scan complete" …).

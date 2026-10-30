@@ -99,7 +99,13 @@ void serve(int client)
     }
     if (command == "compare") {
         // Config is read per request so settings changes apply without a restart.
-        return reply(client, compare(Config(), user).code);
+        // Stop when the client hangs up (the lock screen restarting its check, PAM
+        // giving up), so the next request doesn't wait for an abandoned scan.
+        const auto hungUp = [client] {
+            pollfd state{client, POLLRDHUP, 0};
+            return poll(&state, 1, 0) > 0 && (state.revents & (POLLRDHUP | POLLHUP | POLLERR));
+        };
+        return reply(client, compare(Config(), user, hungUp).code);
     }
     reply(client, Aborted);
 }

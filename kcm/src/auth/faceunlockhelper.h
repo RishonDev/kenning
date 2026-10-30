@@ -20,7 +20,6 @@ public Q_SLOTS:
     ActionReply list(const QVariantMap &args);
     ActionReply add(const QVariantMap &args);
     ActionReply remove(const QVariantMap &args);
-    ActionReply test(const QVariantMap &args);
     ActionReply save(const QVariantMap &args);
     ActionReply installtheme(const QVariantMap &args);
     ActionReply removetheme(const QVariantMap &args);

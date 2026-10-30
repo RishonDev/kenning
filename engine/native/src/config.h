@@ -24,6 +24,11 @@ namespace FaceUnlock
 
 inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
 inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
+#ifndef KENNING_SERVICE_USER
+#define KENNING_SERVICE_USER "kenning"
+#endif
+// The service runs as this user and owns the face models (see kenning.service).
+inline constexpr const char *serviceUser = KENNING_SERVICE_USER;
 inline constexpr const char *detectorModel = KENNING_DATADIR "/models/face_detection_yunet_2023mar.onnx";
 inline constexpr const char *recognizerModel = KENNING_DATADIR "/models/face_recognition_sface_2021dec.onnx";
 

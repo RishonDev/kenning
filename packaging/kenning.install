@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 
-# Face models are root-only; the Kenning service reads them for everyone else.
+# Face models belong to the Kenning service user, which reads them for everyone
+# else. pacman creates that user only after the transaction, so make it now.
 secure_models() {
+    systemd-sysusers kenning.conf 2>/dev/null || true
     if [[ -d /etc/kenning/models ]]; then
+        chown -R -h kenning:kenning /etc/kenning/models 2>/dev/null || true
         chmod 700 /etc/kenning/models
         find /etc/kenning/models -type f -exec chmod 600 {} +
     fi
@@ -47,6 +50,7 @@ start_service() {
 
 post_install() {
     /usr/lib/kenning/pam-tidy tidy
+    secure_models
     migrate_from_faceunlock
     start_service
     [[ -n $(find /etc/kenning/models -name '*.dat' 2>/dev/null) ]] ||

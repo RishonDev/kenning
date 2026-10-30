@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+# The Kenning service runs as this user; it owns the face models and reads the camera.
+u @KENNING_SERVICE_USER@ - "Kenning face unlock service" - -
+m @KENNING_SERVICE_USER@ video

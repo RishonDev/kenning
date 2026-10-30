@@ -14,6 +14,10 @@
 #include <security/pam_ext.h>
 #include <security/pam_modules.h>
 
+#ifdef KENNING_HAVE_LOGIND
+#include <systemd/sd-login.h>
+#endif
+
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -41,13 +45,37 @@ bool lidClosed()
     return false;
 }
 
+// True when the person asking may not be at this computer, so the camera would
+// look at someone else (possibly the real user, who would then approve a remote
+// sudo without knowing). The environment alone can't decide this: sudo passes the
+// caller's, and SSH_* can simply be unset. A process inside a logind session (an
+// SSH login is one) is judged by that session; the variables can only add a
+// refusal.
+//
+// Not covered, and not coverable here: on Plasma 6 terminals and apps run under the
+// user's service manager outside any session, like anything an SSH login starts
+// with systemd-run --user. Code already running as the user can therefore always
+// get a request started from the desktop; the sudo warning in System Settings says so.
 bool remoteSession(pam_handle_t *pamh)
 {
     const void *rhost = nullptr;
-    if (pam_get_item(pamh, PAM_RHOST, &rhost) == PAM_SUCCESS && rhost && *static_cast<const char *>(rhost)) {
-        return std::strcmp(static_cast<const char *>(rhost), "localhost") != 0;
+    if (pam_get_item(pamh, PAM_RHOST, &rhost) == PAM_SUCCESS && rhost && *static_cast<const char *>(rhost)
+        && std::strcmp(static_cast<const char *>(rhost), "localhost") != 0) {
+        return true;
     }
-    return std::getenv("SSH_CONNECTION") || std::getenv("SSH_CLIENT") || std::getenv("SSH_TTY");
+    if (std::getenv("SSH_CONNECTION") || std::getenv("SSH_CLIENT") || std::getenv("SSH_TTY")) {
+        return true;
+    }
+#ifdef KENNING_HAVE_LOGIND
+    // The login session of the program asking (sudo, the lock screen, ...).
+    char *session = nullptr;
+    if (sd_pid_get_session(0, &session) >= 0 && session) {
+        const int remote = sd_session_is_remote(session);
+        std::free(session);
+        return remote != 0; // remote, or logind can't tell
+    }
+#endif
+    return false;
 }
 }
 

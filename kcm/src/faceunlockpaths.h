@@ -26,6 +26,9 @@ inline const QString userThemesPath = QStringLiteral("/usr/local/share/kenning/t
 inline const QString systemThemesPath = QStringLiteral("/usr/share/kenning/themes");
 inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_kenning.so");
 
+// The Kenning service user, which owns the face models (kenning.service)
+inline const QString serviceUser = QStringLiteral("kenning");
+
 inline QString modelPath(const QString &user)
 {
     return QStringLiteral("/etc/kenning/models/%1.dat").arg(user);

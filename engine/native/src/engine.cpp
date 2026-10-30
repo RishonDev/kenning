@@ -8,6 +8,7 @@
 #include <opencv2/objdetect/face.hpp>
 #include <opencv2/videoio.hpp>
 
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -15,6 +16,8 @@
 #include <QSaveFile>
 
 #include <algorithm>
+#include <pwd.h>
+#include <unistd.h>
 #include <chrono>
 #include <future>
 #include <mutex>
@@ -182,6 +185,18 @@ struct Pipeline {
 };
 }
 
+void giveToService(const std::string &path)
+{
+    // Only root can hand files over; a test build run as a user keeps its own.
+    if (geteuid() != 0) {
+        return;
+    }
+    if (const passwd *account = getpwnam(serviceUser)) {
+        chown(path.c_str(), account->pw_uid, account->pw_gid);
+        chown(modelsDir, account->pw_uid, account->pw_gid);
+    }
+}
+
 std::vector<FaceModel> loadModels(const std::string &user)
 {
     std::vector<FaceModel> models;
@@ -228,14 +243,21 @@ bool saveModels(const std::string &user, const std::vector<FaceModel> &models)
         });
     }
     const QString path = QString::fromStdString(modelPath(user));
+    if (QDir().mkpath(QString::fromUtf8(modelsDir))) {
+        QFile::setPermissions(QString::fromUtf8(modelsDir), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    }
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         return false;
     }
     file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
-    // Only root reads face models; the lock screen asks the service (service.h). Set on
+    // Only the service reads face models; everyone else asks it (service.h). Set on
     // the path: after commit() the QSaveFile no longer refers to the saved file.
-    return file.commit() && QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    if (!file.commit() || !QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+        return false;
+    }
+    giveToService(path.toStdString());
+    return true;
 }
 
 double matchScore(double cosine)
@@ -243,7 +265,7 @@ double matchScore(double cosine)
     return (1.0 - cosine) * 10.0;
 }
 
-ScanResult compare(const Config &config, const std::string &user)
+ScanResult compare(const Config &config, const std::string &user, const std::function<bool()> &cancelled)
 {
     const std::vector<FaceModel> models = loadModels(user);
     const bool hasEncodings = std::any_of(models.begin(), models.end(), [](const FaceModel &model) {
@@ -267,6 +289,9 @@ ScanResult compare(const Config &config, const std::string &user)
     double best = 99;
 
     while (Clock::now() < deadline) {
+        if (cancelled && cancelled()) {
+            return {Aborted, best, "Failure, cancelled", stats};
+        }
         cv::Mat image;
         const auto frame = pipeline.read(image);
         if (frame == Pipeline::Frame::Missing) {

@@ -254,7 +254,7 @@ KCM.SimpleKCM {
                 type: kcm.colourCamera ? Kirigami.MessageType.Error : Kirigami.MessageType.Warning
                 text: kcm.colourCamera
                     ? i18n("Your face can approve changes to the system, and this camera is an ordinary webcam: a photo or video of you could approve them too. Leave these on the password unless you accept that risk.")
-                    : i18n("Your face can approve changes to the system, such as installing software. Someone who looks like you, or holds the computer up to your face, could do the same. Your password always works too.")
+                    : i18n("Your face can approve changes to the system, such as installing software. Someone who looks like you, or holds the computer up to your face, could do the same, and so could a harmful program running as you, while you are at the computer. Your password always works too.")
             }
 
             // Lock screen

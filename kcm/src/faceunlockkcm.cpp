@@ -19,6 +19,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -400,7 +401,28 @@ void FaceUnlockKcm::removeFace(int id)
 
 void FaceUnlockKcm::testRecognition()
 {
-    runHelper(QStringLiteral("test"), {});
+    // Testing your own face needs no administrator: the engine asks the Kenning
+    // service, which answers for the user's own account.
+    if (m_busy) {
+        return;
+    }
+    setBusy(true);
+    auto *process = new QProcess(this);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    connect(process, &QProcess::finished, this, [this, process](int exitCode, QProcess::ExitStatus status) {
+        setBusy(false);
+        const QStringList lines = QString::fromUtf8(process->readAll()).trimmed().split(QLatin1Char('\n'));
+        Q_EMIT operationFinished(QStringLiteral("test"), status == QProcess::NormalExit ? exitCode : -1, lines.value(0));
+        process->deleteLater();
+    });
+    connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            setBusy(false);
+            Q_EMIT operationFinished(QStringLiteral("test"), -1, process->errorString());
+            process->deleteLater();
+        }
+    });
+    process->start(FaceUnlock::engineBinary, {QStringLiteral("test")});
 }
 
 void FaceUnlockKcm::runHelper(const QString &operation, const QVariantMap &args)
