@@ -88,5 +88,6 @@ private:
     QString m_devicePath;
     bool m_colourCamera = false;
     bool m_fingerprintEnrolled = false;
+    bool m_lockScreenFaceService = false;
     bool m_busy = false;
 };

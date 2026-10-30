@@ -133,6 +133,10 @@ bool updateEngineConfig(const QVariantMap &values)
 // first copied from its packaged file in /usr/lib/pam.d.
 bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 {
+    // The lock screen may use Plasma's own Face sign-in method instead; pam-tidy knows which.
+    if (service.id == QLatin1String("lockscreen")) {
+        return QProcess::execute(FaceUnlock::pamTidy, {QStringLiteral("lockscreen"), enabled ? QStringLiteral("on") : QStringLiteral("off")}) == 0;
+    }
     QString source = service.path;
     if (!QFile::exists(source)) {
         if (!enabled) {

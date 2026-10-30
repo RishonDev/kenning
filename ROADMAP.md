@@ -87,17 +87,25 @@ webcam:
 - [x] A root service that owns the camera and face models (like fprintd), so
       models no longer have to be readable by local users: `kenning daemon`,
       socket-activated, answering only for root or the user's own account
-- [ ] Upstream route: Plasma 6.8's lock screen already has a Face method (PAM
-      service `kde-face`, `[Authenticators] Face=true`) with no backend; Kenning
-      fills it with nothing but a PAM file (tested on 6.8.2: scans when picked,
-      unlocks at once, remembered for the next lock). Still to do: ship
-      `kde-face`, the login manager auto-scan as a merge request, the settings
-      page as a KCM or part of Users
+- [x] Use Plasma 6.8's own Face sign-in method (PAM service `kde-face`,
+      `[Authenticators] Face=true`, which had no backend): pam-tidy writes
+      `kde-face` from the distribution's `kde-fingerprint`, failing closed (a
+      `pam_deny.so` stands behind `pam_kenning.so`, since kde-fingerprint's
+      stack without its module line lets anyone in), and moves between it and
+      the `kde` service when Plasma is upgraded or downgraded. Face is switched
+      on per user (System Settings, or at login for users with a face model).
+      Lock screen add-on patch 7 starts with Face, falls back to the password on
+      a failure instead of Plasma's immediate retry, and switches to the
+      password when you type
+- [ ] Upstream route, still to do: the login manager auto-scan as a merge
+      request, the settings page as a KCM or part of Users
 - [ ] kscreenlocker fixes to send: (1) a remembered method that has since been
       switched off crashes the lock screen until KWin gives up ("loginctl"
-      screen); patch with test in faceunlock-test/kscreenlocker-stale-authenticator.patch.
+      screen): bug 528042, merge request !387 with an autotest. Kenning never
+      switches Face off without forgetting a remembered Face.
       (2) a method started before its PAM worker is ready isn't retried until
-      a key or mouse wakes the screen (the add-on retries for fingerprint).
+      a key or mouse wakes the screen (the add-on retries for fingerprint;
+      being fixed in !352).
       (3) a real preferred-method setting, and starting fingerprint only after
       face fails, so the add-on's workarounds can go
 - [x] Preferred sign-in method when a fingerprint is enrolled (System Settings,

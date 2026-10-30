@@ -5,6 +5,9 @@
 # Once per user, at the first login after startup: if this computer has an IR camera
 # and the user has no face model yet, offer to set up face unlock. Started from
 # /etc/xdg/autostart.
+# At every login it also switches on Plasma's Face sign-in method for a user with a
+# face model, where Kenning provides it (Plasma 6.8 and newer) and the user hasn't
+# chosen otherwise: the method is switched on per user.
 # Ordinary webcams are less secure, so they are never advertised here; they can
 # still be chosen in System Settings.
 
@@ -63,7 +66,26 @@ def has_face_model(user: str) -> bool | None:
     return reply == "0"
 
 
+def enable_face_method() -> None:
+    """Face=true in the user's kscreenlockerrc, unless lock screen face unlock is off,
+    Face is already set either way, or the user has no face model."""
+    try:
+        status = subprocess.run(["/usr/lib/kenning/pam-tidy", "lockscreen", "status"],
+                                capture_output=True, text=True, timeout=10).stdout.strip()
+        if status != "face on":
+            return
+        face = subprocess.run(["kreadconfig6", "--file", "kscreenlockerrc", "--group", "Authenticators", "--key", "Face"],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+        if face or not has_face_model(getpass.getuser()):
+            return
+        subprocess.run(["kwriteconfig6", "--file", "kscreenlockerrc", "--group", "Authenticators", "--key", "Face", "true"],
+                       timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def main() -> int:
+    enable_face_method()
     state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "kenning")
     marker = os.path.join(state, "setup-prompted")
     if os.path.exists(marker):

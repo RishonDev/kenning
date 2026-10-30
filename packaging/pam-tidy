@@ -9,6 +9,12 @@
 #                      old package already dropped them, switch face unlock back on
 #                      where Set Up does (when face models were carried over)
 #   pam-tidy remove    (removal) drop pam_kenning.so lines before the module goes
+#   pam-tidy lockscreen on|off|status
+#                      face unlock on the lock screen (System Settings). Plasma 6.8 and
+#                      newer have a Face sign-in method of their own, the PAM service
+#                      kde-face, which Kenning provides; older ones get pam_kenning.so in
+#                      the password service, kde. tidy also moves between the two when
+#                      Plasma is upgraded. status prints "face on", "password off", ...
 # A line for a missing "sufficient" module is skipped by PAM with an error in the
 # log, so this is about a clean system, not about getting locked out.
 set -eu
@@ -17,12 +23,17 @@ pam_dir=${PAM_DIR:-/etc/pam.d}
 vendor_pam_dir=${VENDOR_PAM_DIR:-/usr/lib/pam.d}
 kenning_dir=${KENNING_DIR:-/etc/kenning}
 face_line='auth       sufficient                  pam_kenning.so'
+lockscreen_dir=${LOCKSCREEN_DIR:-/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen}
+face_service=$pam_dir/kde-face
+face_marker='# kenning: kde-fingerprint with pam_kenning.so in place of pam_fprintd.so; removed with Kenning'
 
-# Prints the PAM files that use a module on a line that isn't a comment.
+# Prints the PAM files that use a module on a line that isn't a comment. Never
+# kde-face: without its pam_kenning.so line it would let anyone in, so it is only
+# ever written or removed whole.
 files_using() {
     local file
     for file in "$pam_dir"/*; do
-        [[ -f $file && ! -L $file ]] || continue
+        [[ -f $file && ! -L $file && $file != "$face_service" ]] || continue
         awk -v m="$1" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$file" && echo "$file"
     done
     return 0
@@ -38,12 +49,138 @@ rewrite() {
     mv "$file.kenning-new" "$file"
 }
 
+drop_from() { # file module
+    rewrite "$1" -v m="$2" '!(index($0, m) && $0 !~ /^[[:space:]]*#/)'
+    echo "  kenning: removed $2 from $1"
+}
+
 drop() {
     local file
     for file in $(files_using "$1"); do
-        rewrite "$file" -v m="$1" '!(index($0, m) && $0 !~ /^[[:space:]]*#/)'
-        echo "  kenning: removed $1 from $file"
+        drop_from "$file" "$1"
     done
+}
+
+uses() { # file module
+    [[ -f $1 ]] && awk -v m="$2" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$1"
+}
+
+# Adds face unlock in front of a service's password check, copying the packaged
+# file to /etc first when there is no override yet.
+add_to() { # service
+    local file=$pam_dir/$1
+    if [[ ! -e $file ]]; then
+        [[ -e $vendor_pam_dir/$1 ]] || return 0
+        cp "$vendor_pam_dir/$1" "$file"
+    fi
+    uses "$file" pam_kenning.so && return 0
+    rewrite "$file" -v line="$face_line" '!done && /^[[:space:]]*auth/ { print line; done = 1 } { print }'
+    echo "  kenning: face unlock switched on in $file"
+}
+
+fingerprint_service() {
+    local file
+    for file in "$pam_dir/kde-fingerprint" "$vendor_pam_dir/kde-fingerprint"; do
+        [[ -f $file ]] && uses "$file" pam_fprintd.so && echo "$file" && return 0
+    done
+    return 1
+}
+
+# Whether the lock screen has Plasma's own Face sign-in method: a 6.8 or newer lock
+# screen, a greeter built with the kde-face service, and a fingerprint service to
+# model it on.
+face_capable() {
+    grep -q AuthenticatorModel "$lockscreen_dir/LockScreenUi.qml" 2> /dev/null || return 1
+    local greeter found=
+    for greeter in ${GREETER:-/usr/lib/kscreenlocker_greet /usr/libexec/kscreenlocker_greet /usr/lib/*/libexec/kscreenlocker_greet}; do
+        [[ -f $greeter ]] && found=$greeter && break
+    done
+    [[ -n $found ]] && grep -aq kde-face "$found" || return 1
+    fingerprint_service > /dev/null
+}
+
+face_service_ours() {
+    [[ -f $face_service ]] && grep -qF "$face_marker" "$face_service"
+}
+
+# kde-face is the distribution's kde-fingerprint with pam_kenning.so in place of
+# pam_fprintd.so. It fails closed: a recognized face ends the stack, anything else
+# ends it with pam_kenning's own result (so Plasma tells "not set up" from "not
+# recognized"), and pam_deny.so stands behind it should the line ever go missing.
+write_face_service() {
+    if [[ -e $face_service ]] && ! face_service_ours; then
+        echo "  kenning: $face_service exists and isn't Kenning's; leaving it" >&2
+        return 1
+    fi
+    awk -v marker="$face_marker" '
+        NR == 1 && /^#%PAM/ { print; print marker; next }
+        NR == 1 { print marker }
+        $0 !~ /^[[:space:]]*#/ && /pam_fprintd\.so/ {
+            print "auth       [success=done default=die]  pam_kenning.so"
+            print "auth       required                    pam_deny.so"
+            next
+        }
+        { print }' "$(fingerprint_service)" > "$face_service.kenning-new"
+    chmod 644 "$face_service.kenning-new"
+    if cmp -s "$face_service.kenning-new" "$face_service"; then
+        rm "$face_service.kenning-new"
+    else
+        mv "$face_service.kenning-new" "$face_service"
+        echo "  kenning: wrote $face_service"
+    fi
+}
+
+remove_face_service() {
+    face_service_ours || return 0
+    rm "$face_service"
+    echo "  kenning: removed $face_service"
+}
+
+lockscreen() {
+    case "$1" in
+    on)
+        if face_capable; then
+            write_face_service || return 1
+            uses "$pam_dir/kde" pam_kenning.so && drop_from "$pam_dir/kde" pam_kenning.so
+        else
+            add_to kde
+        fi
+        ;;
+    off)
+        remove_face_service
+        uses "$pam_dir/kde" pam_kenning.so && drop_from "$pam_dir/kde" pam_kenning.so
+        ;;
+    status)
+        if face_capable; then
+            face_service_ours && echo "face on" || echo "face off"
+        else
+            uses "$pam_dir/kde" pam_kenning.so && echo "password on" || echo "password off"
+        fi
+        ;;
+    *)
+        echo "usage: $0 lockscreen on|off|status" >&2
+        return 1
+        ;;
+    esac
+    return 0
+}
+
+# After a Plasma upgrade (or a downgrade), keep lock screen face unlock on where it
+# was, in the form this Plasma uses.
+tidy_lockscreen() {
+    if face_capable; then
+        if uses "$pam_dir/kde" pam_kenning.so; then
+            lockscreen on || true
+            echo "  kenning: the lock screen now uses Plasma's Face sign-in method; it is switched on"
+            echo "           for each user with a face model at their next login (or now, as that"
+            echo "           user: /usr/lib/kenning/setup-prompt)"
+        elif face_service_ours; then
+            lockscreen on || true
+        fi
+    elif face_service_ours; then
+        remove_face_service
+        add_to kde
+    fi
 }
 
 migrate() {
@@ -60,30 +197,30 @@ migrate() {
     local services=(kde)
     [[ -e ${LOGIN_MANAGER_SUPPORT:-/usr/share/kenning/login-manager} ]] && services+=(plasmalogin)
     grep -Eq '^[[:space:]]*colour[[:space:]]*=[[:space:]]*true' "$kenning_dir/config.ini" 2>/dev/null || services+=(sudo)
+    # Face first, everything else stays as the password fallback.
     for service in "${services[@]}"; do
-        file=$pam_dir/$service
-        if [[ ! -e $file ]]; then
-            [[ -e $vendor_pam_dir/$service ]] || continue
-            cp "$vendor_pam_dir/$service" "$file"
-        fi
-        # Face first, everything else stays as the password fallback.
-        rewrite "$file" -v line="$face_line" '!done && /^[[:space:]]*auth/ { print line; done = 1 } { print }'
-        echo "  kenning: face unlock switched back on in $file"
+        add_to "$service"
     done
+    tidy_lockscreen
 }
 
 case "${1:-}" in
 tidy)
     [[ -e /usr/lib/security/pam_howdy.so ]] || drop pam_howdy.so
+    tidy_lockscreen
     ;;
 migrate)
     migrate
     ;;
 remove)
+    remove_face_service
     drop pam_kenning.so
     ;;
+lockscreen)
+    lockscreen "${2:-}"
+    ;;
 *)
-    echo "usage: $0 tidy|migrate|remove" >&2
+    echo "usage: $0 tidy|migrate|remove|lockscreen on|off|status" >&2
     exit 1
     ;;
 esac

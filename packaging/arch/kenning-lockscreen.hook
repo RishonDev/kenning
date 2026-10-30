@@ -3,9 +3,11 @@ Operation = Install
 Operation = Upgrade
 Type = Package
 Target = plasma-desktop
+Target = kscreenlocker
 Target = kenning
 
 [Action]
 Description = Adding face unlock to the Plasma lock screen...
 When = PostTransaction
-Exec = /usr/bin/python3 -I /usr/lib/kenning/kenning-lockscreen.py
+# The lock screen add-on, then lock screen face unlock in the form this Plasma uses
+Exec = /bin/sh -c '/usr/bin/python3 -I /usr/lib/kenning/kenning-lockscreen.py; /usr/lib/kenning/pam-tidy tidy'

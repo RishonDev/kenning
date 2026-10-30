@@ -85,6 +85,7 @@ fi
 # including when this package is installed after Plasma.
 %transfiletriggerin -- /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
 python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
+/usr/lib/kenning/pam-tidy tidy || :
 
 %transfiletriggerin -- /usr/lib/kenning
 python3 -I /usr/lib/kenning/kenning-lockscreen.py || :

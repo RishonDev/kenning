@@ -9,6 +9,7 @@
 
 #include <QFileInfo>
 #include <QList>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QString>
 
@@ -29,6 +30,26 @@ inline const QString loginManagerSupportPath = QStringLiteral("/usr/share/kennin
 inline const QString userThemesPath = QStringLiteral("/usr/local/share/kenning/themes");
 inline const QString systemThemesPath = QStringLiteral("/usr/share/kenning/themes");
 inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_kenning.so");
+// Manages lock screen face unlock: Plasma's Face sign-in method (PAM service kde-face)
+// on Plasma 6.8 and newer, pam_kenning.so in the password service before that.
+inline const QString pamTidy = QStringLiteral("/usr/lib/kenning/pam-tidy");
+
+struct LockScreenState {
+    bool known = false; // pam-tidy answered
+    bool faceService = false; // Plasma's Face method rather than the password service
+    bool enabled = false;
+};
+inline LockScreenState lockScreenState()
+{
+    QProcess process;
+    process.start(pamTidy, {QStringLiteral("lockscreen"), QStringLiteral("status")});
+    process.waitForFinished(5000);
+    const QString status = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+    if (process.exitCode() != 0 || !(status.endsWith(QLatin1String(" on")) || status.endsWith(QLatin1String(" off")))) {
+        return {};
+    }
+    return {true, status.startsWith(QLatin1String("face")), status.endsWith(QLatin1String(" on"))};
+}
 
 // The Kenning service user, which owns the face models (kenning.service)
 inline const QString serviceUser = QStringLiteral("kenning");

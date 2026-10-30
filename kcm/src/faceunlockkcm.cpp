@@ -173,6 +173,11 @@ void FaceUnlockKcm::load()
     for (const auto &service : FaceUnlock::pamServices()) {
         settings.insert(QStringLiteral("pam/") + service.id, pamUsesEngine(service.path));
     }
+    const FaceUnlock::LockScreenState lockScreen = FaceUnlock::lockScreenState();
+    m_lockScreenFaceService = lockScreen.faceService;
+    if (lockScreen.known) {
+        settings.insert(QStringLiteral("pam/lockscreen"), lockScreen.enabled);
+    }
 
     KConfig system(FaceUnlock::systemConfigPath, KConfig::SimpleConfig);
     for (const QString &key : {QStringLiteral("Appearance/AnimationStyle"), QStringLiteral("LoginScreen/AutoScan"), QStringLiteral("LoginScreen/WelcomePause")}) {
@@ -232,6 +237,21 @@ void FaceUnlockKcm::save()
     if (m_fingerprintEnrolled && !useLast && preferred == QLatin1String("fingerprint")) {
         // Plasma only offers fingerprint as a method of its own when this is on.
         config->group(QStringLiteral("Authenticators")).writeEntry("Fingerprint", true);
+    }
+    if (m_lockScreenFaceService) {
+        // Plasma's Face method is switched on per user.
+        const bool face = m_settings.value(QStringLiteral("pam/lockscreen")).toBool();
+        config->group(QStringLiteral("Authenticators")).writeEntry("Face", face);
+        if (!face) {
+            // A remembered method that is switched off crashes the lock screen
+            // (https://bugs.kde.org/528042), so forget it too.
+            auto state = KSharedConfig::openStateConfig(QStringLiteral("kscreenlockerrc"));
+            KConfigGroup greeter = state->group(QStringLiteral("Greeter"));
+            if (greeter.readEntry("Authenticator") == QLatin1String("Face")) {
+                greeter.deleteEntry("Authenticator");
+                state->sync();
+            }
+        }
     }
     config->sync();
 

@@ -22,7 +22,7 @@ from pathlib import Path
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 6"
+VERSION = "face unlock patch 7"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -117,13 +117,21 @@ UI_FUNCTION = ("""    property string pendingPassword
     property int faceState: 0
     property string faceMessage
 
-    // Sign-in method to start with, set in System Settings > Face Unlock when a fingerprint
-    // is enrolled: the authenticator type (0 password, which scans the face first;
-    // 1 fingerprint), or -1 for the one used last, as Plasma does by default.
-    readonly property int preferredMethod: config.useLastMethod || !config.preferredMethod ? -1
-                                           : config.preferredMethod === "fingerprint" ? 1 : 0
-    // Asks the authenticator buttons to switch to the method of this type.
+    // Sign-in method to start with, as authenticator type: 3 Plasma's Face method (Plasma
+    // 6.8 and newer with Kenning), 1 fingerprint (System Settings > Face Unlock, when a
+    // fingerprint is enrolled), or -1 for the one used last, as Plasma does by default.
+    // A method that isn't offered falls back to the one used last.
+    readonly property int preferredMethod: config.useLastMethod ? -1
+                                           : config.preferredMethod === "fingerprint" ? 1 : 3
+    // Whether Plasma offers its Face method and it works (a face model, the service up).
+    property bool faceOffered: false
+    // Asks the authenticator buttons to switch to the method of this type, if it works.
     signal switchMethod(int type)
+
+    // Switches after the current authenticator's signal has returned: switching deletes it.
+    function switchMethodLater(type) {{
+        Qt.callLater(() => lockScreenUi.switchMethod(type));
+    }}
 
     // Plasma starts the fingerprint reader before its PAM worker is ready and doesn't retry
     // until a key or the mouse wakes the screen; retry for a few seconds so a finger works
@@ -142,10 +150,25 @@ UI_FUNCTION = ("""    property string pendingPassword
         }}
     }}
 
-    // Fingerprint first: when it fails or stops working, fall back to face and password.
+    // Fingerprint first: when it fails or stops working, fall back to the face (Plasma's
+    // Face method, or the password, which scans the face first where face unlock lives
+    // there), and the password.
     function fingerprintFallback() {{
-        lockScreenUi.switchMethod(0);
-        lockScreenUi.handleMessage(i18nc("@info:status", "Fingerprint not recognized. Look at the camera or type your password."));
+        Qt.callLater(() => {{
+            lockScreenUi.switchMethod(lockScreenUi.faceOffered ? 3 : 0);
+            lockScreenUi.handleMessage(i18nc("@info:status", "Fingerprint not recognized. Look at the camera or type your password."));
+        }});
+    }}
+
+    // Plasma's Face method failed: fall back to the password (and fingerprint, which
+    // Plasma runs beside it) instead of Plasma's immediate retry; waking the screen
+    // scans again.
+    function faceFallback() {{
+        if (faceState !== 3) {{
+            handleFaceMessage("Failure, general abort");
+        }}
+        faceNeedsRetry = true;
+        switchMethodLater(0);
     }}
 
     // Returns true when the message belonged to face unlock and is shown by the indicator.
@@ -188,6 +211,10 @@ UI_FUNCTION = ("""    property string pendingPassword
             return;
         }}
         faceNeedsRetry = false;
+        if (authenticator.authenticator === 0 && faceOffered) {{
+            switchMethod(3);
+            return;
+        }}
         authenticator.stopAuthenticating();
         authenticator.startAuthenticating();
     }}
@@ -233,6 +260,10 @@ UI_FALLBACK = ("""        function onFailed(kind) {
             if (kind != 0) { // if this is coming from the noninteractive authenticators
                 return;
             }
+            if (authenticator.authenticator === 3) {
+                lockScreenUi.faceFallback();
+                return;
+            }
             if (authenticator.authenticator === 1 && lockScreenUi.preferredMethod === 1) {
                 lockScreenUi.fingerprintFallback();
                 return;
@@ -246,6 +277,9 @@ UI_METHOD = ("""                            Component.onCompleted: {
                                 }
                             }
 """, """                            Component.onCompleted: {
+                                if (type === 3) {
+                                    lockScreenUi.faceOffered = functional
+                                }
                                 if (type === lockScreenUi.preferredMethod) {
                                     clicked()
                                 } else if (checked) {
@@ -261,14 +295,16 @@ UI_METHOD = ("""                            Component.onCompleted: {
                             Connections {
                                 target: lockScreenUi
                                 function onSwitchMethod(to) {
-                                    if (to === type) {
+                                    if (to === type && functional) {
                                         clicked()
                                     }
                                 }
                             }
 """)
 
-# A preferred fingerprint reader that stops working (unplugged, fprintd gone) falls back too.
+# A method that stops working falls back: Plasma's Face method (no face model, lid closed,
+# service down) quietly to the password, a preferred fingerprint reader (unplugged,
+# fprintd gone) to the face and password.
 UI_DEFUNCT = ("""                            onFunctionalChanged: {
                                 if (functional) {
                                     return
@@ -277,10 +313,35 @@ UI_DEFUNCT = ("""                            onFunctionalChanged: {
                                 if (functional) {
                                     return
                                 }
+                                if (type === 3) {
+                                    lockScreenUi.faceOffered = false
+                                    if (authenticator.authenticator === 3) {
+                                        lockScreenUi.switchMethodLater(0)
+                                        return
+                                    }
+                                }
                                 if (type === 1 && authenticator.authenticator === 1 && lockScreenUi.preferredMethod === 1) {
                                     lockScreenUi.fingerprintFallback()
                                     return
                                 }
+""")
+
+UI_FACE_SUCCEEDED = ("""            if (!lockScreenUi.expectingPrompt) {
+                Qt.quit()
+            }
+""", """            // Plasma's Face method: the greeting and pause, or the Unlock button (System Settings).
+            if (authenticator.authenticator === 3) {
+                if (config.faceUnlockShowButton) {
+                    mainStack.replace(null, Qt.resolvedUrl("NoPasswordUnlock.qml"), { userListModel: users }, StackView.Immediate);
+                    mainStack.forceActiveFocus();
+                } else {
+                    lockScreenUi.finishFaceUnlock();
+                }
+                return;
+            }
+            if (!lockScreenUi.expectingPrompt) {
+                Qt.quit()
+            }
 """)
 
 UI_WAKE = ("""            } else if (uiVisible) {
@@ -300,6 +361,17 @@ UI_KEYS = ("""        Keys.onPressed: event => {
             uiVisible = true;""", """        Keys.onPressed: event => {
             if (event.text.trim().length > 0) {
                 lockScreenUi.faceNeedsRetry = false;
+                // Typing while Plasma's Face method scans means a password: switch to it
+                // (the password field is hidden until then), keeping the key.
+                if (authenticator.authenticator === 3) {
+                    lockScreenUi.faceState = 0;
+                    lockScreenUi.switchMethod(0);
+                    mainBlock.mainPasswordBox.text += event.text;
+                    mainBlock.mainPasswordBox.forceActiveFocus();
+                    uiVisible = true;
+                    event.accepted = true;
+                    return;
+                }
             }
             uiVisible = true;""")
 
@@ -381,7 +453,7 @@ EDITS = {
     "config.xml": [CONFIG_XML],
     "config.qml": [CONFIG_QML],
     "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS, UI_PASSWORD, UI_PROMPT,
-                         UI_FALLBACK, UI_METHOD, UI_DEFUNCT],
+                         UI_FALLBACK, UI_METHOD, UI_DEFUNCT, UI_FACE_SUCCEEDED],
 }
 
 
