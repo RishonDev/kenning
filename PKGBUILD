@@ -2,9 +2,9 @@
 # Build from this directory with makepkg; the login screen fork is in login-manager/.
 
 pkgname=plasma-faceunlock
-pkgver=0.2.1
+pkgver=0.2.2
 pkgrel=1
-pkgdesc='Face unlock (Howdy) settings for Plasma, with Windows Hello style lock screen animation'
+pkgdesc='Face unlock (Howdy) settings for Plasma, with an animated face scan on the lock screen'
 arch=(x86_64)
 license=(GPL-2.0-or-later)
 depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop python qt6-declarative libarchive)

@@ -35,17 +35,17 @@ makedepends=(extra-cmake-modules
              qt6-tools)
 groups=(plasma)
 source=(https://download.kde.org/stable/plasma/$_dirver/$pkgname-$pkgver.tar.xz{,.sig}
-        howdy-auto-login.patch)
+        plasma-login-manager-faceunlock.patch)
 sha256sums=('4a6e2b65b5d462fcf43b2a5be3c3e6244f479451b6dcfa00dcbf33fbc5cd093a'
             'SKIP'
-            '5e0c5c529ca49c4d75e88e41b6e80a5f16c5d5f390e83561e0f3649f3b8c83dd')
+            '56400612dd18867dfc82ceb962d6eb8b50559b6e798ad99fca3691bb79407d55')
 validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell <jr@jriddell.org>
               '0AAC775BB6437A8D9AF7A3ACFE0784117FBCE11D'  # Bhushan Shah <bshah@kde.org>
               'D07BD8662C56CB291B316EB2F5675605C74E02CF'  # David Edmundson <davidedmundson@kde.org>
               '1FA881591C26B276D7A5518EEAAF29B42A678C20') # Marco Martin <notmart@gmail.com>
 
 prepare() {
-  patch -d $pkgname-$pkgver -p1 < howdy-auto-login.patch
+  patch -d $pkgname-$pkgver -p1 < plasma-login-manager-faceunlock.patch
 }
 
 build() {

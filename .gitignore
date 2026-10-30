@@ -7,3 +7,7 @@ login-manager/src/
 login-manager/pkg/
 login-manager/*.tar.*
 __pycache__/
+*.dat.bz2
+*.dat
+*.onnx
+plasma-login-manager-*.tar.xz*

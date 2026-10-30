@@ -1,6 +1,6 @@
 # plasma-faceunlock
 
-Windows Hello style face unlock for KDE Plasma: a System Settings page, an
+Face unlock for KDE Plasma: a System Settings page, an
 animated face scan on the login and lock screens, and installable animation
 themes.
 

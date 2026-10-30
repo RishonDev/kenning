@@ -78,11 +78,12 @@ index f5ea2ab..5de5530 100644
          QTimer::singleShot(800, []() {
 diff --git a/src/frontend/greeter/qml/FaceScanIndicator.qml b/src/frontend/greeter/qml/FaceScanIndicator.qml
 new file mode 100644
-index 0000000..5d09c55
+index 0000000..1e2116d
 --- /dev/null
 +++ b/src/frontend/greeter/qml/FaceScanIndicator.qml
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,113 @@
 +/*
++ * SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 + * SPDX-License-Identifier: LGPL-2.0-or-later
 + */
 +
