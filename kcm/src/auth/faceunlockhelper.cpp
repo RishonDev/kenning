@@ -128,7 +128,7 @@ bool updateEngineConfig(const QVariantMap &values)
     return writeFile(FaceUnlock::engineConfigPath, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
 }
 
-// Adds or removes the pam_faceunlock.so line (and drops any pam_howdy.so line). A service without an /etc override is
+// Adds or removes the pam_kenning.so line (and drops any pam_howdy.so line). A service without an /etc override is
 // first copied from its packaged file in /usr/lib/pam.d.
 bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 {
@@ -169,7 +169,7 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 namespace
 {
 // Face models are root-only: the face unlock service reads them for everyone else.
-// The config stays readable, since pam_faceunlock checks it in the caller's process.
+// The config stays readable, since pam_kenning checks it in the caller's process.
 void secureModels()
 {
     const QString models = QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath();
@@ -212,7 +212,7 @@ ActionReply FaceUnlockHelper::list(const QVariantMap &)
 
 ActionReply FaceUnlockHelper::add(const QVariantMap &args)
 {
-    // faceunlock drops commas itself; keep labels short as Howdy does.
+    // kenning drops commas itself; keep labels short as Howdy does.
     QString label = args.value(QStringLiteral("label")).toString().remove(QLatin1Char(',')).simplified().left(24);
     if (label.isEmpty()) {
         label = QStringLiteral("Face");
@@ -236,7 +236,7 @@ ActionReply FaceUnlockHelper::remove(const QVariantMap &args)
 
 ActionReply FaceUnlockHelper::test(const QVariantMap &)
 {
-    // Same check pam_faceunlock runs: exit 0 match, 10 no model, 11 timeout, 12 abort, 13 too dark.
+    // Same check pam_kenning runs: exit 0 match, 10 no model, 11 timeout, 12 abort, 13 too dark.
     return runStreaming(FaceUnlock::engineBinary, {QStringLiteral("compare"), callerName()});
 }
 
@@ -363,6 +363,6 @@ ActionReply FaceUnlockHelper::removetheme(const QVariantMap &args)
     return ActionReply::SuccessReply();
 }
 
-KAUTH_HELPER_MAIN("org.kde.kcontrol.kcmfaceunlock", FaceUnlockHelper)
+KAUTH_HELPER_MAIN("org.kde.kcontrol.kcmkenning", FaceUnlockHelper)
 
 #include "moc_faceunlockhelper.cpp"

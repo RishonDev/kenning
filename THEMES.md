@@ -24,7 +24,7 @@ my-theme/
         "License": "LGPL-2.0-or-later",
         "Version": "1.0"
     },
-    "X-FaceUnlock-APIVersion": 1
+    "X-Kenning-APIVersion": 1
 }
 ```
 
@@ -58,6 +58,6 @@ complete examples.
 
 Pack the theme folder (`tar czf my-theme.tar.gz my-theme`) and use **Install
 from File…** in System Settings > Face Unlock. Installed themes go to
-`/usr/local/share/faceunlock/themes`; packaged ones live in
-`/usr/share/faceunlock/themes`. A theme in the first replaces a packaged theme
+`/usr/local/share/kenning/themes`; packaged ones live in
+`/usr/share/kenning/themes`. A theme in the first replaces a packaged theme
 with the same id.

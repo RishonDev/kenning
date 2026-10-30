@@ -18,7 +18,7 @@ frame (raw V4L2 measures the same), so it is the floor for either engine. The
 earlier impression that native was slower came from a setup where PAM was
 still using Howdy.
 
-- [x] Add a timing breakdown to `faceunlock test`: time to the first lit frame,
+- [x] Add a timing breakdown to `kenning test`: time to the first lit frame,
       frames with a detected face, time to a match
 - [x] Compare both: native was faster and never failed in the runs above;
       it needs no AUR packages, which suits KDE upstream
@@ -72,14 +72,19 @@ webcam:
 ## Follow-ups (not yet ordered)
 
 - [x] Plug and play: install/upgrade drops pam_howdy lines once Howdy is gone,
-      removal drops pam_faceunlock lines, and the first login after startup
+      removal drops pam_kenning lines, and the first login after startup
       (uptime under 10 minutes) offers Set Up once if there is an IR camera
 - [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
       option is hidden in System Settings until it is (show a privacy warning then)
 - [x] A root service that owns the camera and face models (like fprintd), so
-      models no longer have to be readable by local users: `faceunlock daemon`,
+      models no longer have to be readable by local users: `kenning daemon`,
       socket-activated, answering only for root or the user's own account
 - [ ] Upstream route: a `kde-face` PAM service and a face authenticator in
       kscreenlocker beside fingerprint; the login manager auto-scan as a merge
       request; the settings page as a KCM or part of Users
-- [ ] A trademark-safe product name before any commercial release
+- [x] A trademark-safe product name: **Kenning** (to ken = to know, recognise),
+      in KDE's style of real words with a K. Quick web checks found no clash in
+      face recognition or authentication; KFace (KDE's archived libkface),
+      KVision (Kotlin framework), KGlance (Glance face unlock) and Kognize (close
+      to the KOGNIZA trademark application) were ruled out. A formal trademark
+      search (USPTO, EUIPO) is still needed before a commercial release

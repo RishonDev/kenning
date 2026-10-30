@@ -25,11 +25,11 @@
 #include <QQmlEngine>
 #include <QUrl>
 
-K_PLUGIN_CLASS_WITH_JSON(FaceUnlockKcm, "kcm_faceunlock.json")
+K_PLUGIN_CLASS_WITH_JSON(FaceUnlockKcm, "kcm_kenning.json")
 
 namespace
 {
-const QString helperId = QStringLiteral("org.kde.kcontrol.kcmfaceunlock");
+const QString helperId = QStringLiteral("org.kde.kcontrol.kcmkenning");
 
 // Values from config.ini keyed "section/key". Multi-line values are not needed here.
 QVariantMap readEngineConfig()
@@ -92,7 +92,7 @@ QString asText(const QVariant &value)
 FaceUnlockKcm::FaceUnlockKcm(QObject *parent, const KPluginMetaData &data)
     : KQuickConfigModule(parent, data)
 {
-    qmlRegisterType<CameraPreview>("org.kde.faceunlock", 1, 0, "CameraPreview");
+    qmlRegisterType<CameraPreview>("org.kde.kenning", 1, 0, "CameraPreview");
     setButtons(Apply | Default);
 }
 
@@ -281,7 +281,7 @@ bool FaceUnlockKcm::colourCamera() const
 
 bool FaceUnlockKcm::engineInstalled() const
 {
-    return QFile::exists(QStringLiteral("/usr/lib/security/pam_faceunlock.so")) && QFile::exists(FaceUnlock::engineBinary);
+    return QFile::exists(QStringLiteral("/usr/lib/security/pam_kenning.so")) && QFile::exists(FaceUnlock::engineBinary);
 }
 
 bool FaceUnlockKcm::lockScreenPatched() const

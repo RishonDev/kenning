@@ -12,9 +12,9 @@
 // System Settings page for face unlock.
 //
 // settings is one flat map that QML edits through setValue():
-//   "core/…", "video/…", "snapshots/…"  /etc/faceunlock/config.ini (helper)
-//   "pam/<service>"                      pam_faceunlock.so in /etc/pam.d (helper)
-//   "Appearance/…", "LoginScreen/…"      /etc/xdg/faceunlockrc (helper)
+//   "core/…", "video/…", "snapshots/…"  /etc/kenning/config.ini (helper)
+//   "pam/<service>"                      pam_kenning.so in /etc/pam.d (helper)
+//   "Appearance/…", "LoginScreen/…"      /etc/xdg/kenningrc (helper)
 //   "lock/…"                             ~/.config/kscreenlockerrc (written directly)
 class FaceUnlockKcm : public KQuickConfigModule
 {

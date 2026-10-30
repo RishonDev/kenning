@@ -75,7 +75,7 @@ index 9084f28..d165a4a 100644
      RESOURCES
      qml/faces/.face.icon
 diff --git a/src/frontend/greeter/main.cpp b/src/frontend/greeter/main.cpp
-index cbb37eb..7028cbb 100644
+index cbb37eb..9c40c0a 100644
 --- a/src/frontend/greeter/main.cpp
 +++ b/src/frontend/greeter/main.cpp
 @@ -9,10 +9,13 @@
@@ -97,7 +97,7 @@ index cbb37eb..7028cbb 100644
      qmlRegisterType<GreeterEventFilter>("org.kde.plasma.login", 0, 1, "GreeterEventFilter");
  
 +    // Face unlock options written by the Face Unlock settings page.
-+    const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/faceunlockrc"), KConfig::SimpleConfig);
++    const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/kenningrc"), KConfig::SimpleConfig);
 +    auto *faceUnlock = new QQmlPropertyMap(&app);
 +    faceUnlock->insert(QStringLiteral("animationStyle"), faceUnlockConfig.group(QStringLiteral("Appearance")).readEntry("AnimationStyle", QStringLiteral("hello")));
 +    faceUnlock->insert(QStringLiteral("autoScan"), faceUnlockConfig.group(QStringLiteral("LoginScreen")).readEntry("AutoScan", true));
@@ -142,7 +142,7 @@ index f5ea2ab..5de5530 100644
          QTimer::singleShot(800, []() {
 diff --git a/src/frontend/greeter/qml/FaceScanIndicator.qml b/src/frontend/greeter/qml/FaceScanIndicator.qml
 new file mode 100644
-index 0000000..1e2116d
+index 0000000..37e6998
 --- /dev/null
 +++ b/src/frontend/greeter/qml/FaceScanIndicator.qml
 @@ -0,0 +1,113 @@
@@ -158,8 +158,8 @@ index 0000000..1e2116d
 +
 +// Face unlock progress, shared by the login screen, the lock screen and the Face
 +// Unlock settings page. The visuals come from a theme: <dir>/<id>/contents/ui/main.qml
-+// in /usr/local/share/faceunlock/themes (installed by the user) or
-+// /usr/share/faceunlock/themes (packaged). A theme that fails to load falls back
++// in /usr/local/share/kenning/themes (installed by the user) or
++// /usr/share/kenning/themes (packaged). A theme that fails to load falls back
 +// to "hello". See THEMES.md for the theme API.
 +Item {
 +    id: root
@@ -169,7 +169,7 @@ index 0000000..1e2116d
 +    property string message
 +    // Theme id
 +    property string style: "hello"
-+    property var themeDirs: ["file:///usr/local/share/faceunlock/themes/", "file:///usr/share/faceunlock/themes/"]
++    property var themeDirs: ["file:///usr/local/share/kenning/themes/", "file:///usr/share/kenning/themes/"]
 +
 +    readonly property bool active: faceState !== 0
 +    readonly property string themeId: /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(style) ? style : "hello"
@@ -452,7 +452,7 @@ index ae440c0..5a26c72 100644
              footer.opacity = 0;
          }
 diff --git a/src/helper/HelperApp.cpp b/src/helper/HelperApp.cpp
-index 9a21b83..8686482 100644
+index 9a21b83..e18c710 100644
 --- a/src/helper/HelperApp.cpp
 +++ b/src/helper/HelperApp.cpp
 @@ -17,6 +17,12 @@
@@ -486,7 +486,7 @@ index 9a21b83..8686482 100644
 +    // The greeter now knows the login succeeded; give it a moment to show its
 +    // face unlock confirmation before the session takes over the screen.
 +    if (m_backend->passwordless()) {
-+        const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/faceunlockrc"), KConfig::SimpleConfig);
++        const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/kenningrc"), KConfig::SimpleConfig);
 +        const int pause = faceUnlockConfig.group(QStringLiteral("LoginScreen")).readEntry("WelcomePause", 1000);
 +        QThread::msleep(std::clamp(pause, 0, 3000));
 +    }

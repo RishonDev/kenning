@@ -38,7 +38,7 @@ struct Networks {
     double loadMs = 0; // 0 when they came from the cache
 };
 
-// Loaded once per process: the service (faceunlock daemon) runs many scans and
+// Loaded once per process: the service (kenning daemon) runs many scans and
 // keeps them, a one-off command loads them once anyway.
 Networks networks(float detectionThreshold)
 {

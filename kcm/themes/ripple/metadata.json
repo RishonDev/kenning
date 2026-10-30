@@ -5,11 +5,11 @@
         "Description": "Rings ripple out from a small face while scanning, then settle into a green checkmark or a red ring.",
         "Authors": [
             {
-                "Name": "plasma-faceunlock"
+                "Name": "kenning"
             }
         ],
         "License": "LGPL-2.0-or-later",
         "Version": "1.0"
     },
-    "X-FaceUnlock-APIVersion": 1
+    "X-Kenning-APIVersion": 1
 }

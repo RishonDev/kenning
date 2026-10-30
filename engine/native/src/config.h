@@ -4,7 +4,7 @@
 */
 #pragma once
 
-// Paths, exit codes and config.ini reading, header-only so pam_faceunlock can
+// Paths, exit codes and config.ini reading, header-only so pam_kenning can
 // use them without linking OpenCV or Qt.
 
 #include <fstream>
@@ -15,17 +15,17 @@ namespace FaceUnlock
 {
 // Set at build time only: a runtime override would let a user point
 // authentication at their own face models.
-#ifndef FACEUNLOCK_SYSCONFDIR
-#define FACEUNLOCK_SYSCONFDIR "/etc/faceunlock"
+#ifndef KENNING_SYSCONFDIR
+#define KENNING_SYSCONFDIR "/etc/kenning"
 #endif
-#ifndef FACEUNLOCK_DATADIR
-#define FACEUNLOCK_DATADIR "/usr/share/plasma-faceunlock"
+#ifndef KENNING_DATADIR
+#define KENNING_DATADIR "/usr/share/kenning"
 #endif
 
-inline constexpr const char *configPath = FACEUNLOCK_SYSCONFDIR "/config.ini";
-inline constexpr const char *modelsDir = FACEUNLOCK_SYSCONFDIR "/models";
-inline constexpr const char *detectorModel = FACEUNLOCK_DATADIR "/models/face_detection_yunet_2023mar.onnx";
-inline constexpr const char *recognizerModel = FACEUNLOCK_DATADIR "/models/face_recognition_sface_2021dec.onnx";
+inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
+inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
+inline constexpr const char *detectorModel = KENNING_DATADIR "/models/face_detection_yunet_2023mar.onnx";
+inline constexpr const char *recognizerModel = KENNING_DATADIR "/models/face_recognition_sface_2021dec.onnx";
 
 // Exit codes shared with Howdy's compare.py
 enum ExitCode {

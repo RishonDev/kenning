@@ -7,8 +7,8 @@
 # plasma-desktop updates. All edits apply together or not at all, so a changed
 # upstream file stays stock.
 #
-# usage: faceunlock-lockscreen.py [lockscreen dir] [FaceScanIndicator.qml]
-#        faceunlock-lockscreen.py --restore [lockscreen dir]   put the stock files back
+# usage: kenning-lockscreen.py [lockscreen dir] [FaceScanIndicator.qml]
+#        kenning-lockscreen.py --restore [lockscreen dir]   put the stock files back
 
 import glob
 import shutil
@@ -18,9 +18,9 @@ from pathlib import Path
 
 # MARKER tags every patched file; VERSION changes whenever the edits do, so an
 # older patch is replaced by re-patching the original file from the package cache.
-MARKER = "plasma-faceunlock lock screen patch"
+MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
-LEGACY_MARKERS = ("lazysetup face unlock",)
+LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
 VERSION = "face unlock patch 5"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"

@@ -55,7 +55,7 @@ def has_face_model(user: str) -> bool | None:
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as service:
             service.settimeout(5)
-            service.connect("/run/faceunlock.sock")
+            service.connect("/run/kenning.sock")
             service.sendall(f"has-model {user}\n".encode())
             reply = service.recv(16).decode().strip()
     except (OSError, UnicodeDecodeError):
@@ -64,7 +64,7 @@ def has_face_model(user: str) -> bool | None:
 
 
 def main() -> int:
-    state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "faceunlock")
+    state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "kenning")
     marker = os.path.join(state, "setup-prompted")
     if os.path.exists(marker):
         return 0
@@ -97,7 +97,7 @@ def main() -> int:
          "This computer has an infrared camera that can recognize you on the login and lock screens."],
         capture_output=True, text=True)
     if result.stdout.strip() == "setup":
-        os.execvp("systemsettings", ["systemsettings", "kcm_faceunlock"])
+        os.execvp("systemsettings", ["systemsettings", "kcm_kenning"])
     return 0
 
 

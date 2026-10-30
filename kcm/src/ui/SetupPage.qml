@@ -11,7 +11,7 @@ import QtQuick.Shapes
 import org.kde.kcmutils as KCM
 import org.kde.kirigami as Kirigami
 
-import org.kde.faceunlock
+import org.kde.kenning
 
 // Guided face setup: live camera preview, one capture, then the
 // option to improve recognition with more captures (glasses on/off, lighting).

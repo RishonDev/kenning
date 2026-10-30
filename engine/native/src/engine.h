@@ -32,7 +32,7 @@ bool saveModels(const std::string &user, const std::vector<FaceModel> &models);
 // (1 - cosine similarity) * 10, so the recommended cosine of 0.363 is 6.37.
 double matchScore(double cosine);
 
-// What a scan saw, for faceunlock test.
+// What a scan saw, for kenning test.
 struct ScanStats {
     double cameraMs = 0; // opening the camera
     double networksMs = 0; // loading YuNet and SFace

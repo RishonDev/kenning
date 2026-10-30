@@ -5,11 +5,11 @@
         "Description": "Just the message, gently pulsing while it looks for you.",
         "Authors": [
             {
-                "Name": "plasma-faceunlock"
+                "Name": "kenning"
             }
         ],
         "License": "LGPL-2.0-or-later",
         "Version": "1.0"
     },
-    "X-FaceUnlock-APIVersion": 1
+    "X-Kenning-APIVersion": 1
 }

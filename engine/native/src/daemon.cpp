@@ -2,7 +2,7 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// faceunlock daemon: serves face checks for pam_faceunlock and the setup prompt, so
+// kenning daemon: serves face checks for pam_kenning and the setup prompt, so
 // the face models can stay root-only. Protocol and access rules: service.h.
 
 #include "daemon.h"
@@ -113,7 +113,7 @@ int runDaemon()
         listener = ownSocket();
     }
     if (listener < 0) {
-        std::cerr << "faceunlock daemon: can't listen on " << socketPath << '\n';
+        std::cerr << "kenning daemon: can't listen on " << socketPath << '\n';
         return Error;
     }
 

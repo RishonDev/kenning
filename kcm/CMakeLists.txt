@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(kcm_faceunlock VERSION 0.1.0)
+project(kcm_kenning VERSION 0.1.0)
 
 set(QT_MIN_VERSION "6.8.0")
 set(KF6_MIN_VERSION "6.10.0")
@@ -17,11 +17,11 @@ include(FeatureSummary)
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Core Gui Qml Quick)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS Auth Config CoreAddons I18n KCMUtils)
 
-add_definitions(-DTRANSLATION_DOMAIN="kcm_faceunlock")
+add_definitions(-DTRANSLATION_DOMAIN="kcm_kenning")
 
 add_subdirectory(src)
 
 
-install(DIRECTORY themes/ DESTINATION ${KDE_INSTALL_DATADIR}/faceunlock/themes)
+install(DIRECTORY themes/ DESTINATION ${KDE_INSTALL_DATADIR}/kenning/themes)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

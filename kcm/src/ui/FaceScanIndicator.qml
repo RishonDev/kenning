@@ -10,8 +10,8 @@ import org.kde.kirigami as Kirigami
 
 // Face unlock progress, shared by the login screen, the lock screen and the Face
 // Unlock settings page. The visuals come from a theme: <dir>/<id>/contents/ui/main.qml
-// in /usr/local/share/faceunlock/themes (installed by the user) or
-// /usr/share/faceunlock/themes (packaged). A theme that fails to load falls back
+// in /usr/local/share/kenning/themes (installed by the user) or
+// /usr/share/kenning/themes (packaged). A theme that fails to load falls back
 // to "hello". See THEMES.md for the theme API.
 Item {
     id: root
@@ -21,7 +21,7 @@ Item {
     property string message
     // Theme id
     property string style: "hello"
-    property var themeDirs: ["file:///usr/local/share/faceunlock/themes/", "file:///usr/share/faceunlock/themes/"]
+    property var themeDirs: ["file:///usr/local/share/kenning/themes/", "file:///usr/share/kenning/themes/"]
 
     readonly property bool active: faceState !== 0
     readonly property string themeId: /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(style) ? style : "hello"

@@ -1,13 +1,13 @@
-# Face unlock for Plasma in one build: `makepkg -si` installs both packages.
-#   plasma-faceunlock                face recognition engine (engine/native, OpenCV),
-#                                    System Settings page, lock screen add-on, themes
-#   plasma-login-manager-faceunlock  Plasma Login Manager that scans as soon as it appears
+# Kenning, face unlock for Plasma, in one build: `makepkg -si` installs both packages.
+#   kenning                       face recognition engine and service (engine/native, OpenCV),
+#                                 System Settings page, lock screen add-on, themes
+#   plasma-login-manager-kenning  Plasma Login Manager that scans as soon as it appears
 
-pkgbase=plasma-faceunlock
-pkgname=(plasma-faceunlock plasma-login-manager-faceunlock)
-pkgver=0.3.0
+pkgbase=kenning
+pkgname=(kenning plasma-login-manager-kenning)
+pkgver=0.4.0
 _plmver=6.8.2
-pkgrel=10
+pkgrel=1
 arch=(x86_64)
 url='https://invent.kde.org/'
 license=(GPL-2.0-or-later MIT Apache-2.0)
@@ -30,7 +30,7 @@ validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell
               '1FA881591C26B276D7A5518EEAAF29B42A678C20') # Marco Martin <notmart@gmail.com>
 
 prepare() {
-  patch -d plasma-login-manager-$_plmver -p1 < "$startdir/login-manager/plasma-login-manager-faceunlock.patch"
+  patch -d plasma-login-manager-$_plmver -p1 < "$startdir/login-manager/plasma-login-manager-kenning.patch"
 }
 
 build() {
@@ -46,35 +46,39 @@ build() {
   cmake --build plm-build
 }
 
-package_plasma-faceunlock() {
-  pkgdesc='Face unlock for KDE Plasma'
+package_kenning() {
+  pkgdesc='Kenning: face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
            libarchive libnotify opencv pam python)
-  optdepends=('plasma-login-manager-faceunlock: start face unlock as soon as the login screen appears')
-  backup=(etc/faceunlock/config.ini)
-  install=packaging/plasma-faceunlock.install
+  optdepends=('plasma-login-manager-kenning: start face unlock as soon as the login screen appears')
+  backup=(etc/kenning/config.ini)
+  # Earlier name; the install script moves its settings and face models across
+  conflicts=(plasma-faceunlock)
+  replaces=(plasma-faceunlock)
+  install=packaging/kenning.install
 
   DESTDIR="$pkgdir" cmake --install engine-build
-  install -Dm644 -t "$pkgdir/usr/share/plasma-faceunlock/models" *.onnx
+  install -Dm644 -t "$pkgdir/usr/share/kenning/models" *.onnx
   # The service socket is on by default (the PAM module needs it); nothing runs until used
   install -d "$pkgdir/usr/lib/systemd/system/sockets.target.wants"
-  ln -s ../faceunlock.socket "$pkgdir/usr/lib/systemd/system/sockets.target.wants/faceunlock.socket"
+  ln -s ../kenning.socket "$pkgdir/usr/lib/systemd/system/sockets.target.wants/kenning.socket"
 
   DESTDIR="$pkgdir" cmake --install kcm-build
-  install -Dm755 "$startdir/lockscreen/faceunlock-lockscreen.py" "$pkgdir/usr/lib/plasma-faceunlock/faceunlock-lockscreen.py"
-  install -Dm644 "$startdir/kcm/src/ui/FaceScanIndicator.qml" "$pkgdir/usr/lib/plasma-faceunlock/FaceScanIndicator.qml"
+  install -Dm755 "$startdir/lockscreen/kenning-lockscreen.py" "$pkgdir/usr/lib/kenning/kenning-lockscreen.py"
+  install -Dm644 "$startdir/kcm/src/ui/FaceScanIndicator.qml" "$pkgdir/usr/lib/kenning/FaceScanIndicator.qml"
   install -Dm644 -t "$pkgdir/usr/share/libalpm/hooks" "$startdir"/packaging/*.hook
-  install -Dm755 -t "$pkgdir/usr/lib/plasma-faceunlock" "$startdir/packaging/pam-tidy" "$startdir/packaging/setup-prompt"
-  install -Dm644 -t "$pkgdir/etc/xdg/autostart" "$startdir/packaging/org.kde.faceunlock.setupprompt.desktop"
+  install -Dm755 -t "$pkgdir/usr/lib/kenning" "$startdir/packaging/pam-tidy" "$startdir/packaging/setup-prompt"
+  install -Dm644 -t "$pkgdir/etc/xdg/autostart" "$startdir/packaging/org.kde.kenning.setupprompt.desktop"
 }
 
-package_plasma-login-manager-faceunlock() {
+package_plasma-login-manager-kenning() {
   pkgdesc='Plasma Login Manager that starts face unlock as soon as it appears'
   depends=(glibc kauth kcmutils kconfig kcoreaddons kdbusaddons ki18n kio kirigami kpackage kservice layer-shell-qt
            libkscreen libplasma libstdc++ libxau pam plasma-workspace qt6-5compat qt6-base qt6-declarative sh systemd-libs)
-  optdepends=('plasma-faceunlock: face unlock settings and themes')
+  optdepends=('kenning: face unlock settings and themes')
   provides=("plasma-login-manager=$_plmver")
-  conflicts=(plasma-login-manager)
+  conflicts=(plasma-login-manager plasma-login-manager-faceunlock)
+  replaces=(plasma-login-manager-faceunlock)
   groups=(plasma)
 
   DESTDIR="$pkgdir" cmake --install plm-build

@@ -2,34 +2,86 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Keeps PAM from pointing at face modules that aren't installed. Run by the package:
-#   pam-tidy tidy     (install, upgrade) drop pam_howdy.so lines once Howdy is gone
-#   pam-tidy remove   (removal) drop pam_faceunlock.so lines before the module goes
+# Keeps PAM pointing only at face modules that are installed. Run by the package:
+#   pam-tidy tidy      (install, upgrade) drop pam_howdy.so lines once Howdy is gone
+#   pam-tidy migrate   (install, upgrade) move from the earlier plasma-faceunlock name:
+#                      pam_faceunlock.so lines become pam_kenning.so; if removing the
+#                      old package already dropped them, switch face unlock back on
+#                      where Set Up does (when face models were carried over)
+#   pam-tidy remove    (removal) drop pam_kenning.so lines before the module goes
 # A line for a missing "sufficient" module is skipped by PAM with an error in the
 # log, so this is about a clean system, not about getting locked out.
 set -eu
 
+pam_dir=${PAM_DIR:-/etc/pam.d}
+vendor_pam_dir=${VENDOR_PAM_DIR:-/usr/lib/pam.d}
+kenning_dir=${KENNING_DIR:-/etc/kenning}
+face_line='auth       sufficient                  pam_kenning.so'
+
+# Prints the PAM files that use a module on a line that isn't a comment.
+files_using() {
+    local file
+    for file in "$pam_dir"/*; do
+        [[ -f $file && ! -L $file ]] || continue
+        awk -v m="$1" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$file" && echo "$file"
+    done
+    return 0
+}
+
+# Rewrites a PAM file through an awk program, keeping its owner and mode.
+rewrite() {
+    local file=$1
+    shift
+    awk "$@" "$file" > "$file.kenning-new"
+    chmod --reference="$file" "$file.kenning-new"
+    chown --reference="$file" "$file.kenning-new"
+    mv "$file.kenning-new" "$file"
+}
+
+drop() {
+    local file
+    for file in $(files_using "$1"); do
+        rewrite "$file" -v m="$1" '!(index($0, m) && $0 !~ /^[[:space:]]*#/)'
+        echo "  kenning: removed $1 from $file"
+    done
+}
+
+migrate() {
+    local file service
+    for file in $(files_using pam_faceunlock.so); do
+        rewrite "$file" '$0 !~ /^[[:space:]]*#/ { sub(/pam_faceunlock\.so/, "pam_kenning.so") } { print }'
+        echo "  kenning: $file now uses pam_kenning.so"
+    done
+
+    [[ -z $(files_using pam_kenning.so) ]] || return 0
+    compgen -G "$kenning_dir/models/*.dat" > /dev/null || return 0
+    # Same services as Set Up: an ordinary webcam stays off sudo.
+    local services=(plasmalogin kde sudo)
+    grep -Eq '^[[:space:]]*colour[[:space:]]*=[[:space:]]*true' "$kenning_dir/config.ini" 2>/dev/null && services=(plasmalogin kde)
+    for service in "${services[@]}"; do
+        file=$pam_dir/$service
+        if [[ ! -e $file ]]; then
+            [[ -e $vendor_pam_dir/$service ]] || continue
+            cp "$vendor_pam_dir/$service" "$file"
+        fi
+        # Face first, everything else stays as the password fallback.
+        rewrite "$file" -v line="$face_line" '!done && /^[[:space:]]*auth/ { print line; done = 1 } { print }'
+        echo "  kenning: face unlock switched back on in $file"
+    done
+}
+
 case "${1:-}" in
 tidy)
-    [[ -e /usr/lib/security/pam_howdy.so ]] && exit 0
-    module=pam_howdy.so
+    [[ -e /usr/lib/security/pam_howdy.so ]] || drop pam_howdy.so
+    ;;
+migrate)
+    migrate
     ;;
 remove)
-    module=pam_faceunlock.so
+    drop pam_kenning.so
     ;;
 *)
-    echo "usage: $0 tidy|remove" >&2
+    echo "usage: $0 tidy|migrate|remove" >&2
     exit 1
     ;;
 esac
-
-for file in "${PAM_DIR:-/etc/pam.d}"/*; do
-    [[ -f $file && ! -L $file ]] || continue
-    # Only lines that use the module; comments mentioning it stay.
-    awk -v m="$module" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$file" || continue
-    awk -v m="$module" '!(index($0, m) && $0 !~ /^[[:space:]]*#/)' "$file" > "$file.faceunlock-new"
-    chmod --reference="$file" "$file.faceunlock-new"
-    chown --reference="$file" "$file.faceunlock-new"
-    mv "$file.faceunlock-new" "$file"
-    echo "  face unlock: removed $module from $file"
-done

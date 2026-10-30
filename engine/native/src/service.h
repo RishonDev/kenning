@@ -4,7 +4,7 @@
 */
 #pragma once
 
-// The face unlock service (faceunlock daemon, socket-activated by systemd) owns the
+// The face unlock service (kenning daemon, socket-activated by systemd) owns the
 // camera and the face models, which only root can read. Clients talk to it over a
 // Unix socket, one request per connection:
 //
@@ -13,7 +13,7 @@
 //                                    10 no model, 11 timeout, 12 refused, 13 too dark
 //
 // The service answers only for root or for the user's own account, so nobody can
-// ask about someone else's face. Header-only so pam_faceunlock (which must not load
+// ask about someone else's face. Header-only so pam_kenning (which must not load
 // OpenCV) can use it.
 
 #include "config.h"
@@ -29,10 +29,10 @@
 
 namespace FaceUnlock
 {
-#ifndef FACEUNLOCK_SOCKET
-#define FACEUNLOCK_SOCKET "/run/faceunlock.sock"
+#ifndef KENNING_SOCKET
+#define KENNING_SOCKET "/run/kenning.sock"
 #endif
-inline constexpr const char *socketPath = FACEUNLOCK_SOCKET;
+inline constexpr const char *socketPath = KENNING_SOCKET;
 
 // Sends one request and returns the reply code, or -1 when the service can't be
 // reached. timeoutSeconds bounds the whole wait (a scan takes up to video/timeout,

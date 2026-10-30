@@ -17,27 +17,27 @@
 
 namespace FaceUnlock
 {
-inline const QString engineConfigPath = QStringLiteral("/etc/faceunlock/config.ini");
-inline const QString engineBinary = QStringLiteral("/usr/bin/faceunlock");
-inline const QString systemConfigPath = QStringLiteral("/etc/xdg/faceunlockrc");
+inline const QString engineConfigPath = QStringLiteral("/etc/kenning/config.ini");
+inline const QString engineBinary = QStringLiteral("/usr/bin/kenning");
+inline const QString systemConfigPath = QStringLiteral("/etc/xdg/kenningrc");
 inline const QString lockScreenPath = QStringLiteral("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml");
-inline const QString lockScreenMarker = QStringLiteral("plasma-faceunlock lock screen patch");
-inline const QString userThemesPath = QStringLiteral("/usr/local/share/faceunlock/themes");
-inline const QString systemThemesPath = QStringLiteral("/usr/share/faceunlock/themes");
-inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_faceunlock.so");
+inline const QString lockScreenMarker = QStringLiteral("kenning lock screen patch");
+inline const QString userThemesPath = QStringLiteral("/usr/local/share/kenning/themes");
+inline const QString systemThemesPath = QStringLiteral("/usr/share/kenning/themes");
+inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_kenning.so");
 
 inline QString modelPath(const QString &user)
 {
-    return QStringLiteral("/etc/faceunlock/models/%1.dat").arg(user);
+    return QStringLiteral("/etc/kenning/models/%1.dat").arg(user);
 }
 
 inline bool isPamLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
-    return !trimmed.startsWith(QLatin1Char('#')) && trimmed.contains(QLatin1String("pam_faceunlock.so"));
+    return !trimmed.startsWith(QLatin1Char('#')) && trimmed.contains(QLatin1String("pam_kenning.so"));
 }
 
-// pam_faceunlock or a leftover pam_howdy; both are removed so only one engine runs.
+// pam_kenning or a leftover pam_howdy; both are removed so only one engine runs.
 inline bool isFacePamLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
@@ -86,7 +86,7 @@ inline std::function<bool(const QString &)> numberIn(double min, double max)
     };
 }
 
-// Engine settings, keyed "section/key" as in /etc/faceunlock/config.ini.
+// Engine settings, keyed "section/key" as in /etc/kenning/config.ini.
 inline std::optional<Setting> engineSetting(const QString &id)
 {
     static const QList<std::pair<QString, std::function<bool(const QString &)>>> settings = {
@@ -109,7 +109,7 @@ inline std::optional<Setting> engineSetting(const QString &id)
     return std::nullopt;
 }
 
-// Login screen settings in /etc/xdg/faceunlockrc, keyed "Group/Key".
+// Login screen settings in /etc/xdg/kenningrc, keyed "Group/Key".
 inline std::optional<Setting> systemSetting(const QString &id)
 {
     static const QList<std::pair<QString, std::function<bool(const QString &)>>> settings = {

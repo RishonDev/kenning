@@ -4,7 +4,7 @@
 Description=Face unlock service socket
 
 [Socket]
-ListenStream=@FACEUNLOCK_SOCKET@
+ListenStream=@KENNING_SOCKET@
 # Everyone may connect; the service only answers for root or the user's own account.
 SocketMode=0666
 

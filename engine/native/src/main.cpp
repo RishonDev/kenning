@@ -2,10 +2,10 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// faceunlock: manage face models and run recognition. Arguments follow Howdy's CLI:
-//   faceunlock [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test
-//   faceunlock compare USER     one scan for USER; exit code as Howdy's compare.py
-//   faceunlock daemon           the service pam_faceunlock asks (systemd starts it)
+// kenning: manage face models and run recognition. Arguments follow Howdy's CLI:
+//   kenning [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test
+//   kenning compare USER     one scan for USER; exit code as Howdy's compare.py
+//   kenning daemon           the service pam_kenning asks (systemd starts it)
 
 #include "daemon.h"
 #include "engine.h"
@@ -39,16 +39,16 @@ bool validUser(const std::string &user)
 
 int usage()
 {
-    std::cerr << "usage: faceunlock [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test\n"
-                 "       faceunlock compare USER\n"
-                 "       faceunlock daemon\n";
+    std::cerr << "usage: kenning [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test\n"
+                 "       kenning compare USER\n"
+                 "       kenning daemon\n";
     return Error;
 }
 
 int requireRoot()
 {
     if (geteuid() != 0) {
-        std::cerr << "This command changes face models and needs root, e.g. sudo faceunlock ...\n";
+        std::cerr << "This command changes face models and needs root, e.g. sudo kenning ...\n";
         return Error;
     }
     return 0;
@@ -124,7 +124,7 @@ int list(const std::string &user, bool plain)
     const std::vector<FaceModel> models = loadModels(user);
     if (models.empty()) {
         if (!plain) {
-            std::cout << "No face model known for the user " << user << ", please run:\n\n\tsudo faceunlock -U " << user << " add\n";
+            std::cout << "No face model known for the user " << user << ", please run:\n\n\tsudo kenning -U " << user << " add\n";
         }
         return Error;
     }
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
         return runDaemon();
     }
     if (command == "compare") {
-        // Run by pam_faceunlock with the user being authenticated.
+        // Run by pam_kenning with the user being authenticated.
         if (positional.size() != 2 || !validUser(positional[1])) {
             return Aborted;
         }
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
         return result.code;
     }
     if (command == "version") {
-        std::cout << "faceunlock " << FACEUNLOCK_VERSION << '\n';
+        std::cout << "kenning " << KENNING_VERSION << '\n';
         return 0;
     }
     return usage();

@@ -2,8 +2,8 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// pam_faceunlock: face authentication. The recognition runs in the face unlock
-// service (faceunlock daemon, see service.h), which owns the camera and the
+// pam_kenning: face authentication. The recognition runs in the face unlock
+// service (kenning daemon, see service.h), which owns the camera and the
 // root-only face models, so OpenCV never loads into the program asking for
 // authentication. Messages match pam_howdy, which the login and lock screens use
 // to drive the face scan animation.
