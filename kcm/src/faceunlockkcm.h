@@ -32,6 +32,8 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_PROPERTY(bool engineInstalled READ engineInstalled CONSTANT)
     Q_PROPERTY(bool lockScreenPatched READ lockScreenPatched CONSTANT)
     Q_PROPERTY(bool loginScreenSupported READ loginScreenSupported CONSTANT)
+    // fprintd has a fingerprint of this user: the lock screen can start with either method
+    Q_PROPERTY(bool fingerprintEnrolled READ fingerprintEnrolled NOTIFY settingsChanged)
 
 public:
     FaceUnlockKcm(QObject *parent, const KPluginMetaData &data);
@@ -46,6 +48,7 @@ public:
     bool engineInstalled() const;
     bool lockScreenPatched() const;
     bool loginScreenSupported() const;
+    bool fingerprintEnrolled() const;
 
     Q_INVOKABLE void setValue(const QString &key, const QVariant &value);
     Q_INVOKABLE void addFace(const QString &label);
@@ -84,5 +87,6 @@ private:
     QVariantList m_themes;
     QString m_devicePath;
     bool m_colourCamera = false;
+    bool m_fingerprintEnrolled = false;
     bool m_busy = false;
 };

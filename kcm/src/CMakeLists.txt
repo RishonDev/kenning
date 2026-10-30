@@ -7,6 +7,7 @@ target_sources(kcm_kenning PRIVATE
 )
 
 target_link_libraries(kcm_kenning PRIVATE
+    Qt6::DBus
     Qt6::Quick
     KF6::AuthCore
     KF6::ConfigCore

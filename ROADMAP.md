@@ -87,9 +87,24 @@ webcam:
 - [x] A root service that owns the camera and face models (like fprintd), so
       models no longer have to be readable by local users: `kenning daemon`,
       socket-activated, answering only for root or the user's own account
-- [ ] Upstream route: a `kde-face` PAM service and a face authenticator in
-      kscreenlocker beside fingerprint; the login manager auto-scan as a merge
-      request; the settings page as a KCM or part of Users
+- [ ] Upstream route: Plasma 6.8's lock screen already has a Face method (PAM
+      service `kde-face`, `[Authenticators] Face=true`) with no backend; Kenning
+      fills it with nothing but a PAM file (tested on 6.8.2: scans when picked,
+      unlocks at once, remembered for the next lock). Still to do: ship
+      `kde-face`, the login manager auto-scan as a merge request, the settings
+      page as a KCM or part of Users
+- [ ] kscreenlocker fixes to send: (1) a remembered method that has since been
+      switched off crashes the lock screen until KWin gives up ("loginctl"
+      screen); patch with test in faceunlock-test/kscreenlocker-stale-authenticator.patch.
+      (2) a method started before its PAM worker is ready isn't retried until
+      a key or mouse wakes the screen (the add-on retries for fingerprint).
+      (3) a real preferred-method setting, and starting fingerprint only after
+      face fails, so the add-on's workarounds can go
+- [x] Preferred sign-in method when a fingerprint is enrolled (System Settings,
+      Lock screen): face first (fingerprint and password after a face failure),
+      or fingerprint first (face and password when it fails or times out), or
+      the method used last. Fingerprint runs alongside face from the start
+      until (3) above lands
 - [x] A trademark-safe product name: **Kenning** (to ken = to know, recognise),
       in KDE's style of real words with a K. Quick web checks found no clash in
       face recognition or authentication; KFace (KDE's archived libkface),

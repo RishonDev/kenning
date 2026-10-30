@@ -333,6 +333,34 @@ KCM.SimpleKCM {
                 valueFromText: (text, locale) => parseInt(text)
                 onValueModified: kcm.setValue("lock/unlockDelay", value)
             }
+
+            // With a fingerprint enrolled the lock screen can start with either method.
+            QQC2.ComboBox {
+                id: preferredMethod
+                Kirigami.FormData.label: i18n("Sign in first with:")
+                visible: kcm.fingerprintEnrolled
+                enabled: settings["pam/lockscreen"] && !useLastMethod.checked
+                model: [i18n("Face"), i18n("Fingerprint")]
+                currentIndex: settings["lock/preferredMethod"] === "fingerprint" ? 1 : 0
+                onActivated: kcm.setValue("lock/preferredMethod", currentIndex === 1 ? "fingerprint" : "face")
+            }
+            QQC2.CheckBox {
+                id: useLastMethod
+                visible: kcm.fingerprintEnrolled
+                enabled: settings["pam/lockscreen"]
+                text: i18n("Start with the method I used last time")
+                checked: settings["lock/useLastMethod"]
+                onToggled: kcm.setValue("lock/useLastMethod", checked)
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                visible: kcm.fingerprintEnrolled
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                text: useLastMethod.checked ? i18n("The lock screen starts with face or fingerprint, whichever unlocked it last time. Your password always works.")
+                    : preferredMethod.currentIndex === 1 ? i18n("If your fingerprint isn't read in time, the lock screen looks for your face. Your password always works.")
+                    : i18n("If your face isn't recognized, use your fingerprint or password.")
+            }
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 visible: !kcm.lockScreenPatched

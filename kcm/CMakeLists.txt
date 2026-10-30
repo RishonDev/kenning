@@ -14,7 +14,7 @@ include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 include(FeatureSummary)
 
-find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Core Gui Qml Quick)
+find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Core DBus Gui Qml Quick)
 find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS Auth Config CoreAddons I18n KCMUtils)
 
 add_definitions(-DTRANSLATION_DOMAIN="kcm_kenning")

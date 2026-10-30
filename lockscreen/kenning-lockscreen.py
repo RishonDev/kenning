@@ -22,7 +22,7 @@ from pathlib import Path
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 5"
+VERSION = "face unlock patch 6"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -46,6 +46,14 @@ CONFIG_XML = ("  </group>", f"""    <!-- {MARKER}, {VERSION} -->
       <default>500</default>
       <min>0</min>
       <max>3000</max>
+    </entry>
+    <entry name="preferredMethod" type="String">
+      <label>Sign-in method to start with: face or fingerprint; empty for the one used last.</label>
+      <default></default>
+    </entry>
+    <entry name="useLastMethod" type="Bool">
+      <label>Start with the sign-in method used last instead of preferredMethod.</label>
+      <default>false</default>
     </entry>
   </group>""")
 
@@ -108,6 +116,37 @@ UI_FUNCTION = ("""    property string pendingPassword
     // 2 recognized, 3 failed), fed by pam_howdy's messages.
     property int faceState: 0
     property string faceMessage
+
+    // Sign-in method to start with, set in System Settings > Face Unlock when a fingerprint
+    // is enrolled: the authenticator type (0 password, which scans the face first;
+    // 1 fingerprint), or -1 for the one used last, as Plasma does by default.
+    readonly property int preferredMethod: config.useLastMethod || !config.preferredMethod ? -1
+                                           : config.preferredMethod === "fingerprint" ? 1 : 0
+    // Asks the authenticator buttons to switch to the method of this type.
+    signal switchMethod(int type)
+
+    // Plasma starts the fingerprint reader before its PAM worker is ready and doesn't retry
+    // until a key or the mouse wakes the screen; retry for a few seconds so a finger works
+    // straight away. Plasma ignores the retry while authentication is already running.
+    Timer {{
+        property int tries: 0
+        interval: 500
+        repeat: true
+        running: lockScreenUi.preferredMethod === 1
+        onTriggered: {{
+            if (++tries > 6 || authenticator.authenticator !== 1) {{
+                stop();
+            }} else if (!authenticator.busy) {{
+                authenticator.startAuthenticating();
+            }}
+        }}
+    }}
+
+    // Fingerprint first: when it fails or stops working, fall back to face and password.
+    function fingerprintFallback() {{
+        lockScreenUi.switchMethod(0);
+        lockScreenUi.handleMessage(i18nc("@info:status", "Fingerprint not recognized. Look at the camera or type your password."));
+    }}
 
     // Returns true when the message belonged to face unlock and is shown by the indicator.
     function handleFaceMessage(msg) {{
@@ -183,6 +222,65 @@ UI_FUNCTION = ("""    property string pendingPassword
         interval: config.unlockDelay
         onTriggered: Qt.quit()
     }}
+""")
+
+# The fallback goes before the stock failure handling, which would retry the fingerprint.
+UI_FALLBACK = ("""        function onFailed(kind) {
+            if (kind != 0) { // if this is coming from the noninteractive authenticators
+                return;
+            }
+""", """        function onFailed(kind) {
+            if (kind != 0) { // if this is coming from the noninteractive authenticators
+                return;
+            }
+            if (authenticator.authenticator === 1 && lockScreenUi.preferredMethod === 1) {
+                lockScreenUi.fingerprintFallback();
+                return;
+            }
+""")
+
+# Start with the preferred method; otherwise, or when it isn't offered, with the one used last.
+UI_METHOD = ("""                            Component.onCompleted: {
+                                if (checked) {
+                                    clicked()
+                                }
+                            }
+""", """                            Component.onCompleted: {
+                                if (type === lockScreenUi.preferredMethod) {
+                                    clicked()
+                                } else if (checked) {
+                                    // After every button exists, unless the preferred one took over.
+                                    Qt.callLater(() => {
+                                        if (authenticator.authenticator === type) {
+                                            clicked()
+                                        }
+                                    })
+                                }
+                            }
+
+                            Connections {
+                                target: lockScreenUi
+                                function onSwitchMethod(to) {
+                                    if (to === type) {
+                                        clicked()
+                                    }
+                                }
+                            }
+""")
+
+# A preferred fingerprint reader that stops working (unplugged, fprintd gone) falls back too.
+UI_DEFUNCT = ("""                            onFunctionalChanged: {
+                                if (functional) {
+                                    return
+                                }
+""", """                            onFunctionalChanged: {
+                                if (functional) {
+                                    return
+                                }
+                                if (type === 1 && authenticator.authenticator === 1 && lockScreenUi.preferredMethod === 1) {
+                                    lockScreenUi.fingerprintFallback()
+                                    return
+                                }
 """)
 
 UI_WAKE = ("""            } else if (uiVisible) {
@@ -282,7 +380,8 @@ UI_INDICATOR_END = ("""                    }
 EDITS = {
     "config.xml": [CONFIG_XML],
     "config.qml": [CONFIG_QML],
-    "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS, UI_PASSWORD, UI_PROMPT],
+    "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS, UI_PASSWORD, UI_PROMPT,
+                         UI_FALLBACK, UI_METHOD, UI_DEFUNCT],
 }
 
 

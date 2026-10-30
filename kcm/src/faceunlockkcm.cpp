@@ -17,6 +17,10 @@
 #include <KUser>
 
 #include <QDateTime>
+#include <QDBusArgument>
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusObjectPath>
 #include <QDir>
 #include <QFile>
 #include <QProcess>
@@ -65,6 +69,28 @@ bool pamUsesEngine(const QString &path)
 KConfigGroup lockScreenGroup(const KSharedConfig::Ptr &config)
 {
     return config->group(QStringLiteral("Greeter")).group(QStringLiteral("LnF")).group(QStringLiteral("General"));
+}
+
+// Whether fprintd has a fingerprint of this user on any reader. Without fprintd the
+// system bus answers at once that the service is unknown.
+bool hasFingerprint(const QString &user)
+{
+    const QString service = QStringLiteral("net.reactivated.Fprint");
+    QDBusMessage devices = QDBusConnection::systemBus().call(
+        QDBusMessage::createMethodCall(service, QStringLiteral("/net/reactivated/Fprint/Manager"), service + QStringLiteral(".Manager"), QStringLiteral("GetDevices")),
+        QDBus::Block,
+        3000);
+    if (devices.type() != QDBusMessage::ReplyMessage || devices.arguments().isEmpty()) {
+        return false;
+    }
+    const auto paths = qdbus_cast<QList<QDBusObjectPath>>(devices.arguments().constFirst());
+    return std::any_of(paths.cbegin(), paths.cend(), [&](const QDBusObjectPath &path) {
+        QDBusMessage call = QDBusMessage::createMethodCall(service, path.path(), service + QStringLiteral(".Device"), QStringLiteral("ListEnrolledFingers"));
+        call << user;
+        // No fingerprints is an error reply (NoEnrolledPrints), not an empty list.
+        const QDBusMessage fingers = QDBusConnection::systemBus().call(call, QDBus::Block, 3000);
+        return fingers.type() == QDBusMessage::ReplyMessage && !fingers.arguments().isEmpty() && !fingers.arguments().constFirst().toStringList().isEmpty();
+    });
 }
 
 QVariant typed(const QVariant &defaultValue, const QString &text)
@@ -118,6 +144,8 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("LoginScreen/WelcomePause"), 1000},
         {QStringLiteral("lock/faceUnlockShowButton"), false},
         {QStringLiteral("lock/unlockDelay"), 500},
+        {QStringLiteral("lock/preferredMethod"), QStringLiteral("face")},
+        {QStringLiteral("lock/useLastMethod"), false},
     };
 }
 
@@ -156,6 +184,11 @@ void FaceUnlockKcm::load()
     const KConfigGroup lock = lockScreenGroup(KSharedConfig::openConfig(QStringLiteral("kscreenlockerrc")));
     settings.insert(QStringLiteral("lock/faceUnlockShowButton"), lock.readEntry("faceUnlockShowButton", false));
     settings.insert(QStringLiteral("lock/unlockDelay"), lock.readEntry("unlockDelay", 500));
+    // Saved empty while no fingerprint is enrolled; face is what the page offers first.
+    const QString preferred = lock.readEntry("preferredMethod", QString());
+    settings.insert(QStringLiteral("lock/preferredMethod"), preferred == QLatin1String("fingerprint") ? preferred : QStringLiteral("face"));
+    settings.insert(QStringLiteral("lock/useLastMethod"), lock.readEntry("useLastMethod", false));
+    m_fingerprintEnrolled = hasFingerprint(userName());
 
     m_settings = settings;
     m_loaded = settings;
@@ -190,6 +223,16 @@ void FaceUnlockKcm::save()
     lock.writeEntry("faceUnlockShowButton", m_settings.value(QStringLiteral("lock/faceUnlockShowButton")).toBool());
     lock.writeEntry("unlockDelay", m_settings.value(QStringLiteral("lock/unlockDelay")).toInt());
     lock.writeEntry("faceAnimation", m_settings.value(QStringLiteral("Appearance/AnimationStyle")).toString());
+    // The lock screen only applies a preferred method while there is a fingerprint to choose;
+    // otherwise it starts with the method used last, as Plasma does.
+    const QString preferred = m_settings.value(QStringLiteral("lock/preferredMethod")).toString();
+    const bool useLast = m_settings.value(QStringLiteral("lock/useLastMethod")).toBool();
+    lock.writeEntry("preferredMethod", m_fingerprintEnrolled ? preferred : QString());
+    lock.writeEntry("useLastMethod", useLast);
+    if (m_fingerprintEnrolled && !useLast && preferred == QLatin1String("fingerprint")) {
+        // Plasma only offers fingerprint as a method of its own when this is on.
+        config->group(QStringLiteral("Authenticators")).writeEntry("Fingerprint", true);
+    }
     config->sync();
 
     if (engine.isEmpty() && pam.isEmpty() && system.isEmpty()) {
@@ -294,6 +337,11 @@ bool FaceUnlockKcm::lockScreenPatched() const
 bool FaceUnlockKcm::loginScreenSupported() const
 {
     return QFile::exists(FaceUnlock::loginManagerSupportPath);
+}
+
+bool FaceUnlockKcm::fingerprintEnrolled() const
+{
+    return m_fingerprintEnrolled;
 }
 
 void FaceUnlockKcm::refreshFaces()
