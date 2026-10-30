@@ -1,0 +1,9 @@
+/src/
+/pkg/
+*.pkg.tar.*
+kcm/build/
+kcm/build.log
+login-manager/src/
+login-manager/pkg/
+login-manager/*.tar.*
+__pycache__/

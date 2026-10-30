@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = plasma-desktop
+Target = plasma-faceunlock
+
+[Action]
+Description = Adding face unlock to the Plasma lock screen...
+When = PostTransaction
+Exec = /usr/bin/python3 -I /usr/lib/plasma-faceunlock/faceunlock-lockscreen.py

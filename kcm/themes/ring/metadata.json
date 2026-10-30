@@ -1,0 +1,15 @@
+{
+    "KPlugin": {
+        "Id": "ring",
+        "Name": "Ring",
+        "Description": "A minimal orbiting ring that closes green with a checkmark, or red with a shake.",
+        "Authors": [
+            {
+                "Name": "plasma-faceunlock"
+            }
+        ],
+        "License": "LGPL-2.0-or-later",
+        "Version": "1.0"
+    },
+    "X-FaceUnlock-APIVersion": 1
+}

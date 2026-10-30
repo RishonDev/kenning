@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Remove
+Type = Package
+Target = plasma-faceunlock
+
+[Action]
+Description = Restoring the stock Plasma lock screen...
+When = PreTransaction
+Exec = /usr/bin/python3 -I /usr/lib/plasma-faceunlock/faceunlock-lockscreen.py --restore

@@ -1,0 +1,466 @@
+diff --git a/src/frontend/greeter/CMakeLists.txt b/src/frontend/greeter/CMakeLists.txt
+index 9084f28..d165a4a 100644
+--- a/src/frontend/greeter/CMakeLists.txt
++++ b/src/frontend/greeter/CMakeLists.txt
+@@ -35,6 +35,7 @@ ecm_target_qml_sources(plasma-login-greeter
+     qml/SessionButton.qml
+     qml/KeyboardButton.qml
+     qml/GreeterState.qml
++    qml/FaceScanIndicator.qml
+ 
+     RESOURCES
+     qml/faces/.face.icon
+diff --git a/src/frontend/greeter/main.cpp b/src/frontend/greeter/main.cpp
+index cbb37eb..7028cbb 100644
+--- a/src/frontend/greeter/main.cpp
++++ b/src/frontend/greeter/main.cpp
+@@ -9,10 +9,13 @@
+ #include <QGuiApplication>
+ #include <QObject>
+ #include <QQmlContext>
++#include <QQmlPropertyMap>
+ #include <QQuickView>
+ #include <QScreen>
+ #include <QSurfaceFormat>
+ 
++#include <KConfig>
++#include <KConfigGroup>
+ #include <KLocalizedQmlContext>
+ #include <KLocalizedString>
+ #include <LayerShellQt/Window>
+@@ -132,6 +135,13 @@ int main(int argc, char *argv[])
+     qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "BlurScreenBridge", new BlurScreenBridge);
+     qmlRegisterType<GreeterEventFilter>("org.kde.plasma.login", 0, 1, "GreeterEventFilter");
+ 
++    // Face unlock options written by the Face Unlock settings page.
++    const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/faceunlockrc"), KConfig::SimpleConfig);
++    auto *faceUnlock = new QQmlPropertyMap(&app);
++    faceUnlock->insert(QStringLiteral("animationStyle"), faceUnlockConfig.group(QStringLiteral("Appearance")).readEntry("AnimationStyle", QStringLiteral("hello")));
++    faceUnlock->insert(QStringLiteral("autoScan"), faceUnlockConfig.group(QStringLiteral("LoginScreen")).readEntry("AutoScan", true));
++    qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "FaceUnlockConfig", faceUnlock);
++
+     LoginGreeter greeter;
+     return app.exec();
+ }
+diff --git a/src/frontend/greeter/mockbackend/MockGreeterProxy.cpp b/src/frontend/greeter/mockbackend/MockGreeterProxy.cpp
+index f5ea2ab..5de5530 100644
+--- a/src/frontend/greeter/mockbackend/MockGreeterProxy.cpp
++++ b/src/frontend/greeter/mockbackend/MockGreeterProxy.cpp
+@@ -32,6 +32,29 @@ void MockGreeterProxy::login(const QString &user, const QString &password, const
+     qDebug().nospace() << "Login " << (success ? "success" : "failure") << " with user " << user << ", password " << password << ", session " << sessionTypeName
+                        << " " << sessionFileName;
+ 
++    // An empty password plays a pam_howdy face unlock; PLASMALOGIN_MOCK_FACE=fail makes it fail.
++    if (password.isEmpty() && !user.isEmpty()) {
++        const bool faceSuccess = qEnvironmentVariable("PLASMALOGIN_MOCK_FACE") != QLatin1String("fail");
++        // login() is const to match GreeterProxy, but emitting needs a non-const object.
++        auto *self = const_cast<MockGreeterProxy *>(this);
++        QTimer::singleShot(100, self, [self]() {
++            Q_EMIT self->informationMessage(QStringLiteral("Attempting facial authentication"));
++        });
++        QTimer::singleShot(2500, self, [self, user, faceSuccess]() {
++            if (faceSuccess) {
++                Q_EMIT self->informationMessage(QStringLiteral("Identified face as %1").arg(user));
++                Q_EMIT self->loginSucceeded();
++                QTimer::singleShot(1800, []() {
++                    QCoreApplication::quit();
++                });
++            } else {
++                Q_EMIT self->informationMessage(QStringLiteral("Failure, timeout reached"));
++                Q_EMIT self->loginFailed();
++            }
++        });
++        return;
++    }
++
+     if (success) {
+         QTimer::singleShot(100, this, &MockGreeterProxy::loginSucceeded);
+         QTimer::singleShot(800, []() {
+diff --git a/src/frontend/greeter/qml/FaceScanIndicator.qml b/src/frontend/greeter/qml/FaceScanIndicator.qml
+new file mode 100644
+index 0000000..5d09c55
+--- /dev/null
++++ b/src/frontend/greeter/qml/FaceScanIndicator.qml
+@@ -0,0 +1,112 @@
++/*
++ * SPDX-License-Identifier: LGPL-2.0-or-later
++ */
++
++import QtQuick
++import QtQuick.Layouts
++
++import org.kde.kirigami as Kirigami
++
++// Face unlock progress, shared by the login screen, the lock screen and the Face
++// Unlock settings page. The visuals come from a theme: <dir>/<id>/contents/ui/main.qml
++// in /usr/local/share/faceunlock/themes (installed by the user) or
++// /usr/share/faceunlock/themes (packaged). A theme that fails to load falls back
++// to "hello". See THEMES.md for the theme API.
++Item {
++    id: root
++
++    // 0 idle (hidden), 1 scanning, 2 recognized, 3 failed
++    property int faceState: 0
++    property string message
++    // Theme id
++    property string style: "hello"
++    property var themeDirs: ["file:///usr/local/share/faceunlock/themes/", "file:///usr/share/faceunlock/themes/"]
++
++    readonly property bool active: faceState !== 0
++    readonly property string themeId: /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(style) ? style : "hello"
++
++    // The login form is disabled while PAM runs, which would grey the text out;
++    // keep the text colour from while the form was last enabled.
++    property color textColor
++    Component.onCompleted: textColor = Kirigami.Theme.textColor
++    Connections {
++        target: root.Kirigami.Theme
++        function onTextColorChanged() {
++            if (root.enabled) {
++                root.textColor = root.Kirigami.Theme.textColor;
++            }
++        }
++    }
++
++    Layout.fillWidth: true
++    implicitWidth: loader.item ? loader.item.implicitWidth : 0
++    implicitHeight: active && loader.item ? loader.item.implicitHeight : 0
++    opacity: active ? 1 : 0
++    clip: true
++
++    Behavior on implicitHeight {
++        NumberAnimation {
++            duration: Kirigami.Units.longDuration
++            easing.type: Easing.InOutQuad
++        }
++    }
++    Behavior on opacity {
++        NumberAnimation {
++            duration: Kirigami.Units.longDuration
++        }
++    }
++
++    // Tries each theme directory in turn, then the packaged default.
++    property int attempt: 0
++    onThemeIdChanged: attempt = 0
++
++    Loader {
++        id: loader
++        anchors.horizontalCenter: parent.horizontalCenter
++        source: root.attempt < root.themeDirs.length
++            ? root.themeDirs[root.attempt] + root.themeId + "/contents/ui/main.qml"
++            : root.themeDirs[root.themeDirs.length - 1] + "hello/contents/ui/main.qml"
++        onStatusChanged: {
++            if (status === Loader.Error && root.attempt < root.themeDirs.length) {
++                root.attempt++;
++            }
++        }
++    }
++
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "faceState"
++        value: root.faceState
++    }
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "message"
++        value: root.message
++    }
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "highlightColor"
++        value: Kirigami.Theme.highlightColor
++    }
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "successColor"
++        value: Kirigami.Theme.positiveTextColor
++    }
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "failureColor"
++        value: Kirigami.Theme.negativeTextColor
++    }
++    Binding {
++        target: loader.item
++        when: loader.status === Loader.Ready
++        property: "textColor"
++        value: root.textColor
++    }
++}
+diff --git a/src/frontend/greeter/qml/GreeterState.qml b/src/frontend/greeter/qml/GreeterState.qml
+index f3233e1..8971c7e 100644
+--- a/src/frontend/greeter/qml/GreeterState.qml
++++ b/src/frontend/greeter/qml/GreeterState.qml
+@@ -18,6 +18,13 @@ Item {
+         UserPrompt = 1
+     }
+ 
++    enum FaceState {
++        Idle = 0,
++        Scanning = 1,
++        Recognized = 2,
++        Failed = 3
++    }
++
+     QtObject {
+         id: internal
+ 
+@@ -91,6 +98,38 @@ Item {
+ 
+     property bool showPassword: false
+ 
++    // Set once the greeter has submitted the automatic empty-password attempt that
++    // lets a PAM module such as pam_howdy authenticate without a key press.
++    property bool autoLoginAttempted: false
++
++    // Face unlock progress, driven by pam_howdy's messages
++    property int faceState: GreeterState.FaceState.Idle
++    property string faceMessage: ""
++
++    onFaceStateChanged: {
++        if (faceState === GreeterState.FaceState.Failed) {
++            faceResetTimer.restart();
++        } else {
++            faceResetTimer.stop();
++        }
++    }
++
++    Timer {
++        id: faceResetTimer
++        interval: 3000
++        onTriggered: greeterState.faceState = GreeterState.FaceState.Idle
++    }
++
++    function isFaceMessage(message): bool {
++        return /^(Attempting facial authentication|Identified face as|Failure, |Face detection image too dark)/.test(message);
++    }
++
++    function displayNameFor(username): string {
++        let index = PlasmaLogin.UserModel.indexOfData(username, PlasmaLogin.UserModel.NameRole);
++        let realName = index === -1 ? "" : PlasmaLogin.UserModel.data(PlasmaLogin.UserModel.index(index, 0), PlasmaLogin.UserModel.RealNameRole);
++        return realName || username;
++    }
++
+     // Shared functionality
+ 
+     property bool greeterHasSessionButtonPopup: false
+@@ -103,6 +142,8 @@ Item {
+             return true;
+         } else if (greeterState.greeterHasSessionButtonPopup) {
+             return true;
++        } else if (greeterState.faceState === GreeterState.FaceState.Scanning) {
++            return true;
+         }
+ 
+         // inputPanel.keyboardActive
+@@ -163,6 +204,7 @@ Item {
+ 
+     function handleLoginRequest(username, password) {
+         greeterState.lastLoggedInUser = username;
++        greeterState.faceState = GreeterState.FaceState.Idle;
+ 
+         let sessionType = PlasmaLogin.SessionModel.data(PlasmaLogin.SessionModel.index(greeterState.sessionIndex, 0), PlasmaLogin.SessionModel.TypeRole)
+         let sessionFileName = PlasmaLogin.SessionModel.data(PlasmaLogin.SessionModel.index(greeterState.sessionIndex, 0), PlasmaLogin.SessionModel.FileNameRole)
+@@ -218,10 +260,39 @@ Item {
+             PlasmaLogin.StateConfig.lastLoggedInUser = greeterState.lastLoggedInUser;
+             setLastLoggedInSessionForUser(greeterState.lastLoggedInUser, greeterState.lastLoggedInSession);
+             PlasmaLogin.StateConfig.save();
++
++            if (greeterState.faceState === GreeterState.FaceState.Scanning) {
++                greeterState.faceMessage = i18nd("plasma_login", "Welcome, %1", displayNameFor(greeterState.lastLoggedInUser));
++                greeterState.faceState = GreeterState.FaceState.Recognized;
++            }
+         }
+ 
+         function onLoginFailed() {
+             clearPasswords();
++
++            if (greeterState.faceState === GreeterState.FaceState.Scanning) {
++                greeterState.faceMessage = i18nd("plasma_login", "Couldn't recognize you");
++                greeterState.faceState = GreeterState.FaceState.Failed;
++            }
++        }
++
++        function onInformationMessage(message) {
++            if (message.startsWith("Attempting facial authentication")) {
++                greeterState.faceMessage = i18nd("plasma_login", "Looking for you…");
++                greeterState.faceState = GreeterState.FaceState.Scanning;
++            } else if (message.startsWith("Identified face as")) {
++                greeterState.faceMessage = i18nd("plasma_login", "Welcome, %1", displayNameFor(greeterState.lastLoggedInUser));
++                greeterState.faceState = GreeterState.FaceState.Recognized;
++            } else if (greeterState.faceState === GreeterState.FaceState.Scanning && greeterState.isFaceMessage(message)) {
++                if (message.includes("too dark")) {
++                    greeterState.faceMessage = i18nd("plasma_login", "It's too dark to see you");
++                } else if (message.includes("no face model")) {
++                    greeterState.faceMessage = i18nd("plasma_login", "Face unlock isn't set up");
++                } else {
++                    greeterState.faceMessage = i18nd("plasma_login", "Couldn't recognize you");
++                }
++                greeterState.faceState = GreeterState.FaceState.Failed;
++            }
+         }
+     }
+ }
+diff --git a/src/frontend/greeter/qml/Login.qml b/src/frontend/greeter/qml/Login.qml
+index e222c88..aee70f2 100644
+--- a/src/frontend/greeter/qml/Login.qml
++++ b/src/frontend/greeter/qml/Login.qml
+@@ -31,6 +31,12 @@ SessionManagementScreen {
+ 
+     property real fontSize: Kirigami.Theme.defaultFont.pointSize
+ 
++    authenticationTypeItem: FaceScanIndicator {
++        faceState: PlasmaLogin.GreeterState.faceState
++        message: PlasmaLogin.GreeterState.faceMessage
++        style: PlasmaLogin.FaceUnlockConfig.animationStyle
++    }
++
+     signal loginRequest(string username, string password)
+ 
+     onUserSelected: {
+@@ -177,6 +183,18 @@ SessionManagementScreen {
+             }
+ 
+             passwordBox.showPassword = PlasmaLogin.GreeterState.showPassword;
++
++            // Try PAM once without a password so face unlock starts on its own.
++            // On failure the password box takes focus as after any failed login.
++            if (sync.isUserList && PlasmaLogin.FaceUnlockConfig.autoScan && !PlasmaLogin.GreeterState.autoLoginAttempted) {
++                PlasmaLogin.GreeterState.autoLoginAttempted = true;
++                Qt.callLater(() => {
++                    if (root.userList.selectedUser && !passwordBox.text) {
++                        PlasmaLogin.GreeterState.activateWindow(root.Window.window);
++                        startLogin();
++                    }
++                });
++            }
+         }
+ 
+         // Login -> GreeterState
+diff --git a/src/frontend/greeter/qml/Main.qml b/src/frontend/greeter/qml/Main.qml
+index ae440c0..5a26c72 100644
+--- a/src/frontend/greeter/qml/Main.qml
++++ b/src/frontend/greeter/qml/Main.qml
+@@ -372,15 +372,22 @@ Item {
+         // e.g. pam_u2f's "cue" asking the user to touch their key. Not auto-cleared
+         // like "Login Failed" is: handleLoginRequest() clears it on the next attempt.
+         function onInformationMessage(message) {
++            // Face unlock progress is shown by FaceScanIndicator instead.
++            if (PlasmaLogin.GreeterState.isFaceMessage(message)) {
++                return;
++            }
+             // A reset pending from an earlier failure would clear this one early.
+             notificationResetTimer.stop();
+             notificationMessage = message;
+         }
+ 
+         function onLoginFailed() {
+-            notificationMessage = i18nd("plasma_login", "Login Failed");
+-            // Only failures time out; started here rather than on every change.
+-            notificationResetTimer.start();
++            // FaceScanIndicator already says why face unlock failed.
++            if (PlasmaLogin.GreeterState.faceState === PlasmaLogin.GreeterState.FaceState.Idle) {
++                notificationMessage = i18nd("plasma_login", "Login Failed");
++                // Only failures time out; started here rather than on every change.
++                notificationResetTimer.start();
++            }
+ 
+             footer.enabled = true;
+             mainStack.enabled = true;
+@@ -390,6 +397,11 @@ Item {
+         }
+ 
+         function onLoginSucceeded() {
++            // Leave the face unlock confirmation on screen; the helper waits for it.
++            if (PlasmaLogin.GreeterState.faceState !== PlasmaLogin.GreeterState.FaceState.Idle) {
++                footer.opacity = 0;
++                return;
++            }
+             mainStack.opacity = 0;
+             footer.opacity = 0;
+         }
+diff --git a/src/helper/HelperApp.cpp b/src/helper/HelperApp.cpp
+index 9a21b83..cbe2cb8 100644
+--- a/src/helper/HelperApp.cpp
++++ b/src/helper/HelperApp.cpp
+@@ -17,6 +17,12 @@
+ 
+ #include <QtCore/QDebug>
+ #include <QtCore/QFile>
++#include <QtCore/QThread>
++
++#include <KConfig>
++#include <KConfigGroup>
++
++#include <algorithm>
+ #include <QtCore/QTimer>
+ #include <QtNetwork/QLocalSocket>
+ 
+@@ -149,6 +155,14 @@ void HelperApp::doAuth()
+     m_user = m_backend->userName();
+     QProcessEnvironment env = authenticated(m_user);
+ 
++    // The greeter now knows the login succeeded; give it a moment to show its
++    // face unlock confirmation before the session takes over the screen.
++    if (m_backend->passwordless()) {
++        const KConfig faceUnlockConfig(QStringLiteral("/etc/xdg/faceunlockrc"), KConfig::SimpleConfig);
++        const int pause = faceUnlockConfig.group(QStringLiteral("LoginScreen")).readEntry("WelcomePause", 1000);
++        QThread::msleep(std::clamp(pause, 0, 3000));
++    }
++
+     if (!m_session->path().isEmpty()) {
+         env.insert(m_session->processEnvironment());
+         m_session->setProcessEnvironment(env);
+diff --git a/src/helper/backend/PamBackend.cpp b/src/helper/backend/PamBackend.cpp
+index 50f386d..5ec88e4 100644
+--- a/src/helper/backend/PamBackend.cpp
++++ b/src/helper/backend/PamBackend.cpp
+@@ -377,11 +377,20 @@ int PamBackend::converse(int n, const struct pam_message **msg, struct pam_respo
+ 
+         memcpy(resp[i]->resp, response.constData(), response.length());
+         resp[i]->resp[response.length()] = '\0';
++
++        if (msg[i]->msg_style == PAM_PROMPT_ECHO_OFF && !response.isEmpty()) {
++            m_passwordEntered = true;
++        }
+     }
+ 
+     return PAM_SUCCESS;
+ }
+ 
++bool PamBackend::passwordless() const
++{
++    return !m_greeter && !m_autologin && !m_passwordEntered;
++}
++
+ void PamBackend::setAutologin(bool on)
+ {
+     m_autologin = on;
+diff --git a/src/helper/backend/PamBackend.h b/src/helper/backend/PamBackend.h
+index e150e76..250bdc7 100644
+--- a/src/helper/backend/PamBackend.h
++++ b/src/helper/backend/PamBackend.h
+@@ -53,6 +53,8 @@ public:
+     int converse(int n, const struct pam_message **msg, struct pam_response **resp);
+     void setAutologin(bool on = true);
+     void setGreeter(bool on = true);
++    // True for a user login that PAM accepted without a typed password (e.g. face unlock).
++    bool passwordless() const;
+ 
+ public slots:
+     bool start(const QString &user = QString());
+@@ -66,6 +68,7 @@ private:
+     HelperApp *m_app{nullptr};
+     bool m_autologin{false};
+     bool m_greeter{false};
++    bool m_passwordEntered{false};
+     PamData *m_data{nullptr};
+     PamHandle *m_pam{nullptr};
+ };

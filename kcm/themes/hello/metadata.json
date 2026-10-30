@@ -1,0 +1,15 @@
+{
+    "KPlugin": {
+        "Id": "hello",
+        "Name": "Face",
+        "Description": "A friendly face that glances around while it looks for you, like Windows Hello.",
+        "Authors": [
+            {
+                "Name": "plasma-faceunlock"
+            }
+        ],
+        "License": "LGPL-2.0-or-later",
+        "Version": "1.0"
+    },
+    "X-FaceUnlock-APIVersion": 1
+}

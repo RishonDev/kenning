@@ -1,0 +1,44 @@
+[Domain]
+Name=Face Unlock
+Icon=user-identity
+
+[org.kde.kcontrol.kcmfaceunlock.list]
+Name=List face models
+Description=Read your saved face models
+Policy=yes
+
+[org.kde.kcontrol.kcmfaceunlock.add]
+Name=Add a face model
+Description=Authentication is required to save a new face model
+Policy=auth_admin
+Persistence=session
+
+[org.kde.kcontrol.kcmfaceunlock.remove]
+Name=Remove a face model
+Description=Authentication is required to remove a face model
+Policy=auth_admin
+Persistence=session
+
+[org.kde.kcontrol.kcmfaceunlock.test]
+Name=Test face recognition
+Description=Authentication is required to use the face recognition camera
+Policy=auth_admin
+Persistence=session
+
+[org.kde.kcontrol.kcmfaceunlock.save]
+Name=Save face unlock settings
+Description=Authentication is required to change face unlock settings
+Policy=auth_admin
+Persistence=session
+
+[org.kde.kcontrol.kcmfaceunlock.installtheme]
+Name=Install a face unlock theme
+Description=Authentication is required to install a theme. Themes run on the login and lock screens, so only install themes you trust.
+Policy=auth_admin
+Persistence=session
+
+[org.kde.kcontrol.kcmfaceunlock.removetheme]
+Name=Remove a face unlock theme
+Description=Authentication is required to remove a theme
+Policy=auth_admin
+Persistence=session
