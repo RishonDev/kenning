@@ -4,7 +4,7 @@
         "Icon": "user-identity",
         "Name": "Face Unlock"
     },
-    "X-KDE-Keywords": "face,howdy,hello,camera,unlock,login,biometric,recognition",
+    "X-KDE-Keywords": "face,hello,camera,unlock,login,biometric,recognition",
     "X-KDE-System-Settings-Parent-Category": "security-privacy",
     "X-KDE-Weight": 60
 }

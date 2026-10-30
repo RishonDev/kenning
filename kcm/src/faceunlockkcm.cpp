@@ -30,10 +30,10 @@ namespace
 const QString helperId = QStringLiteral("org.kde.kcontrol.kcmfaceunlock");
 
 // Values from config.ini keyed "section/key". Multi-line values are not needed here.
-QVariantMap readHowdyConfig()
+QVariantMap readEngineConfig()
 {
     QVariantMap values;
-    QFile file(FaceUnlock::howdyConfigPath);
+    QFile file(FaceUnlock::engineConfigPath);
     if (!file.open(QIODevice::ReadOnly)) {
         return values;
     }
@@ -49,14 +49,14 @@ QVariantMap readHowdyConfig()
     return values;
 }
 
-bool pamUsesHowdy(const QString &path)
+bool pamUsesEngine(const QString &path)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         return false;
     }
     const QStringList lines = QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
-    return std::any_of(lines.cbegin(), lines.cend(), FaceUnlock::isPamHowdyLine);
+    return std::any_of(lines.cbegin(), lines.cend(), FaceUnlock::isPamLine);
 }
 
 KConfigGroup lockScreenGroup(const KSharedConfig::Ptr &config)
@@ -102,7 +102,7 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("core/no_confirmation"), false},
         {QStringLiteral("core/abort_if_ssh"), true},
         {QStringLiteral("core/abort_if_lid_closed"), true},
-        {QStringLiteral("video/certainty"), 3.5},
+        {QStringLiteral("video/certainty"), 6.0},
         {QStringLiteral("video/timeout"), 4},
         {QStringLiteral("video/dark_threshold"), 60},
         {QStringLiteral("snapshots/save_failed"), false},
@@ -123,16 +123,16 @@ void FaceUnlockKcm::load()
     const QVariantMap defaults = defaultSettings();
     QVariantMap settings = defaults;
 
-    const QVariantMap howdy = readHowdyConfig();
-    for (auto it = howdy.cbegin(); it != howdy.cend(); ++it) {
+    const QVariantMap engine = readEngineConfig();
+    for (auto it = engine.cbegin(); it != engine.cend(); ++it) {
         if (defaults.contains(it.key())) {
             settings.insert(it.key(), typed(defaults.value(it.key()), it.value().toString()));
         }
     }
-    m_devicePath = howdy.value(QStringLiteral("video/device_path")).toString();
+    m_devicePath = engine.value(QStringLiteral("video/device_path")).toString();
 
     for (const auto &service : FaceUnlock::pamServices()) {
-        settings.insert(QStringLiteral("pam/") + service.id, pamUsesHowdy(service.path));
+        settings.insert(QStringLiteral("pam/") + service.id, pamUsesEngine(service.path));
     }
 
     KConfig system(FaceUnlock::systemConfigPath, KConfig::SimpleConfig);
@@ -156,7 +156,7 @@ void FaceUnlockKcm::load()
 
 void FaceUnlockKcm::save()
 {
-    QVariantMap howdy;
+    QVariantMap engine;
     QVariantMap pam;
     QVariantMap system;
     for (auto it = m_settings.cbegin(); it != m_settings.cend(); ++it) {
@@ -168,8 +168,8 @@ void FaceUnlockKcm::save()
             pam.insert(key.mid(4), it.value());
         } else if (FaceUnlock::systemSetting(key)) {
             system.insert(key, asText(it.value()));
-        } else if (FaceUnlock::howdySetting(key)) {
-            howdy.insert(key, asText(it.value()));
+        } else if (FaceUnlock::engineSetting(key)) {
+            engine.insert(key, asText(it.value()));
         }
     }
 
@@ -181,7 +181,7 @@ void FaceUnlockKcm::save()
     lock.writeEntry("faceAnimation", m_settings.value(QStringLiteral("Appearance/AnimationStyle")).toString());
     config->sync();
 
-    if (howdy.isEmpty() && pam.isEmpty() && system.isEmpty()) {
+    if (engine.isEmpty() && pam.isEmpty() && system.isEmpty()) {
         m_loaded = m_settings;
         updateState();
         return;
@@ -189,7 +189,7 @@ void FaceUnlockKcm::save()
 
     KAuth::Action action(helperId + QStringLiteral(".save"));
     action.setHelperId(helperId);
-    action.setArguments({{QStringLiteral("howdy"), howdy}, {QStringLiteral("pam"), pam}, {QStringLiteral("system"), system}});
+    action.setArguments({{QStringLiteral("engine"), engine}, {QStringLiteral("pam"), pam}, {QStringLiteral("system"), system}});
     auto *job = action.execute();
     connect(job, &KJob::result, this, [this, job] {
         if (job->error()) {
@@ -264,9 +264,9 @@ QString FaceUnlockKcm::devicePath() const
     return m_devicePath;
 }
 
-bool FaceUnlockKcm::howdyInstalled() const
+bool FaceUnlockKcm::engineInstalled() const
 {
-    return QFile::exists(QStringLiteral("/usr/lib/security/pam_howdy.so")) && QFile::exists(FaceUnlock::howdyConfigPath);
+    return QFile::exists(QStringLiteral("/usr/lib/security/pam_faceunlock.so")) && QFile::exists(FaceUnlock::engineBinary);
 }
 
 bool FaceUnlockKcm::lockScreenPatched() const

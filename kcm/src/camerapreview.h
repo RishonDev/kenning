@@ -30,7 +30,7 @@ private:
 };
 
 // Round, mirrored live preview of the face recognition camera. Set active to
-// false before Howdy uses the camera; a V4L2 device has one reader at a time.
+// false before the engine uses the camera; a V4L2 device has one reader at a time.
 class CameraPreview : public QQuickPaintedItem
 {
     Q_OBJECT

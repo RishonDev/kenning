@@ -14,7 +14,7 @@ KCM.SimpleKCM {
     id: root
 
     readonly property var settings: kcm.settings
-    readonly property bool enabledInHowdy: !settings["core/disabled"]
+    readonly property bool faceUnlockOn: !settings["core/disabled"]
 
     // Scanning → recognized → scanning → not recognized, shared by every theme preview
     readonly property var previewStates: [[1, i18n("Looking for you…")], [2, i18n("Welcome, %1", kcm.userName)],
@@ -64,8 +64,8 @@ KCM.SimpleKCM {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Error
             position: Kirigami.InlineMessage.Position.Header
-            visible: !kcm.howdyInstalled
-            text: i18n("Howdy is not installed, so face recognition is unavailable.")
+            visible: !kcm.engineInstalled
+            text: i18n("The face recognition engine is not installed.")
         }
 
         Kirigami.InlineMessage {
@@ -117,15 +117,15 @@ KCM.SimpleKCM {
 
             QQC2.Switch {
                 text: i18nc("@option:check face recognition on/off", "On")
-                checked: root.enabledInHowdy
-                enabled: kcm.howdyInstalled
+                checked: root.faceUnlockOn
+                enabled: kcm.engineInstalled
                 onToggled: kcm.setValue("core/disabled", !checked)
             }
         }
 
         Kirigami.FormLayout {
             Layout.fillWidth: true
-            enabled: kcm.howdyInstalled
+            enabled: kcm.engineInstalled
 
             // Faces
             Kirigami.Separator {
@@ -445,8 +445,8 @@ KCM.SimpleKCM {
                 QQC2.Slider {
                     id: certainty
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 10
-                    from: 2
-                    to: 6
+                    from: 4
+                    to: 8
                     stepSize: 0.1
                     value: settings["video/certainty"]
                     onMoved: kcm.setValue("video/certainty", Math.round(value * 10) / 10)
@@ -463,7 +463,7 @@ KCM.SimpleKCM {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 opacity: 0.7
-                text: i18n("Lower values only accept closer matches. Howdy recommends 3.5 to 4.5.")
+                text: i18n("Lower values only accept closer matches. Around 6 suits most faces.")
             }
             QQC2.SpinBox {
                 Kirigami.FormData.label: i18n("Give up after:")

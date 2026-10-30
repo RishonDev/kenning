@@ -1,5 +1,5 @@
 # Face unlock for Plasma in one build: `makepkg -si` installs both packages.
-#   plasma-faceunlock                Howdy face recognition (vendored in engine/howdy),
+#   plasma-faceunlock                face recognition engine (engine/native, OpenCV),
 #                                    System Settings page, lock screen add-on, themes
 #   plasma-login-manager-faceunlock  Plasma Login Manager that scans as soon as it appears
 
@@ -9,23 +9,21 @@ pkgver=0.3.0
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64)
-url='https://github.com/boltgolt/howdy'
-license=(GPL-2.0-or-later MIT)
+url='https://invent.kde.org/'
+license=(GPL-2.0-or-later MIT Apache-2.0)
 makedepends=(cmake extra-cmake-modules meson ninja qt6-tools
              # plasma-login-manager
              kauth kcmutils kconfig kcoreaddons kdbusaddons ki18n kio kirigami kpackage kservice
              layer-shell-qt libkscreen libplasma libxau pam plasma-workspace qt6-5compat qt6-base qt6-declarative systemd-libs
-             # howdy
-             libinih libevdev)
+             # engine
+             opencv)
 source=(https://download.kde.org/stable/plasma/$_plmver/plasma-login-manager-$_plmver.tar.xz{,.sig}
-        https://github.com/davisking/dlib-models/raw/master/dlib_face_recognition_resnet_model_v1.dat.bz2
-        https://github.com/davisking/dlib-models/raw/master/mmod_human_face_detector.dat.bz2
-        https://github.com/davisking/dlib-models/raw/master/shape_predictor_5_face_landmarks.dat.bz2)
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+        https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx)
 sha256sums=('4a6e2b65b5d462fcf43b2a5be3c3e6244f479451b6dcfa00dcbf33fbc5cd093a'
             'SKIP'
-            'abb1f61041e434465855ce81c2bd546e830d28bcbed8d27ffbe5bb408b11553a'
-            'db9e9e40f092c118d5eb3e643935b216838170793559515541c56a2b50d9fc84'
-            '6e787bbebf5c9efdb793f6cd1f023230c4413306605f24f299f12869f95aa472')
+            '8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4'
+            '0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79')
 validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell <jr@jriddell.org>
               '0AAC775BB6437A8D9AF7A3ACFE0784117FBCE11D'  # Bhushan Shah <bshah@kde.org>
               'D07BD8662C56CB291B316EB2F5675605C74E02CF'  # David Edmundson <davidedmundson@kde.org>
@@ -36,8 +34,9 @@ prepare() {
 }
 
 build() {
-  arch-meson "$startdir/engine/howdy" howdy-build -Dpam_dir=/usr/lib/security
-  meson compile -C howdy-build
+  cmake -B engine-build -S "$startdir/engine/native" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc \
+    -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  cmake --build engine-build
 
   cmake -B kcm-build -S "$startdir/kcm" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKDE_INSTALL_LIBEXECDIR=lib
   cmake --build kcm-build
@@ -48,19 +47,15 @@ build() {
 }
 
 package_plasma-faceunlock() {
-  pkgdesc='Windows Hello style face unlock for Plasma, with Howdy built in'
-  depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-declarative
-           libarchive libinih libevdev python python-dlib python-opencv python-numpy)
+  pkgdesc='Windows Hello style face unlock for Plasma'
+  depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
+           libarchive opencv pam python)
   optdepends=('plasma-login-manager-faceunlock: start face unlock as soon as the login screen appears')
-  provides=(howdy)
-  conflicts=(howdy howdy-git)
-  backup=(etc/howdy/config.ini)
+  backup=(etc/faceunlock/config.ini)
 
-  meson install -C howdy-build --destdir "$pkgdir"
-  install -Dm644 "$startdir/engine/howdy/howdy/src/config.ini" "$pkgdir/etc/howdy/config.ini"
-  install -Dm644 "$startdir/engine/howdy/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.howdy"
-  install -Dm644 -t "$pkgdir/usr/share/dlib-data" *.dat
-  # polkit 127+ runs its agent helper sandboxed; let it reach the camera (boltgolt/howdy#1077)
+  DESTDIR="$pkgdir" cmake --install engine-build
+  install -Dm644 -t "$pkgdir/usr/share/plasma-faceunlock/models" *.onnx
+  # polkit 127+ runs its agent helper sandboxed; let it reach the camera
   install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/polkit-agent-helper@.service.d/10-faceunlock.conf" <<CONF
 [Service]
 PrivateDevices=no

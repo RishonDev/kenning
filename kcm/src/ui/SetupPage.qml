@@ -92,7 +92,7 @@ KCM.SimpleKCM {
                 anchors.fill: parent
                 anchors.margins: Kirigami.Units.largeSpacing
                 devicePath: kcm.devicePath
-                // Howdy needs the camera to itself while it captures
+                // The engine needs the camera to itself while it captures
                 active: page.step === "ready" && page.visible
             }
 

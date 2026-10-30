@@ -8,5 +8,6 @@ login-manager/pkg/
 login-manager/*.tar.*
 __pycache__/
 *.dat.bz2
+*.onnx
 *.dat
 plasma-login-manager-*.tar.xz*

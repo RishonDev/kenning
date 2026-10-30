@@ -85,9 +85,9 @@ bool writeFile(const QString &path, const QByteArray &contents, QFileDevice::Per
 constexpr auto standardPermissions = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther;
 
 // Replaces "key = value" lines inside [section] of config.ini, keeping comments and layout.
-bool updateHowdyConfig(const QVariantMap &values)
+bool updateEngineConfig(const QVariantMap &values)
 {
-    QFile file(FaceUnlock::howdyConfigPath);
+    QFile file(FaceUnlock::engineConfigPath);
     if (!file.open(QIODevice::ReadOnly)) {
         return false;
     }
@@ -110,12 +110,12 @@ bool updateHowdyConfig(const QVariantMap &values)
             line = line.left(equals).trimmed() + QStringLiteral(" = ") + values.value(key).toString();
         }
     }
-    return writeFile(FaceUnlock::howdyConfigPath, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
+    return writeFile(FaceUnlock::engineConfigPath, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
 }
 
-// Adds or removes the pam_howdy.so line. A service without an /etc override is
+// Adds or removes the pam_faceunlock.so line (and drops any pam_howdy.so line). A service without an /etc override is
 // first copied from its packaged file in /usr/lib/pam.d.
-bool setPamHowdy(const FaceUnlock::PamService &service, bool enabled)
+bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 {
     QString source = service.path;
     if (!QFile::exists(source)) {
@@ -131,18 +131,21 @@ bool setPamHowdy(const FaceUnlock::PamService &service, bool enabled)
     QStringList lines = QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
     file.close();
 
-    const bool present = std::any_of(lines.cbegin(), lines.cend(), FaceUnlock::isPamHowdyLine);
-    if (present == enabled && source == service.path) {
+    const bool present = std::any_of(lines.cbegin(), lines.cend(), FaceUnlock::isPamLine);
+    const bool leftover = std::any_of(lines.cbegin(), lines.cend(), [](const QString &line) {
+        return FaceUnlock::isFacePamLine(line) && !FaceUnlock::isPamLine(line);
+    });
+    if (present == enabled && !leftover && source == service.path) {
         return true;
     }
 
-    lines.erase(std::remove_if(lines.begin(), lines.end(), FaceUnlock::isPamHowdyLine), lines.end());
+    lines.erase(std::remove_if(lines.begin(), lines.end(), FaceUnlock::isFacePamLine), lines.end());
     if (enabled) {
         // Face first, everything else stays as the fallback.
         const auto firstAuth = std::find_if(lines.begin(), lines.end(), [](const QString &line) {
             return line.trimmed().startsWith(QLatin1String("auth"));
         });
-        lines.insert(firstAuth, FaceUnlock::pamHowdyLine);
+        lines.insert(firstAuth, FaceUnlock::pamLine);
     }
     return writeFile(service.path, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
 }
@@ -177,25 +180,25 @@ QString findIrCamera()
     return {};
 }
 
-// First-run setup so face unlock works without manual configuration: point Howdy
+// First-run setup so face unlock works without manual configuration: point the engine
 // at the IR camera if it has none, and let the lock screen (which authenticates as
-// the user) read Howdy's config and face models.
-void prepareHowdy()
+// the user) read the engine's config and face models.
+void prepareEngine()
 {
-    QFile file(FaceUnlock::howdyConfigPath);
+    QFile file(FaceUnlock::engineConfigPath);
     if (file.open(QIODevice::ReadOnly)) {
         static const QRegularExpression devicePath(QStringLiteral("^device_path\\s*=\\s*(.*)$"), QRegularExpression::MultilineOption);
         const QString configured = devicePath.match(QString::fromUtf8(file.readAll())).captured(1).trimmed();
         file.close();
         if (configured.isEmpty() || configured == QLatin1String("none") || !QFile::exists(configured)) {
             if (const QString camera = findIrCamera(); !camera.isEmpty()) {
-                updateHowdyConfig({{QStringLiteral("video/device_path"), camera}});
+                updateEngineConfig({{QStringLiteral("video/device_path"), camera}});
             }
         }
     }
 
     QDir().mkpath(QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath());
-    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/howdy")});
+    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/faceunlock")});
 }
 }
 
@@ -209,15 +212,15 @@ ActionReply FaceUnlockHelper::list(const QVariantMap &)
 
 ActionReply FaceUnlockHelper::add(const QVariantMap &args)
 {
-    // Howdy drops commas itself; keep labels short like its own prompt does.
+    // faceunlock drops commas itself; keep labels short as Howdy does.
     QString label = args.value(QStringLiteral("label")).toString().remove(QLatin1Char(',')).simplified().left(24);
     if (label.isEmpty()) {
         label = QStringLiteral("Face");
     }
-    prepareHowdy();
-    ActionReply reply = runStreaming(QStringLiteral("/usr/bin/howdy"), {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
+    prepareEngine();
+    ActionReply reply = runStreaming(FaceUnlock::engineBinary, {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
     // The new model file is created root-only; keep it readable for the lock screen.
-    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/howdy")});
+    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/faceunlock")});
     return reply;
 }
 
@@ -228,34 +231,34 @@ ActionReply FaceUnlockHelper::remove(const QVariantMap &args)
     if (!ok || id < 0) {
         return failure(QStringLiteral("Invalid face model id"));
     }
-    return runStreaming(QStringLiteral("/usr/bin/howdy"),
+    return runStreaming(FaceUnlock::engineBinary,
                         {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("remove"), QString::number(id)});
 }
 
 ActionReply FaceUnlockHelper::test(const QVariantMap &)
 {
-    // Same check pam_howdy runs: exit 0 match, 10 no model, 11 timeout, 12 abort, 13 too dark.
-    return runStreaming(QStringLiteral("/usr/bin/python3"), {FaceUnlock::howdyComparePath, callerName()});
+    // Same check pam_faceunlock runs: exit 0 match, 10 no model, 11 timeout, 12 abort, 13 too dark.
+    return runStreaming(FaceUnlock::engineBinary, {QStringLiteral("compare"), callerName()});
 }
 
 ActionReply FaceUnlockHelper::save(const QVariantMap &args)
 {
-    const QVariantMap howdy = args.value(QStringLiteral("howdy")).toMap();
+    const QVariantMap engine = args.value(QStringLiteral("engine")).toMap();
     QVariantMap accepted;
-    for (auto it = howdy.cbegin(); it != howdy.cend(); ++it) {
-        const auto setting = FaceUnlock::howdySetting(it.key());
+    for (auto it = engine.cbegin(); it != engine.cend(); ++it) {
+        const auto setting = FaceUnlock::engineSetting(it.key());
         if (!setting || !setting->accepts(it.value().toString())) {
-            return failure(QStringLiteral("Rejected Howdy setting %1").arg(it.key()));
+            return failure(QStringLiteral("Rejected engine setting %1").arg(it.key()));
         }
         accepted.insert(it.key(), it.value());
     }
-    if (!accepted.isEmpty() && !updateHowdyConfig(accepted)) {
-        return failure(QStringLiteral("Could not write %1").arg(FaceUnlock::howdyConfigPath));
+    if (!accepted.isEmpty() && !updateEngineConfig(accepted)) {
+        return failure(QStringLiteral("Could not write %1").arg(FaceUnlock::engineConfigPath));
     }
 
     const QVariantMap pam = args.value(QStringLiteral("pam")).toMap();
     for (const auto &service : FaceUnlock::pamServices()) {
-        if (pam.contains(service.id) && !setPamHowdy(service, pam.value(service.id).toBool())) {
+        if (pam.contains(service.id) && !setPamFace(service, pam.value(service.id).toBool())) {
             return failure(QStringLiteral("Could not update %1").arg(service.path));
         }
     }

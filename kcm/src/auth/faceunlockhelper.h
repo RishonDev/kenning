@@ -8,8 +8,8 @@
 
 using namespace KAuth;
 
-// Root side of the face unlock settings: Howdy face models, /etc/howdy/config.ini,
-// the PAM files that load pam_howdy.so and /etc/xdg/faceunlockrc.
+// Root side of the face unlock settings: face models, /etc/faceunlock/config.ini,
+// the PAM files that load pam_faceunlock.so and /etc/xdg/faceunlockrc.
 // Every action works on the calling user only.
 class FaceUnlockHelper : public QObject
 {

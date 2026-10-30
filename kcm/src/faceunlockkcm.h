@@ -8,11 +8,11 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-// System Settings page for Howdy face unlock.
+// System Settings page for face unlock.
 //
 // settings is one flat map that QML edits through setValue():
-//   "core/…", "video/…", "snapshots/…"  /etc/howdy/config.ini (helper)
-//   "pam/<service>"                      pam_howdy.so in /etc/pam.d (helper)
+//   "core/…", "video/…", "snapshots/…"  /etc/faceunlock/config.ini (helper)
+//   "pam/<service>"                      pam_faceunlock.so in /etc/pam.d (helper)
 //   "Appearance/…", "LoginScreen/…"      /etc/xdg/faceunlockrc (helper)
 //   "lock/…"                             ~/.config/kscreenlockerrc (written directly)
 class FaceUnlockKcm : public KQuickConfigModule
@@ -25,7 +25,7 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString userName READ userName CONSTANT)
     Q_PROPERTY(QString devicePath READ devicePath NOTIFY settingsChanged)
-    Q_PROPERTY(bool howdyInstalled READ howdyInstalled CONSTANT)
+    Q_PROPERTY(bool engineInstalled READ engineInstalled CONSTANT)
     Q_PROPERTY(bool lockScreenPatched READ lockScreenPatched CONSTANT)
 
 public:
@@ -37,7 +37,7 @@ public:
     bool busy() const;
     QString userName() const;
     QString devicePath() const;
-    bool howdyInstalled() const;
+    bool engineInstalled() const;
     bool lockScreenPatched() const;
 
     Q_INVOKABLE void setValue(const QString &key, const QVariant &value);

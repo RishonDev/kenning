@@ -16,24 +16,31 @@
 
 namespace FaceUnlock
 {
-inline const QString howdyConfigPath = QStringLiteral("/etc/howdy/config.ini");
-inline const QString howdyComparePath = QStringLiteral("/usr/lib/howdy/compare.py");
+inline const QString engineConfigPath = QStringLiteral("/etc/faceunlock/config.ini");
+inline const QString engineBinary = QStringLiteral("/usr/bin/faceunlock");
 inline const QString systemConfigPath = QStringLiteral("/etc/xdg/faceunlockrc");
 inline const QString lockScreenPath = QStringLiteral("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml");
 inline const QString lockScreenMarker = QStringLiteral("lazysetup face unlock");
 inline const QString userThemesPath = QStringLiteral("/usr/local/share/faceunlock/themes");
 inline const QString systemThemesPath = QStringLiteral("/usr/share/faceunlock/themes");
-inline const QString pamHowdyLine = QStringLiteral("auth       sufficient                  pam_howdy.so");
+inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_faceunlock.so");
 
 inline QString modelPath(const QString &user)
 {
-    return QStringLiteral("/etc/howdy/models/%1.dat").arg(user);
+    return QStringLiteral("/etc/faceunlock/models/%1.dat").arg(user);
 }
 
-inline bool isPamHowdyLine(const QString &line)
+inline bool isPamLine(const QString &line)
 {
     const QString trimmed = line.trimmed();
-    return !trimmed.startsWith(QLatin1Char('#')) && trimmed.contains(QLatin1String("pam_howdy.so"));
+    return !trimmed.startsWith(QLatin1Char('#')) && trimmed.contains(QLatin1String("pam_faceunlock.so"));
+}
+
+// pam_faceunlock or a leftover pam_howdy; both are removed so only one engine runs.
+inline bool isFacePamLine(const QString &line)
+{
+    const QString trimmed = line.trimmed();
+    return isPamLine(line) || (!trimmed.startsWith(QLatin1Char('#')) && trimmed.contains(QLatin1String("pam_howdy.so")));
 }
 
 // Theme ids double as directory names, so no slashes or leading dots.
@@ -78,8 +85,8 @@ inline std::function<bool(const QString &)> numberIn(double min, double max)
     };
 }
 
-// Howdy settings, keyed "section/key" as in config.ini.
-inline std::optional<Setting> howdySetting(const QString &id)
+// Engine settings, keyed "section/key" as in /etc/faceunlock/config.ini.
+inline std::optional<Setting> engineSetting(const QString &id)
 {
     static const QList<std::pair<QString, std::function<bool(const QString &)>>> settings = {
         {QStringLiteral("core/disabled"), isBool},

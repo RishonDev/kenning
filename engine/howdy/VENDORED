@@ -1,3 +1,0 @@
-Vendored from https://github.com/boltgolt/howdy at d3ab993 (MIT, see LICENSE).
-howdy-gtk is left out; System Settings > Face Unlock replaces it.
-Changed: config.ini enables detection_notice, which the face scan animation needs.
