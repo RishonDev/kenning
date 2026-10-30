@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Inside a kenning-test/<image> container (see package.sh):
-#   build   build the .deb or .rpm from /src into /out
+#   build   build the .deb, .rpm or Arch package from /src into /out
 #   test    install it from /out, check it, and remove it
 set -u
 result() { echo "RESULT $1: $2${3:+ ($3)}"; }
@@ -11,6 +11,7 @@ result() { echo "RESULT $1: $2${3:+ ($3)}"; }
 case "$ID" in
 debian | ubuntu) format=deb ;;
 fedora) format=rpm ;;
+arch) format=arch ;;
 *) result format FAIL "no package format for $ID"; exit 1 ;;
 esac
 
@@ -32,6 +33,21 @@ build() {
         (cd /build/kenning && dpkg-buildpackage -b -uc -us -jauto) > /tmp/build.log 2>&1 ||
             { result "build package" FAIL; grep -m8 -E "error|Error|unmet|dh_" /tmp/build.log; return 1; }
         cp /build/*.deb /out/
+    elif [[ $format == arch ]]; then
+        source_tree /build/kenning
+        # The PKGBUILD builds from its own directory; give it the login manager sources too.
+        cp /src/plasma-login-manager-*.tar.xz* /build/kenning/
+        local deps
+        deps=$(cd /build/kenning && bash -c '. ./PKGBUILD; printf "%s\n" "${makedepends[@]}"')
+        pacman -Syu --noconfirm --needed base-devel $deps > /tmp/tools.log 2>&1 ||
+            { result "packaging tools" FAIL; tail -5 /tmp/tools.log; return 1; }
+        id builder > /dev/null 2>&1 || useradd -m builder
+        chown -R builder /build/kenning
+        # The distribution's makepkg.conf: generic x86-64 code. Sources are local, checked
+        # by their sums (the signature needs the KDE release keys, which aren't here).
+        (cd /build/kenning && runuser -u builder -- makepkg --skippgpcheck --noconfirm) > /tmp/build.log 2>&1 ||
+            { result "build package" FAIL; grep -m8 -E "error|Error|ERROR" /tmp/build.log; return 1; }
+        cp /build/kenning/*.pkg.tar.zst /out/
     else
         dnf install -y -q --setopt=install_weak_deps=False rpm-build systemd-rpm-macros > /tmp/tools.log 2>&1 ||
             { result "packaging tools" FAIL; tail -5 /tmp/tools.log; return 1; }
@@ -62,6 +78,14 @@ test_package() {
         remove() { apt-get remove -y -qq kenning; }
         lockscreen_package=plasma-desktop-data
         install_lockscreen() { apt-get install -y -qq --no-install-recommends $lockscreen_package; }
+    elif [[ $format == arch ]]; then
+        pacman -U --noconfirm /out/kenning-0*.pkg.tar.zst > /tmp/install.log 2>&1
+        installed=$?
+        files() { pacman -Qlq kenning; }
+        remove() { pacman -R --noconfirm kenning; }
+        lockscreen_package=plasma-desktop
+        # Already installed with Kenning; installing it again runs the package hook.
+        install_lockscreen() { pacman -S --noconfirm plasma-desktop; }
     else
         dnf install -y -q --setopt=install_weak_deps=False /out/kenning-0*.rpm > /tmp/install.log 2>&1
         installed=$?
@@ -125,7 +149,7 @@ C
 
     # Installing the lock screen fires the package's trigger.
     if install_lockscreen > /tmp/ls.log 2>&1; then
-        plasma=$(grep -o "6\.[0-9]*\.[0-9]*" <<< "$(dpkg -s $lockscreen_package 2> /dev/null || rpm -q $lockscreen_package)" | head -1)
+        plasma=$(grep -o "6\.[0-9]*\.[0-9]*" <<< "$(dpkg -s $lockscreen_package 2> /dev/null || rpm -q $lockscreen_package 2> /dev/null || pacman -Q $lockscreen_package)" | head -1)
         trigger=$(grep -m1 "kenning lock screen" /tmp/ls.log)
         if [[ -z $trigger ]]; then
             result "lock screen trigger (Plasma $plasma)" FAIL "the package's trigger didn't run"

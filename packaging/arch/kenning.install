@@ -5,11 +5,10 @@
 # else. pacman creates that user only after the transaction, so make it now.
 secure_models() {
     systemd-sysusers kenning.conf 2>/dev/null || true
-    if [[ -d /etc/kenning/models ]]; then
-        chown -R -h kenning:kenning /etc/kenning/models 2>/dev/null || true
-        chmod 700 /etc/kenning/models
-        find /etc/kenning/models -type f -exec chmod 600 {} +
-    fi
+    mkdir -p /etc/kenning/models
+    chown -R -h kenning:kenning /etc/kenning/models 2>/dev/null || true
+    chmod 700 /etc/kenning/models
+    find /etc/kenning/models -type f -exec chmod 600 {} +
 }
 
 # Kenning used to be called plasma-faceunlock. pacman removes that package first
