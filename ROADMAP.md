@@ -31,13 +31,14 @@ still using Howdy.
 Show a short warning (Kirigami.InlineMessage or a ContextualHelpButton) where an
 option trades security or privacy for convenience:
 
-- [ ] Administrator prompts and sudo: your face can approve changes to the system
-- [ ] Match threshold set lenient: people who look like you may get in
-- [ ] "Don't use when the lid is closed" or "Don't use over SSH" turned off
-- [ ] Dismiss the lock screen automatically: unlocks as soon as you are seen,
+- [x] Administrator prompts and sudo: your face can approve changes to the system
+- [x] Match threshold set lenient: people who look like you may get in
+- [x] "Don't use when the lid is closed" or "Don't use over SSH" turned off
+- [x] Dismiss the lock screen automatically: unlocks as soon as you are seen,
       without a key press
-- [ ] Take a photo of failed attempts: stores pictures of whoever tries
-- [ ] "Say when face recognition starts" turned off: the login and lock screen
+- [x] Take a photo of failed attempts: hidden instead, since the native engine
+      doesn't take photos yet (see Follow-ups); warn when it is implemented
+- [x] "Say when face recognition starts" turned off: the login and lock screen
       animation depends on it
 
 ## 3. Laptops with only an ordinary (colour) webcam
@@ -61,8 +62,8 @@ Setup currently requires an IR camera. Without one, offer the ordinary webcam:
 - [ ] Plug and play: installing the package leaves PAM on pam_howdy until Set Up
       is run in System Settings; switch existing Howdy lines over (or prompt
       for setup) on install
-- [ ] native engine: "Take a photo of failed attempts" does nothing yet;
-      implement it or hide the option
+- [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
+      option is hidden in System Settings until it is (show a privacy warning then)
 - [ ] A root service that owns the camera and face models (like fprintd), so
       models no longer have to be readable by local users
 - [ ] Upstream route: a `kde-face` PAM service and a face authenticator in

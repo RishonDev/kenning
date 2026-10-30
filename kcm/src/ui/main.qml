@@ -17,6 +17,15 @@ KCM.SimpleKCM {
     readonly property var settings: kcm.settings
     readonly property bool faceUnlockOn: !settings["core/disabled"]
 
+    // Shown under an option while it is set to trade security or privacy for convenience
+    component RiskWarning: Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        type: Kirigami.MessageType.Warning
+    }
+
+    // Above this the match is looser than SFace's recommended cosine of 0.363 (6.37)
+    readonly property real lenientCertainty: 6.4
+
     // Scanning → recognized → scanning → not recognized, shared by every theme preview
     readonly property var previewStates: [[1, i18n("Looking for you…")], [2, i18n("Welcome, %1", kcm.userName)],
                                           [1, i18n("Looking for you…")], [3, i18n("Couldn't recognize you")]]
@@ -238,6 +247,10 @@ KCM.SimpleKCM {
                 checked: settings["pam/sudo"]
                 onToggled: kcm.setValue("pam/sudo", checked)
             }
+            RiskWarning {
+                visible: settings["pam/polkit"] || settings["pam/sudo"]
+                text: i18n("Your face can approve changes to the system, such as installing software. Someone who looks like you, or holds the computer up to your face, could do the same. Your password always works too.")
+            }
 
             // Lock screen
             Kirigami.Separator {
@@ -255,10 +268,10 @@ KCM.SimpleKCM {
             }
             QQC2.Label {
                 Layout.fillWidth: true
-                visible: !autoDismiss.checked
                 wrapMode: Text.WordWrap
                 opacity: 0.7
-                text: i18n("You will press Unlock after you are recognized.")
+                text: autoDismiss.checked ? i18n("The screen unlocks as soon as the camera recognizes you, even if you only glanced at it.")
+                                          : i18n("You will press Unlock after you are recognized.")
             }
             QQC2.SpinBox {
                 Kirigami.FormData.label: i18n("Pause before unlocking:")
@@ -310,77 +323,81 @@ KCM.SimpleKCM {
             }
 
             // Theme grid, like the icon and application style pages
-            Flow {
-                id: themeGrid
+            // FormLayout sizes items by their implicit size, which Flow keeps read-only
+            Item {
                 Kirigami.FormData.label: i18n("Theme:")
-                // FormLayout sizes items by their implicit size.
                 implicitWidth: Kirigami.Units.gridUnit * 27
-                implicitHeight: childrenRect.height
-                spacing: Kirigami.Units.largeSpacing
+                implicitHeight: themeGrid.implicitHeight
 
-                readonly property string selected: settings["Appearance/AnimationStyle"]
+                Flow {
+                    id: themeGrid
+                    width: parent.width
+                    spacing: Kirigami.Units.largeSpacing
 
-                Repeater {
-                    model: kcm.themes
+                    readonly property string selected: settings["Appearance/AnimationStyle"]
 
-                    delegate: QQC2.ItemDelegate {
-                        id: tile
-                        required property var modelData
-                        readonly property bool current: modelData.id === themeGrid.selected
+                    Repeater {
+                        model: kcm.themes
 
-                        width: Kirigami.Units.gridUnit * 8.5
-                        height: Kirigami.Units.gridUnit * 8.5
-                        padding: Kirigami.Units.smallSpacing
-                        highlighted: current
-                        onClicked: kcm.setValue("Appearance/AnimationStyle", modelData.id)
+                        delegate: QQC2.ItemDelegate {
+                            id: tile
+                            required property var modelData
+                            readonly property bool current: modelData.id === themeGrid.selected
 
-                        QQC2.ToolTip.text: modelData.description + (modelData.author ? "\n" + i18n("By %1", modelData.author) : "")
-                        QQC2.ToolTip.visible: hovered && modelData.description !== ""
-                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                            width: Kirigami.Units.gridUnit * 8.5
+                            height: Kirigami.Units.gridUnit * 8.5
+                            padding: Kirigami.Units.smallSpacing
+                            highlighted: current
+                            onClicked: kcm.setValue("Appearance/AnimationStyle", modelData.id)
 
-                        contentItem: ColumnLayout {
-                            spacing: Kirigami.Units.smallSpacing
+                            QQC2.ToolTip.text: modelData.description + (modelData.author ? "\n" + i18n("By %1", modelData.author) : "")
+                            QQC2.ToolTip.visible: hovered && modelData.description !== ""
+                            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
 
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                radius: Kirigami.Units.cornerRadius
-                                color: "#1b1e20"
-                                border.width: tile.current ? 2 : 1
-                                border.color: tile.current ? Kirigami.Theme.highlightColor : Qt.rgba(1, 1, 1, 0.12)
-                                clip: true
+                            contentItem: ColumnLayout {
+                                spacing: Kirigami.Units.smallSpacing
 
-                                Kirigami.Theme.inherit: false
-                                Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
-
-                                FaceScanIndicator {
-                                    anchors.centerIn: parent
-                                    width: parent.width / scale
-                                    scale: 0.55
-                                    style: tile.modelData.id
-                                    faceState: root.previewStates[root.previewStep][0]
-                                    message: root.previewStates[root.previewStep][1]
-                                }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                QQC2.Label {
+                                Rectangle {
                                     Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
-                                    text: tile.modelData.name
+                                    Layout.fillHeight: true
+                                    radius: Kirigami.Units.cornerRadius
+                                    color: "#1b1e20"
+                                    border.width: tile.current ? 2 : 1
+                                    border.color: tile.current ? Kirigami.Theme.highlightColor : Qt.rgba(1, 1, 1, 0.12)
+                                    clip: true
+
+                                    Kirigami.Theme.inherit: false
+                                    Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
+
+                                    FaceScanIndicator {
+                                        anchors.centerIn: parent
+                                        width: parent.width / scale
+                                        scale: 0.55
+                                        style: tile.modelData.id
+                                        faceState: root.previewStates[root.previewStep][0]
+                                        message: root.previewStates[root.previewStep][1]
+                                    }
                                 }
-                                QQC2.ToolButton {
-                                    visible: tile.modelData.removable
-                                    icon.name: "edit-delete-remove"
-                                    display: QQC2.AbstractButton.IconOnly
-                                    text: i18n("Remove %1", tile.modelData.name)
-                                    QQC2.ToolTip.text: text
-                                    QQC2.ToolTip.visible: hovered
-                                    Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
-                                    Layout.preferredWidth: Layout.preferredHeight
-                                    onClicked: kcm.removeTheme(tile.modelData.id)
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    QQC2.Label {
+                                        Layout.fillWidth: true
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                        text: tile.modelData.name
+                                    }
+                                    QQC2.ToolButton {
+                                        visible: tile.modelData.removable
+                                        icon.name: "edit-delete-remove"
+                                        display: QQC2.AbstractButton.IconOnly
+                                        text: i18n("Remove %1", tile.modelData.name)
+                                        QQC2.ToolTip.text: text
+                                        QQC2.ToolTip.visible: hovered
+                                        Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
+                                        Layout.preferredWidth: Layout.preferredHeight
+                                        onClicked: kcm.removeTheme(tile.modelData.id)
+                                    }
                                 }
                             }
                         }
@@ -466,6 +483,10 @@ KCM.SimpleKCM {
                 opacity: 0.7
                 text: i18n("Lower values only accept closer matches. Around 6 suits most faces.")
             }
+            RiskWarning {
+                visible: certainty.value > root.lenientCertainty
+                text: i18n("A lenient threshold accepts looser matches, so people who look like you, such as close relatives, may be recognized as you.")
+            }
             QQC2.SpinBox {
                 Kirigami.FormData.label: i18n("Give up after:")
                 from: 1
@@ -490,6 +511,11 @@ KCM.SimpleKCM {
                 checked: settings["core/detection_notice"]
                 onToggled: kcm.setValue("core/detection_notice", checked)
             }
+            RiskWarning {
+                visible: !settings["core/detection_notice"]
+                type: Kirigami.MessageType.Information
+                text: i18n("The login and lock screens start their animation from this message. Without it they look like they are only waiting for a password while the camera is on.")
+            }
             QQC2.CheckBox {
                 text: i18n("Say who was recognized")
                 checked: !settings["core/no_confirmation"]
@@ -506,10 +532,14 @@ KCM.SimpleKCM {
                 checked: settings["core/abort_if_ssh"]
                 onToggled: kcm.setValue("core/abort_if_ssh", checked)
             }
-            QQC2.CheckBox {
-                text: i18n("Take a photo of failed attempts")
-                checked: settings["snapshots/save_failed"]
-                onToggled: kcm.setValue("snapshots/save_failed", checked)
+            RiskWarning {
+                visible: !settings["core/abort_if_lid_closed"]
+                type: Kirigami.MessageType.Information
+                text: i18n("With the lid closed the camera can't see anyone, so every sign-in waits for face recognition to give up before asking for the password.")
+            }
+            RiskWarning {
+                visible: !settings["core/abort_if_ssh"]
+                text: i18n("Over SSH the person signing in is somewhere else, but the camera looks at whoever is in front of this computer. Anyone sitting here could approve a remote sudo.")
             }
             QQC2.Label {
                 Kirigami.FormData.label: i18n("Camera:")
