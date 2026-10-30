@@ -2,7 +2,7 @@
     "KPlugin": {
         "Id": "hello",
         "Name": "Face",
-        "Description": "A friendly face that glances around while it looks for you, like Windows Hello.",
+        "Description": "A friendly face that glances around while it looks for you.",
         "Authors": [
             {
                 "Name": "plasma-faceunlock"

@@ -1,4 +1,5 @@
 /*
+    SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -12,7 +13,7 @@ import org.kde.kirigami as Kirigami
 
 import org.kde.faceunlock
 
-// Windows Hello style face setup: live camera preview, one capture, then the
+// Guided face setup: live camera preview, one capture, then the
 // option to improve recognition with more captures (glasses on/off, lighting).
 KCM.SimpleKCM {
     id: page

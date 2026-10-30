@@ -1,0 +1,22 @@
+version = 1
+
+# Files that cannot carry a header. Code files carry their own SPDX headers.
+
+[[annotations]]
+path = ["**/PKGBUILD", ".gitignore", "README.md", "THEMES.md", "**/CMakeLists.txt", "**/*.json",
+        "**/*.ini", "**/*.actions", "packaging/*.hook"]
+SPDX-FileCopyrightText = "2026 Rishon Jonathan R"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Changes to KDE's Plasma Login Manager; the patched files keep their licences.
+[[annotations]]
+path = "login-manager/*.patch"
+SPDX-FileCopyrightText = ["2026 Rishon Jonathan R", "KDE contributors"]
+SPDX-License-Identifier = "GPL-2.0-or-later AND LGPL-2.0-or-later"
+
+# Vendored Howdy (https://github.com/boltgolt/howdy)
+[[annotations]]
+path = "engine/howdy/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2018 boltgolt and Howdy contributors"
+SPDX-License-Identifier = "MIT"
