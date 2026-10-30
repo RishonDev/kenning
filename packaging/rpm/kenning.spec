@@ -6,7 +6,7 @@ Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
-URL:            https://invent.kde.org/
+URL:            https://github.com/RishonDev/kenning
 Source0:        %{name}-%{version}.tar.gz
 Source1:        https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
 Source2:        https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx

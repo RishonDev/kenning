@@ -20,7 +20,7 @@ Build-Depends: debhelper-compat (= 13),
                qt6-declarative-dev
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
-Homepage: https://invent.kde.org/
+Homepage: https://github.com/RishonDev/kenning
 
 Package: kenning
 Architecture: any

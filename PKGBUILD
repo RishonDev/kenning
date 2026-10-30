@@ -9,7 +9,7 @@ pkgver=0.4.0
 _plmver=6.8.2
 pkgrel=5
 arch=(x86_64)
-url='https://invent.kde.org/'
+url='https://github.com/RishonDev/kenning'
 license=(GPL-2.0-or-later MIT Apache-2.0)
 makedepends=(cmake extra-cmake-modules meson ninja qt6-tools
              # plasma-login-manager
