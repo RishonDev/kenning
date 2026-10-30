@@ -78,6 +78,12 @@ extern "C" {
 
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
 {
+    // Set by the login manager while checking a password the user typed, so a
+    // failed face scan isn't repeated before the password is checked.
+    if (const char *skip = pam_getenv(pamh, "FACEUNLOCK_SKIP"); skip && std::strcmp(skip, "1") == 0) {
+        return PAM_AUTHINFO_UNAVAIL;
+    }
+
     const Config config;
     if (config.boolean("core/disabled", false)) {
         return PAM_AUTHINFO_UNAVAIL;

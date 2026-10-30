@@ -21,7 +21,7 @@ from pathlib import Path
 MARKER = "plasma-faceunlock lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock",)
-VERSION = "face unlock patch 4"
+VERSION = "face unlock patch 5"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -195,6 +195,31 @@ UI_WAKE = ("""            } else if (uiVisible) {
             }
             authenticator.startAuthenticating();""")
 
+# A key that types text means the user is entering their password: drop the pending
+# face retry so the keypress that wakes the screen doesn't start a new scan.
+UI_KEYS = ("""        Keys.onPressed: event => {
+            uiVisible = true;""", """        Keys.onPressed: event => {
+            if (event.text.trim().length > 0) {
+                lockScreenUi.faceNeedsRetry = false;
+            }
+            uiVisible = true;""")
+
+# A password submitted while the face scan runs has no prompt to answer yet (PAM is
+# still in the face module); hold it until the password prompt arrives.
+UI_PASSWORD = ("""                    if (authenticator.pamTimeout) {
+                        lockScreenUi.pendingPassword = password""", """                    if (authenticator.pamTimeout || lockScreenUi.faceState === 1) {
+                        lockScreenUi.pendingPassword = password""")
+
+UI_PROMPT = ("""        function onPromptForSecretChanged() {
+            mainBlock.showPassword = false;""", """        function onPromptForSecretChanged() {
+            if (!authenticator.pamTimeout && lockScreenUi.pendingPassword.length > 0) {
+                authenticator.respond(lockScreenUi.pendingPassword);
+                lockScreenUi.pendingPassword = "";
+                mainBlock.enabled = true;
+                return;
+            }
+            mainBlock.showPassword = false;""")
+
 UI_FAILED = ("""            const msg = i18ndc("plasma_shell_org.kde.plasma.desktop", "@info:status", "Unlocking failed");
             lockScreenUi.handleMessage(msg);""",
 """            if (lockScreenUi.faceState === 1) {
@@ -256,7 +281,7 @@ UI_INDICATOR_END = ("""                    }
 EDITS = {
     "config.xml": [CONFIG_XML],
     "config.qml": [CONFIG_QML],
-    "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE],
+    "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS, UI_PASSWORD, UI_PROMPT],
 }
 
 
