@@ -60,6 +60,14 @@ KCM.SimpleKCM {
                 return;
             }
             if (exitCode === 0) {
+                // First face on this account: switch face unlock on where people expect it.
+                if (!page.improving && kcm.faces.length === 0) {
+                    for (const service of ["pam/login", "pam/lockscreen", "pam/sudo"]) {
+                        kcm.setValue(service, true);
+                    }
+                    kcm.setValue("core/disabled", false);
+                    kcm.save();
+                }
                 page.step = "done";
                 page.detail = "";
             } else {

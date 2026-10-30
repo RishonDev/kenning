@@ -19,6 +19,11 @@
 #include <QSaveFile>
 #include <QTemporaryDir>
 
+#include <fcntl.h>
+#include <linux/videodev2.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 namespace
 {
 QString callerName()
@@ -143,6 +148,57 @@ bool setPamHowdy(const FaceUnlock::PamService &service, bool enabled)
 }
 }
 
+namespace
+{
+// The IR sensor is the capture device that only offers greyscale frames.
+// by-path names survive reboots and replugging, unlike /dev/videoN.
+QString findIrCamera()
+{
+    const QDir byPath(QStringLiteral("/dev/v4l/by-path"));
+    for (const QFileInfo &entry : byPath.entryInfoList({QStringLiteral("*-video-index0")}, QDir::System)) {
+        const int fd = open(entry.absoluteFilePath().toLocal8Bit().constData(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            continue;
+        }
+        bool grey = false;
+        bool colour = false;
+        v4l2_fmtdesc format{};
+        format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        while (ioctl(fd, VIDIOC_ENUM_FMT, &format) == 0) {
+            grey |= format.pixelformat == V4L2_PIX_FMT_GREY;
+            colour |= format.pixelformat == V4L2_PIX_FMT_MJPEG || format.pixelformat == V4L2_PIX_FMT_YUYV;
+            ++format.index;
+        }
+        close(fd);
+        if (grey && !colour) {
+            return entry.absoluteFilePath();
+        }
+    }
+    return {};
+}
+
+// First-run setup so face unlock works without manual configuration: point Howdy
+// at the IR camera if it has none, and let the lock screen (which authenticates as
+// the user) read Howdy's config and face models.
+void prepareHowdy()
+{
+    QFile file(FaceUnlock::howdyConfigPath);
+    if (file.open(QIODevice::ReadOnly)) {
+        static const QRegularExpression devicePath(QStringLiteral("^device_path\\s*=\\s*(.*)$"), QRegularExpression::MultilineOption);
+        const QString configured = devicePath.match(QString::fromUtf8(file.readAll())).captured(1).trimmed();
+        file.close();
+        if (configured.isEmpty() || configured == QLatin1String("none") || !QFile::exists(configured)) {
+            if (const QString camera = findIrCamera(); !camera.isEmpty()) {
+                updateHowdyConfig({{QStringLiteral("video/device_path"), camera}});
+            }
+        }
+    }
+
+    QDir().mkpath(QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath());
+    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/howdy")});
+}
+}
+
 ActionReply FaceUnlockHelper::list(const QVariantMap &)
 {
     QFile file(FaceUnlock::modelPath(callerName()));
@@ -158,7 +214,11 @@ ActionReply FaceUnlockHelper::add(const QVariantMap &args)
     if (label.isEmpty()) {
         label = QStringLiteral("Face");
     }
-    return runStreaming(QStringLiteral("/usr/bin/howdy"), {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
+    prepareHowdy();
+    ActionReply reply = runStreaming(QStringLiteral("/usr/bin/howdy"), {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
+    // The new model file is created root-only; keep it readable for the lock screen.
+    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/howdy")});
+    return reply;
 }
 
 ActionReply FaceUnlockHelper::remove(const QVariantMap &args)
