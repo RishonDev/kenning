@@ -3,7 +3,7 @@ version = 1
 # Files that cannot carry a header. Code files carry their own SPDX headers.
 
 [[annotations]]
-path = ["**/PKGBUILD", ".gitignore", "README.md", "THEMES.md", "**/CMakeLists.txt", "**/*.json",
+path = ["**/PKGBUILD", ".gitignore", "README.md", "THEMES.md", "ROADMAP.md", "**/CMakeLists.txt", "**/*.json",
         "**/*.ini", "**/*.actions", "packaging/*.hook"]
 SPDX-FileCopyrightText = "2026 Rishon Jonathan R"
 SPDX-License-Identifier = "CC0-1.0"
