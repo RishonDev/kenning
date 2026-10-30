@@ -23,8 +23,12 @@ still using Howdy.
 - [x] Compare both: native was faster and never failed in the runs above;
       it needs no AUR packages, which suits KDE upstream
 - [x] Merge the chosen branch into `master`; keep the other as an archive branch
-- [ ] Shave the remaining time: open the camera and load the networks in
-      parallel, and check whether opening the camera (~330 ms) can be faster
+- [x] Shave the remaining time: the networks load while the camera opens and
+      stay loaded in the service. That takes ~50 ms of work out of each scan, but
+      scans vary by about as much from run to run (1.50-1.64 s). What is left is the
+      camera: ~220 ms to wake it from USB suspend (format hints to OpenCV don't
+      help) and ~1 s until the IR sensor delivers its first frame. Keeping the
+      camera awake would cost battery all day, so it stays as it is
 
 ## 2. Warning labels for risky options
 

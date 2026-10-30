@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <future>
+#include <mutex>
+#include <optional>
 
 namespace FaceUnlock
 {
@@ -26,6 +29,35 @@ using Clock = std::chrono::steady_clock;
 double millisecondsSince(Clock::time_point start)
 {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+}
+
+struct Networks {
+    cv::Ptr<cv::FaceDetectorYN> detector;
+    cv::Ptr<cv::FaceRecognizerSF> recognizer;
+    float detectionThreshold = 0;
+    double loadMs = 0; // 0 when they came from the cache
+};
+
+// Loaded once per process: the service (faceunlock daemon) runs many scans and
+// keeps them, a one-off command loads them once anyway.
+Networks networks(float detectionThreshold)
+{
+    static std::mutex mutex;
+    static std::optional<Networks> cache;
+    const std::lock_guard lock(mutex);
+    if (cache && cache->detectionThreshold == detectionThreshold) {
+        Networks cached = *cache;
+        cached.loadMs = 0;
+        return cached;
+    }
+    const auto start = Clock::now();
+    Networks loaded;
+    loaded.detector = cv::FaceDetectorYN::create(detectorModel, "", cv::Size(320, 320), detectionThreshold, 0.3f, 50);
+    loaded.recognizer = cv::FaceRecognizerSF::create(recognizerModel, "");
+    loaded.detectionThreshold = detectionThreshold;
+    loaded.loadMs = millisecondsSince(start);
+    cache = loaded;
+    return loaded;
 }
 
 // The camera and both networks, set up for one scan.
@@ -44,22 +76,26 @@ struct Pipeline {
 
     explicit Pipeline(const Config &config)
     {
+        // Lower finds faces in poor light; every face still has to match the user's.
+        const float detectionThreshold = float(config.number("video/detection_threshold", 0.8));
+        // Opening the camera wakes it from USB suspend (~250 ms); load the networks meanwhile.
+        auto loading = std::async(std::launch::async, networks, detectionThreshold);
+
         const std::string device = config.string("video/device_path");
-        auto start = Clock::now();
-        if (device.empty() || device == "none" || !camera.open(device, cv::CAP_V4L2)) {
+        const auto start = Clock::now();
+        const bool opened = !device.empty() && device != "none" && camera.open(device, cv::CAP_V4L2);
+        cameraMs = millisecondsSince(start);
+        const Networks loaded = loading.get();
+        if (!opened) {
             return;
         }
-        cameraMs = millisecondsSince(start);
+        detector = loaded.detector;
+        recognizer = loaded.recognizer;
+        networksMs = loaded.loadMs;
         maxHeight = int(config.number("video/max_height", 320));
         darkThreshold = config.number("video/dark_threshold", 60);
         rotate = int(config.number("video/rotate", 0));
         colour = config.boolean("video/colour", false);
-        start = Clock::now();
-        // Lower finds faces in poor light; every face still has to match the user's.
-        const float detectionThreshold = float(config.number("video/detection_threshold", 0.8));
-        detector = cv::FaceDetectorYN::create(detectorModel, "", cv::Size(320, 320), detectionThreshold, 0.3f, 50);
-        recognizer = cv::FaceRecognizerSF::create(recognizerModel, "");
-        networksMs = millisecondsSince(start);
     }
 
     bool ready() const
