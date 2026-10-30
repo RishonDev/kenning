@@ -55,9 +55,11 @@ migrate() {
 
     [[ -z $(files_using pam_kenning.so) ]] || return 0
     compgen -G "$kenning_dir/models/*.dat" > /dev/null || return 0
-    # Same services as Set Up: an ordinary webcam stays off sudo.
-    local services=(plasmalogin kde sudo)
-    grep -Eq '^[[:space:]]*colour[[:space:]]*=[[:space:]]*true' "$kenning_dir/config.ini" 2>/dev/null && services=(plasmalogin kde)
+    # Same services as Set Up: the login screen only with the Kenning login manager,
+    # and an ordinary webcam stays off sudo.
+    local services=(kde)
+    [[ -e ${LOGIN_MANAGER_SUPPORT:-/usr/share/kenning/login-manager} ]] && services+=(plasmalogin)
+    grep -Eq '^[[:space:]]*colour[[:space:]]*=[[:space:]]*true' "$kenning_dir/config.ini" 2>/dev/null || services+=(sudo)
     for service in "${services[@]}"; do
         file=$pam_dir/$service
         if [[ ! -e $file ]]; then

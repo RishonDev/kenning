@@ -1,0 +1,11 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+set -e
+
+if [ "$1" = purge ]; then
+    rm -rf /etc/kenning/models /var/lib/kenning /etc/xdg/kenningrc /usr/local/share/kenning
+fi
+
+#DEBHELPER#
+exit 0

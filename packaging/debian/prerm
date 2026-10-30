@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+set -e
+
+if [ "$1" = remove ]; then
+    # Nothing may point at pam_kenning.so or the add-on once they are gone.
+    /usr/lib/kenning/pam-tidy remove || true
+    python3 -I /usr/lib/kenning/kenning-lockscreen.py --restore || true
+    if [ -d /run/systemd/system ]; then
+        systemctl stop kenning.socket kenning.service || true
+    fi
+fi
+
+#DEBHELPER#
+exit 0

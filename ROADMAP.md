@@ -71,6 +71,14 @@ webcam:
 
 ## Follow-ups (not yet ordered)
 
+- [x] Packages for Debian/Ubuntu and Fedora beside Arch, from one CMake install,
+      built and install-tested in containers (Ubuntu 26.04 and 26.10, Fedora 44);
+      the lock screen add-on keeps its own copies of the originals instead of
+      using pacman's cache
+- [ ] Lock screen animation on Plasma 6.3-6.7 (Debian 13, Ubuntu 26.04 LTS): those
+      versions need their own patch, tested against a running Plasma
+- [ ] Login screen face unlock beyond Arch: plasma-login-manager-kenning for
+      Fedora, or an SDDM greeter patch
 - [x] Plug and play: install/upgrade drops pam_howdy lines once Howdy is gone,
       removal drops pam_kenning lines, and the first login after startup
       (uptime under 10 minutes) offers Set Up once if there is an IR camera

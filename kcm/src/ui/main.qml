@@ -230,8 +230,17 @@ KCM.SimpleKCM {
             QQC2.CheckBox {
                 Kirigami.FormData.label: i18n("Signing in:")
                 text: i18n("Login screen")
+                // Can always be switched off, only switched on with the Kenning login manager
+                enabled: kcm.loginScreenSupported || settings["pam/login"]
                 checked: settings["pam/login"]
                 onToggled: kcm.setValue("pam/login", checked)
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                visible: !kcm.loginScreenSupported
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                text: i18n("Needs the Kenning version of Plasma Login Manager (plasma-login-manager-kenning). Other login managers would look for your face before checking a password you typed.")
             }
             QQC2.CheckBox {
                 text: i18n("Lock screen")
@@ -293,16 +302,18 @@ KCM.SimpleKCM {
                 Layout.fillWidth: true
                 visible: !kcm.lockScreenPatched
                 type: Kirigami.MessageType.Information
-                text: i18n("These lock screen options need the face unlock lock screen add-on, which is installed with this package. Reinstall the package or plasma-workspace to apply it.")
+                text: i18n("The lock screen animation and these options need Plasma 6.8 or newer. Face unlock still works on this lock screen: look at the camera, then press Unlock.")
             }
 
-            // Login screen
+            // Login screen (only with the Kenning login manager)
             Kirigami.Separator {
+                visible: kcm.loginScreenSupported
                 Kirigami.FormData.isSection: true
                 Kirigami.FormData.label: i18n("Login screen")
             }
 
             QQC2.CheckBox {
+                visible: kcm.loginScreenSupported
                 Kirigami.FormData.label: i18n("When the login screen appears:")
                 text: i18n("Start looking for my face right away")
                 enabled: settings["pam/login"]
@@ -310,6 +321,7 @@ KCM.SimpleKCM {
                 onToggled: kcm.setValue("LoginScreen/AutoScan", checked)
             }
             QQC2.SpinBox {
+                visible: kcm.loginScreenSupported
                 Kirigami.FormData.label: i18n("Show welcome for:")
                 enabled: settings["pam/login"]
                 from: 0

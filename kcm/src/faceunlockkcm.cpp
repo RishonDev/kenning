@@ -291,6 +291,11 @@ bool FaceUnlockKcm::lockScreenPatched() const
     return file.open(QIODevice::ReadOnly) && file.readAll().contains(FaceUnlock::lockScreenMarker.toUtf8());
 }
 
+bool FaceUnlockKcm::loginScreenSupported() const
+{
+    return QFile::exists(FaceUnlock::loginManagerSupportPath);
+}
+
 void FaceUnlockKcm::refreshFaces()
 {
     KAuth::Action action(helperId + QStringLiteral(".list"));

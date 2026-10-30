@@ -68,7 +68,13 @@ KCM.SimpleKCM {
                 // A colour webcam can be fooled by a photo, so then only for signing in;
                 // approving system changes stays on the password.
                 if (!page.improving && kcm.faces.length === 0) {
-                    const services = kcm.colourCamera ? ["pam/login", "pam/lockscreen"] : ["pam/login", "pam/lockscreen", "pam/sudo"];
+                    const services = ["pam/lockscreen"];
+                    if (kcm.loginScreenSupported) {
+                        services.push("pam/login");
+                    }
+                    if (!kcm.colourCamera) {
+                        services.push("pam/sudo");
+                    }
                     for (const service of services) {
                         kcm.setValue(service, true);
                     }

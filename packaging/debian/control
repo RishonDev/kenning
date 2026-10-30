@@ -1,0 +1,47 @@
+Source: kenning
+Section: admin
+Priority: optional
+Maintainer: Rishon Jonathan R <kenning@invalid>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               extra-cmake-modules,
+               gettext,
+               libkf6auth-dev,
+               libkf6config-dev,
+               libkf6coreaddons-dev,
+               libkf6i18n-dev,
+               libkf6kcmutils-dev,
+               libkirigami-dev,
+               libopencv-dev,
+               libpam0g-dev,
+               libsystemd-dev,
+               pkgconf,
+               qt6-base-dev,
+               qt6-declarative-dev
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://invent.kde.org/
+
+Package: kenning
+Architecture: any
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+         libarchive-tools,
+         libnotify-bin,
+         python3,
+         qml6-module-org-kde-kcmutils,
+         qml6-module-org-kde-kirigami,
+         qml6-module-qtquick-controls,
+         qml6-module-qtquick-dialogs,
+         qml6-module-qtquick-layouts,
+         qml6-module-qtquick-shapes,
+         systemd
+Recommends: plasma-desktop
+Description: face unlock for KDE Plasma
+ Kenning signs you in with your face: on the lock screen, for sudo and, with
+ its version of Plasma Login Manager, on the login screen. It works best with
+ an infrared camera; an ordinary webcam can be used with a warning.
+ .
+ It includes a System Settings page to set it up, an animated face scan on
+ the lock screen (Plasma 6.8 or newer) and installable animation themes.
+ Recognition runs in a small service that owns the camera and the face models.

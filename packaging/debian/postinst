@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+set -e
+
+lockscreen() {
+    python3 -I /usr/lib/kenning/kenning-lockscreen.py || true
+}
+
+case "$1" in
+configure)
+    # The service user owns the face models, which nobody else can read.
+    systemd-sysusers kenning.conf || true
+    mkdir -p /etc/kenning/models
+    chown -R kenning:kenning /etc/kenning/models || true
+    chmod 700 /etc/kenning/models
+    find /etc/kenning/models -type f -exec chmod 600 {} +
+    /usr/lib/kenning/pam-tidy tidy
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || true
+        systemctl start kenning.socket || true
+        systemctl try-restart kenning.service || true
+    fi
+    lockscreen
+    ;;
+triggered)
+    lockscreen
+    ;;
+esac
+
+#DEBHELPER#
+exit 0

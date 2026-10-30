@@ -7,7 +7,7 @@ pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
 pkgver=0.4.0
 _plmver=6.8.2
-pkgrel=2
+pkgrel=3
 arch=(x86_64)
 url='https://invent.kde.org/'
 license=(GPL-2.0-or-later MIT Apache-2.0)
@@ -34,12 +34,9 @@ prepare() {
 }
 
 build() {
-  cmake -B engine-build -S "$startdir/engine/native" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc \
-    -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=RelWithDebInfo
-  cmake --build engine-build
-
-  cmake -B kcm-build -S "$startdir/kcm" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKDE_INSTALL_LIBEXECDIR=lib
-  cmake --build kcm-build
+  cmake -B kenning-build -S "$startdir" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib \
+    -DKDE_INSTALL_LIBEXECDIR=lib -DKENNING_NETWORKS_DIR="$srcdir" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  cmake --build kenning-build
 
   cmake -B plm-build -S plasma-login-manager-$_plmver -DKDE_INSTALL_LIBEXECDIR=lib \
     -DDBUS_CONFIG_FILENAME=plasma_org.freedesktop.DisplayManager.conf
@@ -55,20 +52,11 @@ package_kenning() {
   # Earlier name; the install script moves its settings and face models across
   conflicts=(plasma-faceunlock)
   replaces=(plasma-faceunlock)
-  install=packaging/kenning.install
+  install=packaging/arch/kenning.install
 
-  DESTDIR="$pkgdir" cmake --install engine-build
-  install -Dm644 -t "$pkgdir/usr/share/kenning/models" *.onnx
-  # The service socket is on by default (the PAM module needs it); nothing runs until used
-  install -d "$pkgdir/usr/lib/systemd/system/sockets.target.wants"
-  ln -s ../kenning.socket "$pkgdir/usr/lib/systemd/system/sockets.target.wants/kenning.socket"
-
-  DESTDIR="$pkgdir" cmake --install kcm-build
-  install -Dm755 "$startdir/lockscreen/kenning-lockscreen.py" "$pkgdir/usr/lib/kenning/kenning-lockscreen.py"
-  install -Dm644 "$startdir/kcm/src/ui/FaceScanIndicator.qml" "$pkgdir/usr/lib/kenning/FaceScanIndicator.qml"
-  install -Dm644 -t "$pkgdir/usr/share/libalpm/hooks" "$startdir"/packaging/*.hook
-  install -Dm755 -t "$pkgdir/usr/lib/kenning" "$startdir/packaging/pam-tidy" "$startdir/packaging/setup-prompt"
-  install -Dm644 -t "$pkgdir/etc/xdg/autostart" "$startdir/packaging/org.kde.kenning.setupprompt.desktop"
+  DESTDIR="$pkgdir" cmake --install kenning-build
+  # Re-applies the lock screen add-on after plasma-desktop updates
+  install -Dm644 -t "$pkgdir/usr/share/libalpm/hooks" "$startdir"/packaging/arch/*.hook
 }
 
 package_plasma-login-manager-kenning() {
@@ -82,4 +70,6 @@ package_plasma-login-manager-kenning() {
   groups=(plasma)
 
   DESTDIR="$pkgdir" cmake --install plm-build
+  # Tells Kenning's settings page that this login manager supports face unlock
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/kenning/login-manager" <<< "plasma-login-manager-kenning $_plmver"
 }

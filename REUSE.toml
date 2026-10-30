@@ -4,7 +4,7 @@ version = 1
 
 [[annotations]]
 path = ["**/PKGBUILD", ".gitignore", "README.md", "THEMES.md", "ROADMAP.md", "**/CMakeLists.txt", "**/*.json",
-        "**/*.ini", "**/*.actions", "packaging/*.hook"]
+        "**/*.ini", "**/*.actions", "packaging/arch/*.hook", "packaging/debian/**", "packaging/rpm/*.spec"]
 SPDX-FileCopyrightText = "2026 Rishon Jonathan R"
 SPDX-License-Identifier = "CC0-1.0"
 

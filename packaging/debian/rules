@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+
+%:
+	dh $@
+
+# The two recognition networks are expected next to the sources (see CMakeLists.txt).
+override_dh_auto_configure:
+	dh_auto_configure -- -DKENNING_NETWORKS_DIR=$(CURDIR)
+
+# kenning.socket is enabled through sockets.target.wants; the service only starts on use.
+override_dh_installsystemd:
+	dh_installsystemd --no-start kenning.socket

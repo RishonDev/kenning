@@ -18,10 +18,26 @@ know or recognise them.)
 - `packaging/` – pacman hooks, install script (PAM tidying, migration from the
   earlier `plasma-faceunlock` packages) and the first-startup setup prompt
 
-`makepkg -si` builds and installs both packages: `kenning` and
-`plasma-login-manager-kenning` (replaces plasma-login-manager). Everything
-comes from the official Arch repositories (opencv, Qt, KDE Frameworks); the two
-networks (YuNet, MIT; SFace, Apache-2.0) are downloaded at build time.
+## Packages
+
+Everything comes from the distributions' own repositories (OpenCV, Qt, KDE
+Frameworks); the two recognition networks (YuNet, MIT; SFace, Apache-2.0) are
+downloaded once, next to the sources: `makepkg` does it on Arch, elsewhere fetch
+`face_detection_yunet_2023mar.onnx` and `face_recognition_sface_2021dec.onnx` from
+[OpenCV Zoo](https://github.com/opencv/opencv_zoo) into the repository root.
+
+| Distribution | Build | Notes |
+|---|---|---|
+| Arch Linux | `makepkg -si` | Also builds `plasma-login-manager-kenning`, for face unlock on the login screen |
+| Debian, Ubuntu | `cp -r packaging/debian debian && dpkg-buildpackage -b -uc -us -jauto` | |
+| Fedora | `rpmbuild -bb packaging/rpm/kenning.spec` (sources as in the spec) | |
+
+All of them share one CMake install (`CMakeLists.txt`); `tests/containers/` builds
+and tests them in containers. The lock screen animation needs Plasma 6.8 or newer;
+on older Plasma the stock lock screen still unlocks with your face after pressing
+Unlock. Face unlock on the login screen needs `plasma-login-manager-kenning`,
+packaged for Arch only so far.
+
 Then open System Settings > Face Unlock and press Set Up: the IR camera is found
 automatically (without one, setup offers the ordinary webcam with a warning:
 it is less secure and needs your face lit from the front) and face unlock is switched on for the login screen, lock screen

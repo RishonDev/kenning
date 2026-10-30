@@ -11,13 +11,14 @@
 #        kenning-lockscreen.py --restore [lockscreen dir]   put the stock files back
 
 import glob
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 # MARKER tags every patched file; VERSION changes whenever the edits do, so an
-# older patch is replaced by re-patching the original file from the package cache.
+# older patch is replaced by re-patching the saved original (see ORIGINALS).
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
@@ -292,8 +293,19 @@ def is_patched(text: str) -> bool:
     return MARKER in text or any(marker in text for marker in LEGACY_MARKERS)
 
 
+# Unpatched copies, saved before the first patch. When the distribution updates
+# Plasma, its package manager writes fresh unpatched files, which replace these.
+ORIGINALS = Path(os.environ.get("KENNING_ORIGINALS", "/var/lib/kenning/lockscreen-originals"))
+
+
 def original(name: str) -> str | None:
-    """The unpatched file from the cached package (plasma-desktop) that installed it."""
+    """The unpatched file: the copy saved before patching, or on Arch, from the
+    package cache (installs patched by releases that didn't save copies)."""
+    saved = ORIGINALS / name
+    if saved.is_file():
+        return saved.read_text()
+    if not shutil.which("pacman"):
+        return None
     owner = subprocess.run(["pacman", "-Qo", f"{SYSTEM_LOCKSCREEN}/{name}"], capture_output=True, text=True).stdout.split()
     # "<path> is owned by <package> <version>"
     if len(owner) < 2:
@@ -315,48 +327,59 @@ def restore() -> int:
             continue
         text = original(name)
         if text is None:
-            print(f"face unlock lock screen: original {name} not in the package cache; reinstall plasma-desktop",
-                  file=sys.stderr)
+            print(f"kenning lock screen: no saved original of {name}; reinstall the package that provides it "
+                  "(plasma-desktop, or plasma-desktop-data on Debian and Ubuntu)", file=sys.stderr)
             continue
         (lockscreen / name).write_text(text)
-        print(f"face unlock lock screen: restored {name}")
+        print(f"kenning lock screen: restored {name}")
     (lockscreen / "FaceScanIndicator.qml").unlink(missing_ok=True)
+    shutil.rmtree(ORIGINALS, ignore_errors=True)
     return 0
 
 
 def main() -> int:
+    if not (lockscreen / "LockScreenUi.qml").is_file():
+        print(f"kenning lock screen: no Plasma lock screen in {lockscreen}; nothing to do")
+        return 0
     if RESTORE:
         return restore()
     patched = {}
+    originals = {}
     for name, edits in EDITS.items():
         text = (lockscreen / name).read_text()
         if VERSION in text:
-            print(f"face unlock lock screen: {name} already patched")
+            print(f"kenning lock screen: {name} already patched")
             continue
         if is_patched(text):
             text = original(name)
             if text is None:
-                print(f"face unlock lock screen: {name} has an older patch and the original is not in the "
-                      "package cache; reinstall plasma-desktop to update it", file=sys.stderr)
+                print(f"kenning lock screen: {name} has an older patch and no saved original; reinstall the "
+                      "package that provides it to update it", file=sys.stderr)
                 return 0
+        originals[name] = text
         for old, new in edits:
             if text.count(old) != 1:
-                print(f"face unlock lock screen: {name} changed upstream; leaving the lock screen stock",
-                      file=sys.stderr)
+                # All or nothing: an older or newer Plasma keeps its stock lock screen,
+                # where face unlock still works, without the animation.
+                print(f"kenning lock screen: {name} doesn't match the Plasma version this add-on supports "
+                      "(6.8 or newer); leaving the lock screen stock", file=sys.stderr)
                 return 0
             text = text.replace(old, new)
         patched[name] = text
 
     # The indicator is a separate file; refresh it every run so updates reach it.
     if not indicator.is_file():
-        print(f"face unlock lock screen: {indicator} missing; leaving the lock screen stock", file=sys.stderr)
+        print(f"kenning lock screen: {indicator} missing; leaving the lock screen stock", file=sys.stderr)
         return 0
     shutil.copyfile(indicator, lockscreen / "FaceScanIndicator.qml")
 
+    ORIGINALS.mkdir(parents=True, exist_ok=True)
+    for name, text in originals.items():
+        (ORIGINALS / name).write_text(text)
     for name, text in patched.items():
         (lockscreen / name).write_text(text)
     if patched:
-        print(f"face unlock lock screen: patched {', '.join(patched)}")
+        print(f"kenning lock screen: patched {', '.join(patched)}")
     return 0
 
 

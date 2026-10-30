@@ -31,6 +31,7 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_PROPERTY(bool colourCamera READ colourCamera NOTIFY settingsChanged)
     Q_PROPERTY(bool engineInstalled READ engineInstalled CONSTANT)
     Q_PROPERTY(bool lockScreenPatched READ lockScreenPatched CONSTANT)
+    Q_PROPERTY(bool loginScreenSupported READ loginScreenSupported CONSTANT)
 
 public:
     FaceUnlockKcm(QObject *parent, const KPluginMetaData &data);
@@ -44,6 +45,7 @@ public:
     bool colourCamera() const;
     bool engineInstalled() const;
     bool lockScreenPatched() const;
+    bool loginScreenSupported() const;
 
     Q_INVOKABLE void setValue(const QString &key, const QVariant &value);
     Q_INVOKABLE void addFace(const QString &label);

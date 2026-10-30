@@ -1,0 +1,2 @@
+# Re-apply the lock screen add-on when Plasma's lock screen files change.
+interest-noawait /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
