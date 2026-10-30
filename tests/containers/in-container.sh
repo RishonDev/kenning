@@ -13,6 +13,11 @@ result() { echo "RESULT $1: $2${3:+ ($3)}"; }
 echo "== $PRETTY_NAME"
 
 # --- dependencies ---------------------------------------------------------------
+# A cached image (run.sh) has them already, along with the last run's build.
+if [[ ${KENNING_DEPS_INSTALLED:-} == 1 ]]; then
+    rm -rf /tmp/engine /tmp/engine-build /tmp/kcm-build /tmp/kenning /tmp/pamcopy /tmp/kdir
+    true
+else
 case "$ID" in
 debian | ubuntu)
     export DEBIAN_FRONTEND=noninteractive
@@ -23,7 +28,7 @@ debian | ubuntu)
         > /tmp/deps.log 2>&1
     ;;
 fedora)
-    dnf install -y -q --setopt=install_weak_deps=False gcc-c++ cmake extra-cmake-modules pkgconf gettext python3 \
+    dnf install -y -q --setopt=install_weak_deps=False gcc-c++ cmake extra-cmake-modules pkgconf gettext python3 util-linux \
         qt6-qtbase-devel qt6-qtdeclarative-devel opencv-devel pam-devel systemd-devel \
         kf6-kauth-devel kf6-kconfig-devel kf6-kcoreaddons-devel kf6-ki18n-devel kf6-kcmutils-devel kf6-kirigami-devel \
         > /tmp/deps.log 2>&1
@@ -44,6 +49,7 @@ arch)
     exit 1
     ;;
 esac
+fi
 deps=$?
 [[ $deps -eq 0 ]] && result dependencies PASS || { result dependencies FAIL "see deps.log"; tail -15 /tmp/deps.log; exit 1; }
 opencv=$(for m in opencv5 opencv4 opencv; do pkg-config --modversion $m 2>/dev/null && break; done)
