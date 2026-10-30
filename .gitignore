@@ -11,3 +11,4 @@ __pycache__/
 *.onnx
 *.dat
 plasma-login-manager-*.tar.xz*
+/tests/containers/logs/

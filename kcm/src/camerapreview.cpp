@@ -246,5 +246,9 @@ void CameraPreview::paint(QPainter *painter)
     // Fill the circle, cropping the longer side, and mirror like a selfie camera.
     const QSizeF scaled = QSizeF(m_frame.size()).scaled(bounds.size(), Qt::KeepAspectRatioByExpanding);
     const QRectF target(bounds.center().x() - scaled.width() / 2, bounds.center().y() - scaled.height() / 2, scaled.width(), scaled.height());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
     painter->drawImage(target, m_frame.flipped(Qt::Horizontal));
+#else
+    painter->drawImage(target, m_frame.mirrored(true, false));
+#endif
 }
