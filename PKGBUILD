@@ -5,9 +5,9 @@
 
 pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
-pkgver=0.4.0
+pkgver=0.5.0
 _plmver=6.8.2
-pkgrel=6
+pkgrel=1
 arch=(x86_64)
 url='https://github.com/RishonDev/kenning'
 license=(GPL-2.0-or-later MIT Apache-2.0)

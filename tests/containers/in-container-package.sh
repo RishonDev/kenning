@@ -36,8 +36,9 @@ build() {
         dnf install -y -q --setopt=install_weak_deps=False rpm-build systemd-rpm-macros > /tmp/tools.log 2>&1 ||
             { result "packaging tools" FAIL; tail -5 /tmp/tools.log; return 1; }
         mkdir -p ~/rpmbuild/{SOURCES,SPECS}
-        source_tree /build/kenning-0.4.0
-        tar -C /build -czf ~/rpmbuild/SOURCES/kenning-0.4.0.tar.gz kenning-0.4.0
+        version=$(awk '/^Version:/ { print $2 }' /src/packaging/rpm/kenning.spec)
+        source_tree /build/kenning-$version
+        tar -C /build -czf ~/rpmbuild/SOURCES/kenning-$version.tar.gz kenning-$version
         cp /src/*.onnx ~/rpmbuild/SOURCES/
         rpmbuild -bb /src/packaging/rpm/kenning.spec > /tmp/build.log 2>&1 ||
             { result "build package" FAIL; grep -m8 -E "error|Error|Failed" /tmp/build.log; return 1; }

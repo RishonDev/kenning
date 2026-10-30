@@ -1,3 +1,12 @@
+kenning (0.5.0-1) unstable; urgency=medium
+
+  * Use Plasma 6.8's Face sign-in method (PAM service kde-face) on the lock
+    screen.
+  * Choose face or fingerprint first on the lock screen when a fingerprint is
+    enrolled.
+
+ -- Rishon Jonathan R <kenning@invalid>  Sat, 31 Oct 2026 00:07:12 +0530
+
 kenning (0.4.0-1) unstable; urgency=medium
 
   * First Debian and Ubuntu package.
