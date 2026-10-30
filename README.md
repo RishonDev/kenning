@@ -25,10 +25,10 @@ Then open System Settings > Face Unlock and press Set Up: the IR camera is found
 automatically and face unlock is switched on for the login screen, lock screen
 and sudo after the first face is saved.
 
-This branch (`native-engine`) replaces Howdy. The `howdy-bundled` branch keeps
-Howdy's dlib engine instead, so existing Howdy face models keep working, but it
-needs `python-dlib` from the AUR. Faces enrolled with Howdy have to be enrolled
-again here.
+The native engine replaces Howdy. The `archive/howdy-bundled` branch keeps a
+version with Howdy's dlib engine vendored as a fallback (existing Howdy face
+models keep working, but it needs `python-dlib` from the AUR). Faces enrolled
+with Howdy have to be enrolled again here.
 
 Known limitation: the lock screen authenticates as the user, so face models in
 /etc/faceunlock/models are readable by local users. A system service that owns the

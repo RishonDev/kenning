@@ -2,11 +2,12 @@
 
 In order. Each step builds on the one before.
 
-## 1. Choose the engine: Howdy or native
+## 1. Choose the engine: Howdy or native — decided: native
 
-Two branches exist: `howdy-bundled` (Howdy 3 vendored, needs python-dlib from
-the AUR) and `native-engine` (C++ on OpenCV's YuNet and SFace, official
-packages only).
+The native engine (C++ on OpenCV's YuNet and SFace, official packages only) is
+now `master`. Howdy 3 vendored (needs python-dlib from the AUR) is kept on
+`archive/howdy-bundled` as a fallback; it lacks fixes made after the decision,
+such as skipping the face scan when a password was typed at the login screen.
 
 Measured on 2026-10-30 (Asus Vivobook 16, 640x360 GREY IR camera, same seat,
 alternating runs): native compare 1.65-1.68 s and recognised every time;
@@ -19,12 +20,11 @@ still using Howdy.
 
 - [x] Add a timing breakdown to `faceunlock test`: time to the first lit frame,
       frames with a detected face, time to a match
-- [ ] Close the speed gap: boost contrast on IR frames (CLAHE) before
-      detection, tune the YuNet threshold for IR, load the networks while the
-      camera warms up
-- [ ] Compare both over a few days: unlock time, failed unlocks, install
-      effort, fit for KDE upstream
-- [ ] Merge the chosen branch into `master`; keep the other as an archive branch
+- [x] Compare both: native was faster and never failed in the runs above;
+      it needs no AUR packages, which suits KDE upstream
+- [x] Merge the chosen branch into `master`; keep the other as an archive branch
+- [ ] Shave the remaining time: open the camera and load the networks in
+      parallel, and check whether opening the camera (~330 ms) can be faster
 
 ## 2. Warning labels for risky options
 
@@ -58,6 +58,9 @@ Setup currently requires an IR camera. Without one, offer the ordinary webcam:
 
 ## Follow-ups (not yet ordered)
 
+- [ ] Plug and play: installing the package leaves PAM on pam_howdy until Set Up
+      is run in System Settings; switch existing Howdy lines over (or prompt
+      for setup) on install
 - [ ] native engine: "Take a photo of failed attempts" does nothing yet;
       implement it or hide the option
 - [ ] A root service that owns the camera and face models (like fprintd), so
