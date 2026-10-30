@@ -68,6 +68,27 @@ KCM.SimpleKCM {
         }
     }
 
+    // No infrared camera: face unlock would use the ordinary webcam, which is less safe.
+    // Asked before setup starts; the settings page also keeps a warning beside the camera.
+    Kirigami.PromptDialog {
+        id: webcamDialog
+        // Over the window, not centred on the page's whole scrolling height
+        parent: QQC2.Overlay.overlay
+        title: i18nc("@title:window", "Use the Ordinary Webcam?")
+        subtitle: i18n("This computer has no infrared camera, so face recognition would use the ordinary webcam. That is less safe:\n\n• A photo or video of you may be enough to unlock it.\n• It is less accurate, and needs your face lit from the front; it won't work in the dark or with a bright window behind you.\n\nIt will only be used to sign in. Installing software and other changes to the system will still need your password.")
+        standardButtons: Kirigami.Dialog.Cancel
+        customFooterActions: [
+            Kirigami.Action {
+                text: i18nc("@action:button", "Use Webcam")
+                icon.name: "camera-web"
+                onTriggered: {
+                    webcamDialog.close();
+                    kcm.push("SetupPage.qml", {improving: false, webcamAccepted: true});
+                }
+            }
+        ]
+    }
+
     header: ColumnLayout {
         spacing: 0
 
@@ -191,12 +212,19 @@ KCM.SimpleKCM {
                 QQC2.Button {
                     icon.name: kcm.faces.length === 0 ? "list-add" : "view-refresh"
                     text: kcm.faces.length === 0 ? i18n("Set Up…") : i18n("Improve Recognition…")
-                    enabled: !kcm.busy
-                    onClicked: kcm.push("SetupPage.qml", {improving: kcm.faces.length > 0})
+                    enabled: !kcm.busy && kcm.devicePath !== ""
+                    onClicked: {
+                        if (kcm.faces.length === 0 && kcm.colourCamera) {
+                            webcamDialog.open();
+                        } else {
+                            kcm.push("SetupPage.qml", {improving: kcm.faces.length > 0});
+                        }
+                    }
                 }
                 QQC2.Button {
                     icon.name: "dialog-ok-apply"
                     text: i18n("Test Recognition")
+                    visible: kcm.devicePath !== ""
                     enabled: !kcm.busy && kcm.faces.length > 0
                     onClicked: {
                         root.testResult = "";
@@ -212,6 +240,13 @@ KCM.SimpleKCM {
                     visible: kcm.busy
                     text: i18n("Look at the camera…")
                 }
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                visible: kcm.devicePath === ""
+                type: Kirigami.MessageType.Warning
+                text: i18n("No camera was found. Connect one and open this page again; an infrared camera, as on laptops that support face sign-in, works best and is the safest.")
             }
 
             Kirigami.InlineMessage {

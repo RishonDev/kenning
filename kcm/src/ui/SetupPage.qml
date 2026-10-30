@@ -19,6 +19,8 @@ KCM.SimpleKCM {
     id: page
 
     property bool improving: false
+    // Set when the person accepted the ordinary-webcam warning on the settings page
+    property bool webcamAccepted: false
     // "ready", "capturing", "done", "failed"
     property string step: "ready"
     property string detail: ""
@@ -206,18 +208,12 @@ KCM.SimpleKCM {
             }
         }
 
-        // An ordinary webcam has to be accepted knowingly before the first capture
+        // A reminder of the warning accepted on the settings page
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: kcm.colourCamera && !page.improving && (page.step === "ready" || page.step === "failed")
             type: Kirigami.MessageType.Warning
-            text: i18n("This computer has no infrared camera, so face recognition will use the ordinary webcam. That is less secure: a photo or video of you may unlock it. It also needs your face lit from the front and won't work in the dark. Face recognition will only be used on the login and lock screens; changes to the system still need your password.")
-        }
-        QQC2.CheckBox {
-            id: acceptColour
-            Layout.alignment: Qt.AlignHCenter
-            visible: kcm.colourCamera && !page.improving && (page.step === "ready" || page.step === "failed")
-            text: i18n("I understand, use the webcam")
+            text: i18n("Using the ordinary webcam: less secure than an infrared camera, and it needs your face lit from the front.")
         }
 
         QQC2.TextField {
@@ -237,7 +233,8 @@ KCM.SimpleKCM {
                 visible: page.step === "ready" || page.step === "failed"
                 icon.name: "media-record"
                 text: page.step === "failed" ? i18n("Try Again") : i18n("Start")
-                enabled: !kcm.busy && (!acceptColour.visible || acceptColour.checked)
+                // An ordinary webcam only after its warning was accepted (settings page)
+                enabled: !kcm.busy && kcm.devicePath !== "" && (!kcm.colourCamera || page.improving || page.webcamAccepted)
                 onClicked: {
                     page.detail = "";
                     page.step = "capturing";
