@@ -30,7 +30,11 @@ validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell
               '1FA881591C26B276D7A5518EEAAF29B42A678C20') # Marco Martin <notmart@gmail.com>
 
 prepare() {
-  patch -d plasma-login-manager-$_plmver -p1 < "$startdir/login-manager/plasma-login-manager-kenning.patch"
+  local patch="$startdir/login-manager/plasma-login-manager-kenning.patch"
+  # makepkg extracts over the previous build's tree, which still has the files the patch adds
+  awk '/^--- \/dev\/null/{n=1;next} n&&/^\+\+\+ b\//{print substr($0,7)} {n=0}' "$patch" |
+    while read -r file; do rm -f "plasma-login-manager-$_plmver/$file"; done
+  patch -d plasma-login-manager-$_plmver -p1 < "$patch"
 }
 
 build() {
