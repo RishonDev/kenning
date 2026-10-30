@@ -92,7 +92,7 @@ test_package() {
         files() { rpm -ql kenning; }
         remove() { dnf remove -y -q kenning; }
         lockscreen_package=plasma-desktop
-        install_lockscreen() { rpm -i --nodeps --excludedocs $(dnf -q download --destdir /tmp/pd plasma-desktop > /dev/null && ls /tmp/pd/plasma-desktop-*.x86_64.rpm); }
+        install_lockscreen() { rpm -i --nodeps --excludedocs $(dnf -q download --destdir /tmp/pd plasma-desktop > /dev/null && ls /tmp/pd/plasma-desktop-*.$(uname -m).rpm); }
     fi
     [[ $installed -eq 0 ]] && result install PASS || { result install FAIL; tail -8 /tmp/install.log; return 1; }
 
