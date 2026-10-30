@@ -47,7 +47,8 @@ KCM.SimpleKCM {
         case 0: return i18n("Recognized you. Face unlock is working.");
         case 10: return i18n("No face is set up yet.");
         case 11: return i18n("Didn't see a matching face in time. Try Improve recognition.");
-        case 13: return i18n("The camera picture was too dark. Is the IR emitter on?");
+        case 13: return kcm.colourCamera ? i18n("The camera picture was too dark. Turn on a light in front of you.")
+                                         : i18n("The camera picture was too dark. Is the IR emitter on?");
         case -1: return message;
         default: return i18n("Face recognition stopped (%1).", message);
         }
@@ -121,6 +122,7 @@ KCM.SimpleKCM {
                         ? i18np("Sign in, unlock and approve with your face. %1 face model saved for %2.",
                                 "Sign in, unlock and approve with your face. %1 face models saved for %2.",
                                 kcm.faces.length, kcm.userName)
+                        : kcm.colourCamera ? i18n("Use the webcam to sign in with your face instead of typing your password.")
                         : i18n("Use the infrared camera to sign in with your face instead of typing your password.")
                 }
             }
@@ -249,7 +251,10 @@ KCM.SimpleKCM {
             }
             RiskWarning {
                 visible: settings["pam/polkit"] || settings["pam/sudo"]
-                text: i18n("Your face can approve changes to the system, such as installing software. Someone who looks like you, or holds the computer up to your face, could do the same. Your password always works too.")
+                type: kcm.colourCamera ? Kirigami.MessageType.Error : Kirigami.MessageType.Warning
+                text: kcm.colourCamera
+                    ? i18n("Your face can approve changes to the system, and this camera is an ordinary webcam: a photo or video of you could approve them too. Leave these on the password unless you accept that risk.")
+                    : i18n("Your face can approve changes to the system, such as installing software. Someone who looks like you, or holds the computer up to your face, could do the same. Your password always works too.")
             }
 
             // Lock screen
@@ -547,6 +552,10 @@ KCM.SimpleKCM {
                 elide: Text.ElideMiddle
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
                 opacity: 0.7
+            }
+            RiskWarning {
+                visible: kcm.colourCamera
+                text: i18n("This is an ordinary webcam, not an infrared camera. It is less accurate, a photo or video of you may fool it, and it needs your face lit from the front.")
             }
         }
     }

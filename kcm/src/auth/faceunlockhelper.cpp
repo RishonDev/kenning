@@ -3,6 +3,7 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #include "faceunlockhelper.h"
+#include "camerafinder.h"
 #include "faceunlockpaths.h"
 
 #include <KAuth/HelperSupport>
@@ -20,9 +21,6 @@
 #include <QSaveFile>
 #include <QTemporaryDir>
 
-#include <fcntl.h>
-#include <linux/videodev2.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 
 namespace
@@ -95,6 +93,7 @@ bool updateEngineConfig(const QVariantMap &values)
     QStringList lines = QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'));
     file.close();
 
+    QVariantMap missing = values;
     QString section;
     for (QString &line : lines) {
         const QString trimmed = line.trimmed();
@@ -109,6 +108,21 @@ bool updateEngineConfig(const QVariantMap &values)
         const QString key = section + QLatin1Char('/') + line.left(equals).trimmed();
         if (values.contains(key)) {
             line = line.left(equals).trimmed() + QStringLiteral(" = ") + values.value(key).toString();
+            missing.remove(key);
+        }
+    }
+    // Keys newer than the user's config.ini (pacman keeps an edited one): add them
+    // under their section, creating the section if needed.
+    for (auto it = missing.cbegin(); it != missing.cend(); ++it) {
+        const QString group = it.key().section(QLatin1Char('/'), 0, 0);
+        const QString entry = it.key().section(QLatin1Char('/'), 1) + QStringLiteral(" = ") + it.value().toString();
+        const auto header = std::find_if(lines.begin(), lines.end(), [&group](const QString &line) {
+            return line.trimmed() == QLatin1Char('[') + group + QLatin1Char(']');
+        });
+        if (header == lines.end()) {
+            lines << QString() << QLatin1Char('[') + group + QLatin1Char(']') << entry;
+        } else {
+            lines.insert(header + 1, entry);
         }
     }
     return writeFile(FaceUnlock::engineConfigPath, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
@@ -154,33 +168,6 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
 namespace
 {
-// The IR sensor is the capture device that only offers greyscale frames.
-// by-path names survive reboots and replugging, unlike /dev/videoN.
-QString findIrCamera()
-{
-    const QDir byPath(QStringLiteral("/dev/v4l/by-path"));
-    for (const QFileInfo &entry : byPath.entryInfoList({QStringLiteral("*-video-index0")}, QDir::System)) {
-        const int fd = open(entry.absoluteFilePath().toLocal8Bit().constData(), O_RDONLY | O_NONBLOCK);
-        if (fd < 0) {
-            continue;
-        }
-        bool grey = false;
-        bool colour = false;
-        v4l2_fmtdesc format{};
-        format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        while (ioctl(fd, VIDIOC_ENUM_FMT, &format) == 0) {
-            grey |= format.pixelformat == V4L2_PIX_FMT_GREY;
-            colour |= format.pixelformat == V4L2_PIX_FMT_MJPEG || format.pixelformat == V4L2_PIX_FMT_YUYV;
-            ++format.index;
-        }
-        close(fd);
-        if (grey && !colour) {
-            return entry.absoluteFilePath();
-        }
-    }
-    return {};
-}
-
 // First-run setup so face unlock works without manual configuration: point the engine
 // at the IR camera if it has none, and let the lock screen (which authenticates as
 // the user) read the engine's config and face models.
@@ -192,8 +179,9 @@ void prepareEngine()
         const QString configured = devicePath.match(QString::fromUtf8(file.readAll())).captured(1).trimmed();
         file.close();
         if (configured.isEmpty() || configured == QLatin1String("none") || !QFile::exists(configured)) {
-            if (const QString camera = findIrCamera(); !camera.isEmpty()) {
-                updateEngineConfig({{QStringLiteral("video/device_path"), camera}});
+            if (const FaceUnlock::Camera camera = FaceUnlock::findCamera(); !camera.path.isEmpty()) {
+                updateEngineConfig({{QStringLiteral("video/device_path"), camera.path},
+                                    {QStringLiteral("video/colour"), camera.colour ? QStringLiteral("true") : QStringLiteral("false")}});
             }
         }
     }

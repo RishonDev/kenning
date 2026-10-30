@@ -8,6 +8,8 @@
 
 #include "engine.h"
 
+#include <opencv2/core/utils/logger.hpp>
+
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -142,6 +144,9 @@ int list(const std::string &user, bool plain)
 
 int main(int argc, char **argv)
 {
+    // OpenCV 5 warns on every network load that it ignores the preferred target.
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_ERROR);
+
     bool plain = false;
     std::string user;
     std::vector<std::string> positional;

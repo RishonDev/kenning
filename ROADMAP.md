@@ -43,18 +43,26 @@ option trades security or privacy for convenience:
 
 ## 3. Laptops with only an ordinary (colour) webcam
 
-Setup currently requires an IR camera. Without one, offer the ordinary webcam:
+Setup used to require an IR camera. Without one, it now offers the ordinary
+webcam:
 
-- [ ] Setup finds the colour webcam when there is no IR camera and explains,
-      with a warning to acknowledge, that it is less accurate and can be fooled
-      by a photo of you
-- [ ] In that mode, default to the lock and login screens only; sudo and
-      administrator prompts stay on the password
-- [ ] Try both approaches and keep the more reliable one:
-  - mimic IR: greyscale plus brightness and contrast normalisation (CLAHE), so
-    the existing pipeline sees IR-like frames even in dim light
-  - use the colour image directly: YuNet and SFace were trained on colour
-    photos and may match better without the greyscale step
+- [x] Setup finds the colour webcam when there is no IR camera and explains,
+      with a warning to acknowledge, that it is less accurate, can be fooled by
+      a photo of you and needs your face lit from the front. Virtual cameras
+      (v4l2loopback) are never picked: any program can feed them a video
+- [x] In that mode, default to the lock and login screens only; sudo and
+      administrator prompts stay on the password (turning them on shows a red
+      warning)
+- [x] Try both approaches and keep the more reliable one. Measured on
+      2026-10-30 with the Asus Vivobook 16's 720p webcam, enrolled and tested in
+      the same light, scores (lower is better, 6 passes):
+  - mimic IR (greyscale + CLAHE): 0.40-0.70
+  - colour as-is: 0.16-0.20, and the fastest  ← chosen (`video/colour = true`)
+  - colour + CLAHE: 0.13-0.55, 80 ms slower
+  In dim light, against a face enrolled with the lights on, none of them found
+  a face; lowering the detector threshold to 0.4 found one in 1-2 of ~100
+  frames, scoring 6.9-10.8 (rejected). With a bright window behind the user no
+  face was found either. Lighting is the limit, not the preprocessing.
 - [ ] Later: a liveness check (blink or a head turn) to make photos useless
 
 ## Follow-ups (not yet ordered)

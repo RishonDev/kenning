@@ -36,6 +36,9 @@ struct Pipeline {
     int maxHeight = 320;
     double darkThreshold = 60;
     int rotate = 0;
+    // Ordinary webcams: keep colour, which the networks were trained on. Converting
+    // to greyscale (with or without contrast normalisation) matched worse in tests.
+    bool colour = false;
     double cameraMs = 0;
     double networksMs = 0;
 
@@ -50,8 +53,11 @@ struct Pipeline {
         maxHeight = int(config.number("video/max_height", 320));
         darkThreshold = config.number("video/dark_threshold", 60);
         rotate = int(config.number("video/rotate", 0));
+        colour = config.boolean("video/colour", false);
         start = Clock::now();
-        detector = cv::FaceDetectorYN::create(detectorModel, "", cv::Size(320, 320), 0.8f, 0.3f, 50);
+        // Lower finds faces in poor light; every face still has to match the user's.
+        const float detectionThreshold = float(config.number("video/detection_threshold", 0.8));
+        detector = cv::FaceDetectorYN::create(detectorModel, "", cv::Size(320, 320), detectionThreshold, 0.3f, 50);
         recognizer = cv::FaceRecognizerSF::create(recognizerModel, "");
         networksMs = millisecondsSince(start);
     }
@@ -92,10 +98,14 @@ struct Pipeline {
             return Frame::Dark;
         }
 
-        if (grey.rows > maxHeight) {
-            cv::resize(grey, grey, cv::Size(grey.cols * maxHeight / grey.rows, maxHeight));
+        if (colour && frame.channels() == 3) {
+            image = frame;
+        } else {
+            cv::cvtColor(grey, image, cv::COLOR_GRAY2BGR);
         }
-        cv::cvtColor(grey, image, cv::COLOR_GRAY2BGR);
+        if (image.rows > maxHeight) {
+            cv::resize(image, image, cv::Size(image.cols * maxHeight / image.rows, maxHeight));
+        }
         return Frame::Usable;
     }
 
@@ -272,13 +282,15 @@ ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const s
     progress("Please look straight into the camera");
 
     // Like Howdy: up to 60 frames. Keep a few encodings spread over the capture so
-    // small changes in pose are covered.
+    // small changes in pose are covered. Black frames while a camera warms up (or
+    // fades in, as some webcams do) don't count, within a time limit.
     constexpr int maxFrames = 60;
     constexpr int wanted = 5;
+    const auto deadline = Clock::now() + std::chrono::seconds(6);
     int litFrames = 0;
     int darkFrames = 0;
     int hits = 0;
-    for (int frames = 0; frames < maxFrames && int(encodings.size()) < wanted; ++frames) {
+    while (litFrames < maxFrames && int(encodings.size()) < wanted && Clock::now() < deadline) {
         cv::Mat image;
         const auto frame = pipeline.read(image);
         if (frame == Pipeline::Frame::Missing || frame == Pipeline::Frame::Black) {
@@ -309,7 +321,8 @@ ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const s
         return {Recognized, 0, "Scan complete"};
     }
     if (litFrames == 0) {
-        return {Aborted, 99, "Camera saw only black frames - is IR emitter working?"};
+        return {Aborted, 99, pipeline.colour ? "Camera saw only black frames - is it covered or switched off?"
+                                             : "Camera saw only black frames - is IR emitter working?"};
     }
     if (darkFrames == litFrames) {
         return {TooDark, 99, "All frames were too dark, please check dark_threshold in config"};

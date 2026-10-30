@@ -30,13 +30,16 @@ KCM.SimpleKCM {
             return i18n("Keep looking at the camera…");
         }
         if (line.includes("black frames")) {
-            return i18n("The camera only saw black frames. Is the IR emitter working?");
+            return kcm.colourCamera ? i18n("The camera only saw black frames. Is it covered or switched off?")
+                                    : i18n("The camera only saw black frames. Is the IR emitter working?");
         }
         if (line.includes("too dark")) {
-            return i18n("It's too dark for the camera to see you.");
+            return kcm.colourCamera ? i18n("It's too dark for the camera to see you. Turn on a light in front of you.")
+                                    : i18n("It's too dark for the camera to see you.");
         }
         if (line.includes("No face detected")) {
-            return i18n("No face was found. Look straight at the camera and try again.");
+            return kcm.colourCamera ? i18n("No face was found. Make sure your face is lit from the front, not by a window behind you, and try again.")
+                                    : i18n("No face was found. Look straight at the camera and try again.");
         }
         if (line.includes("Multiple faces")) {
             return i18n("More than one face was found. Make sure only you are in view.");
@@ -62,8 +65,11 @@ KCM.SimpleKCM {
             }
             if (exitCode === 0) {
                 // First face on this account: switch face unlock on where people expect it.
+                // A colour webcam can be fooled by a photo, so then only for signing in;
+                // approving system changes stays on the password.
                 if (!page.improving && kcm.faces.length === 0) {
-                    for (const service of ["pam/login", "pam/lockscreen", "pam/sudo"]) {
+                    const services = kcm.colourCamera ? ["pam/login", "pam/lockscreen"] : ["pam/login", "pam/lockscreen", "pam/sudo"];
+                    for (const service of services) {
                         kcm.setValue(service, true);
                     }
                     kcm.setValue("core/disabled", false);
@@ -194,6 +200,20 @@ KCM.SimpleKCM {
             }
         }
 
+        // An ordinary webcam has to be accepted knowingly before the first capture
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: kcm.colourCamera && !page.improving && (page.step === "ready" || page.step === "failed")
+            type: Kirigami.MessageType.Warning
+            text: i18n("This computer has no infrared camera, so face recognition will use the ordinary webcam. That is less secure: a photo or video of you may unlock it. It also needs your face lit from the front and won't work in the dark. Face recognition will only be used on the login and lock screens; changes to the system still need your password.")
+        }
+        QQC2.CheckBox {
+            id: acceptColour
+            Layout.alignment: Qt.AlignHCenter
+            visible: kcm.colourCamera && !page.improving && (page.step === "ready" || page.step === "failed")
+            text: i18n("I understand, use the webcam")
+        }
+
         QQC2.TextField {
             id: label
             Layout.alignment: Qt.AlignHCenter
@@ -211,7 +231,7 @@ KCM.SimpleKCM {
                 visible: page.step === "ready" || page.step === "failed"
                 icon.name: "media-record"
                 text: page.step === "failed" ? i18n("Try Again") : i18n("Start")
-                enabled: !kcm.busy
+                enabled: !kcm.busy && (!acceptColour.visible || acceptColour.checked)
                 onClicked: {
                     page.detail = "";
                     page.step = "capturing";

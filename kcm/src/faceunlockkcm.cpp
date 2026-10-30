@@ -3,6 +3,7 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #include "faceunlockkcm.h"
+#include "camerafinder.h"
 #include "camerapreview.h"
 #include "faceunlockpaths.h"
 
@@ -130,7 +131,15 @@ void FaceUnlockKcm::load()
             settings.insert(it.key(), typed(defaults.value(it.key()), it.value().toString()));
         }
     }
-    m_devicePath = engine.value(QStringLiteral("video/device_path")).toString();
+    const QString configured = engine.value(QStringLiteral("video/device_path")).toString();
+    if (configured.isEmpty() || configured == QLatin1String("none") || !QFile::exists(configured)) {
+        const FaceUnlock::Camera camera = FaceUnlock::findCamera();
+        m_devicePath = camera.path;
+        m_colourCamera = camera.colour;
+    } else {
+        m_devicePath = configured;
+        m_colourCamera = engine.value(QStringLiteral("video/colour")).toString() == QLatin1String("true");
+    }
 
     for (const auto &service : FaceUnlock::pamServices()) {
         settings.insert(QStringLiteral("pam/") + service.id, pamUsesEngine(service.path));
@@ -263,6 +272,11 @@ QString FaceUnlockKcm::userName() const
 QString FaceUnlockKcm::devicePath() const
 {
     return m_devicePath;
+}
+
+bool FaceUnlockKcm::colourCamera() const
+{
+    return m_colourCamera;
 }
 
 bool FaceUnlockKcm::engineInstalled() const

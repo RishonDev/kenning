@@ -3,7 +3,7 @@ kcmutils_add_qml_kcm(kcm_faceunlock)
 target_sources(kcm_faceunlock PRIVATE
     faceunlockkcm.cpp faceunlockkcm.h
     camerapreview.cpp camerapreview.h
-    faceunlockpaths.h
+    faceunlockpaths.h camerafinder.h
 )
 
 target_link_libraries(kcm_faceunlock PRIVATE

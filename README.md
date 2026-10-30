@@ -22,7 +22,8 @@ themes.
 comes from the official Arch repositories (opencv, Qt, KDE Frameworks); the two
 networks (YuNet, MIT; SFace, Apache-2.0) are downloaded at build time.
 Then open System Settings > Face Unlock and press Set Up: the IR camera is found
-automatically and face unlock is switched on for the login screen, lock screen
+automatically (without one, setup offers the ordinary webcam with a warning:
+it is less secure and needs your face lit from the front) and face unlock is switched on for the login screen, lock screen
 and sudo after the first face is saved.
 
 The native engine replaces Howdy. The `archive/howdy-bundled` branch keeps a

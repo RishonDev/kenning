@@ -25,7 +25,10 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_PROPERTY(QVariantList themes READ themes NOTIFY themesChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString userName READ userName CONSTANT)
+    // The configured camera, or before setup the one setup will pick
     Q_PROPERTY(QString devicePath READ devicePath NOTIFY settingsChanged)
+    // An ordinary colour webcam rather than an IR camera: less secure, needs light
+    Q_PROPERTY(bool colourCamera READ colourCamera NOTIFY settingsChanged)
     Q_PROPERTY(bool engineInstalled READ engineInstalled CONSTANT)
     Q_PROPERTY(bool lockScreenPatched READ lockScreenPatched CONSTANT)
 
@@ -38,6 +41,7 @@ public:
     bool busy() const;
     QString userName() const;
     QString devicePath() const;
+    bool colourCamera() const;
     bool engineInstalled() const;
     bool lockScreenPatched() const;
 
@@ -77,5 +81,6 @@ private:
     QVariantList m_faces;
     QVariantList m_themes;
     QString m_devicePath;
+    bool m_colourCamera = false;
     bool m_busy = false;
 };
