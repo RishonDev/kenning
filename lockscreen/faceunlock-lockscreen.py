@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Adds face unlock to the Plasma lock screen: the face scan animation (style chosen
 # in System Settings > Face Unlock), skipping the "Unlock" button after face
 # recognition, and a pause before unlocking. Run by a pacman hook after
@@ -16,8 +18,10 @@ from pathlib import Path
 
 # MARKER tags every patched file; VERSION changes whenever the edits do, so an
 # older patch is replaced by re-patching the original file from the package cache.
-MARKER = "lazysetup face unlock"
-VERSION = "face unlock patch 3"
+MARKER = "plasma-faceunlock lock screen patch"
+# Markers of earlier releases, so files they patched are re-patched from the original.
+LEGACY_MARKERS = ("lazysetup face unlock",)
+VERSION = "face unlock patch 4"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -259,6 +263,10 @@ EDITS = {
 SYSTEM_LOCKSCREEN = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
 
 
+def is_patched(text: str) -> bool:
+    return MARKER in text or any(marker in text for marker in LEGACY_MARKERS)
+
+
 def original(name: str) -> str | None:
     """The unpatched file from the cached package (plasma-desktop) that installed it."""
     owner = subprocess.run(["pacman", "-Qo", f"{SYSTEM_LOCKSCREEN}/{name}"], capture_output=True, text=True).stdout.split()
@@ -278,7 +286,7 @@ def original(name: str) -> str | None:
 
 def restore() -> int:
     for name in EDITS:
-        if MARKER not in (lockscreen / name).read_text():
+        if not is_patched((lockscreen / name).read_text()):
             continue
         text = original(name)
         if text is None:
@@ -300,7 +308,7 @@ def main() -> int:
         if VERSION in text:
             print(f"face unlock lock screen: {name} already patched")
             continue
-        if MARKER in text:
+        if is_patched(text):
             text = original(name)
             if text is None:
                 print(f"face unlock lock screen: {name} has an older patch and the original is not in the "

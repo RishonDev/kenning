@@ -1,4 +1,5 @@
 /*
+    SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #pragma once
@@ -20,7 +21,7 @@ inline const QString engineConfigPath = QStringLiteral("/etc/faceunlock/config.i
 inline const QString engineBinary = QStringLiteral("/usr/bin/faceunlock");
 inline const QString systemConfigPath = QStringLiteral("/etc/xdg/faceunlockrc");
 inline const QString lockScreenPath = QStringLiteral("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml");
-inline const QString lockScreenMarker = QStringLiteral("lazysetup face unlock");
+inline const QString lockScreenMarker = QStringLiteral("plasma-faceunlock lock screen patch");
 inline const QString userThemesPath = QStringLiteral("/usr/local/share/faceunlock/themes");
 inline const QString systemThemesPath = QStringLiteral("/usr/share/faceunlock/themes");
 inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_faceunlock.so");

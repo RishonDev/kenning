@@ -1,4 +1,5 @@
 /*
+ * SPDX-FileCopyrightText: 2026 Rishon Jonathan R
  * SPDX-License-Identifier: LGPL-2.0-or-later
  */
 

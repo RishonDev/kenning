@@ -1,4 +1,5 @@
 /*
+ * SPDX-FileCopyrightText: 2026 Rishon Jonathan R
  * SPDX-License-Identifier: LGPL-2.0-or-later
  */
 
@@ -133,7 +134,7 @@ Item {
                 }
             }
 
-            // Windows Hello style face: eyes glance around while looking, the smile
+            // Animated face: eyes glance around while looking, the smile
             // turns into a frown on failure, and a checkmark replaces it on success.
             Item {
                 id: face

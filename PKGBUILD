@@ -30,7 +30,7 @@ validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell
               '1FA881591C26B276D7A5518EEAAF29B42A678C20') # Marco Martin <notmart@gmail.com>
 
 prepare() {
-  patch -d plasma-login-manager-$_plmver -p1 < "$startdir/login-manager/howdy-auto-login.patch"
+  patch -d plasma-login-manager-$_plmver -p1 < "$startdir/login-manager/plasma-login-manager-faceunlock.patch"
 }
 
 build() {
@@ -47,7 +47,7 @@ build() {
 }
 
 package_plasma-faceunlock() {
-  pkgdesc='Windows Hello style face unlock for Plasma'
+  pkgdesc='Face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
            libarchive opencv pam python)
   optdepends=('plasma-login-manager-faceunlock: start face unlock as soon as the login screen appears')

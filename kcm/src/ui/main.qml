@@ -1,4 +1,5 @@
 /*
+    SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 
@@ -81,7 +82,7 @@ KCM.SimpleKCM {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // Overview, like the top of Windows Hello's settings
+        // Overview: status, face count and the on/off switch
         RowLayout {
             Layout.fillWidth: true
             Layout.margins: Kirigami.Units.largeSpacing

@@ -1,4 +1,5 @@
 /*
+    SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 // pam_faceunlock: face authentication. The recognition runs in a separate
