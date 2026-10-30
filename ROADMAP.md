@@ -6,11 +6,18 @@ In order. Each step builds on the one before.
 
 Two branches exist: `howdy-bundled` (Howdy 3 vendored, needs python-dlib from
 the AUR) and `native-engine` (C++ on OpenCV's YuNet and SFace, official
-packages only). The native engine loads in ~60 ms against Howdy's ~370 ms, but
-a scan currently takes slightly longer, probably because YuNet detects faces
-less readily in IR frames.
+packages only).
 
-- [ ] Add a timing breakdown to `faceunlock test`: time to the first lit frame,
+Measured on 2026-10-30 (Asus Vivobook 16, 640x360 GREY IR camera, same seat,
+alternating runs): native compare 1.65-1.68 s and recognised every time;
+Howdy compare 1.91-1.97 s, with 2 of 6 runs timing out at 5.8 s. Both accept
+the laptop looking up at the face (native scored 1.24 straight on, 3.11 at an
+angle; 6.0 passes). About 1 s of every scan is the camera producing its first
+frame (raw V4L2 measures the same), so it is the floor for either engine. The
+earlier impression that native was slower came from a setup where PAM was
+still using Howdy.
+
+- [x] Add a timing breakdown to `faceunlock test`: time to the first lit frame,
       frames with a detected face, time to a match
 - [ ] Close the speed gap: boost contrast on IR frames (CLAHE) before
       detection, tune the YuNet threshold for IR, load the networks while the

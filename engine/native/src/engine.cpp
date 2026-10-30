@@ -21,6 +21,13 @@ namespace FaceUnlock
 {
 namespace
 {
+using Clock = std::chrono::steady_clock;
+
+double millisecondsSince(Clock::time_point start)
+{
+    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+}
+
 // The camera and both networks, set up for one scan.
 struct Pipeline {
     cv::VideoCapture camera;
@@ -29,18 +36,24 @@ struct Pipeline {
     int maxHeight = 320;
     double darkThreshold = 60;
     int rotate = 0;
+    double cameraMs = 0;
+    double networksMs = 0;
 
     explicit Pipeline(const Config &config)
     {
         const std::string device = config.string("video/device_path");
+        auto start = Clock::now();
         if (device.empty() || device == "none" || !camera.open(device, cv::CAP_V4L2)) {
             return;
         }
+        cameraMs = millisecondsSince(start);
         maxHeight = int(config.number("video/max_height", 320));
         darkThreshold = config.number("video/dark_threshold", 60);
         rotate = int(config.number("video/rotate", 0));
+        start = Clock::now();
         detector = cv::FaceDetectorYN::create(detectorModel, "", cv::Size(320, 320), 0.8f, 0.3f, 50);
         recognizer = cv::FaceRecognizerSF::create(recognizerModel, "");
+        networksMs = millisecondsSince(start);
     }
 
     bool ready() const
@@ -192,48 +205,62 @@ ScanResult compare(const Config &config, const std::string &user)
         return {NoModel, 99, "Failure, no face model known"};
     }
 
+    const auto scanStart = Clock::now();
     Pipeline pipeline(config);
     if (!pipeline.ready()) {
         return {Error, 99, "Failure, not possible to open camera at configured path"};
     }
 
+    ScanStats stats;
+    stats.cameraMs = pipeline.cameraMs;
+    stats.networksMs = pipeline.networksMs;
     const double certainty = config.number("video/certainty", 6.0);
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::duration<double>(config.number("video/timeout", 4));
-    int frames = 0;
-    int darkFrames = 0;
+    const auto deadline = Clock::now() + std::chrono::duration<double>(config.number("video/timeout", 4));
     double best = 99;
 
-    while (std::chrono::steady_clock::now() < deadline) {
+    while (Clock::now() < deadline) {
         cv::Mat image;
         const auto frame = pipeline.read(image);
         if (frame == Pipeline::Frame::Missing) {
             continue;
         }
-        ++frames;
+        if (++stats.frames == 1) {
+            stats.firstFrameMs = millisecondsSince(scanStart);
+        }
         if (frame != Pipeline::Frame::Usable) {
-            ++darkFrames;
+            ++stats.darkFrames;
             continue;
         }
+        bool sawFace = false;
         for (const cv::Mat &view : pipeline.orientations(image)) {
+            auto start = Clock::now();
             const cv::Mat faces = pipeline.faces(view);
+            stats.detectMs += millisecondsSince(start);
             for (int i = 0; i < faces.rows; ++i) {
+                sawFace = true;
+                // Column 14 of a YuNet row is the detection confidence.
+                stats.bestDetection = std::max(stats.bestDetection, double(faces.at<float>(i, 14)));
+                start = Clock::now();
                 const cv::Mat feature = pipeline.encode(view, faces.row(i));
+                stats.encodeMs += millisecondsSince(start);
                 for (const FaceModel &model : models) {
                     for (const cv::Mat &known : model.encodings) {
                         best = std::min(best, matchScore(pipeline.recognizer->match(feature, known, cv::FaceRecognizerSF::FR_COSINE)));
                     }
                 }
                 if (best <= certainty) {
-                    return {Recognized, best, "Identified face as " + user};
+                    stats.faceFrames += 1;
+                    return {Recognized, best, "Identified face as " + user, stats};
                 }
             }
         }
+        stats.faceFrames += sawFace ? 1 : 0;
     }
 
-    if (frames > 0 && darkFrames == frames) {
-        return {TooDark, best, "Failure, image too dark"};
+    if (stats.frames > 0 && stats.darkFrames == stats.frames) {
+        return {TooDark, best, "Failure, image too dark", stats};
     }
-    return {Timeout, best, "Failure, timeout reached"};
+    return {Timeout, best, "Failure, timeout reached", stats};
 }
 
 ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const std::function<void(const std::string &)> &progress)

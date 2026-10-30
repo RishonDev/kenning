@@ -201,8 +201,18 @@ int main(int argc, char **argv)
         return list(user, plain);
     }
     if (command == "test") {
-        const ScanResult result = compare(Config(), user);
-        std::cout << result.message << " (best score " << result.bestScore << ")" << std::endl;
+        const Config config;
+        const ScanResult result = compare(config, user);
+        const ScanStats &s = result.stats;
+        std::cout << result.message << '\n'
+                  << "  best score       " << result.bestScore << " (needs " << config.number("video/certainty", 6.0) << " or lower)\n"
+                  << "  frames           " << s.frames << " read, " << s.darkFrames << " too dark, " << s.faceFrames << " with a face\n"
+                  << "  face confidence  " << s.bestDetection << " (detector keeps 0.8 or higher)\n"
+                  << "  camera open      " << s.cameraMs << " ms\n"
+                  << "  networks load    " << s.networksMs << " ms\n"
+                  << "  first frame      " << s.firstFrameMs << " ms after start\n"
+                  << "  detection        " << s.detectMs << " ms total\n"
+                  << "  encoding         " << s.encodeMs << " ms total" << std::endl;
         return result.code;
     }
     if (command == "version") {
