@@ -105,7 +105,14 @@ void serve(int client)
             pollfd state{client, POLLRDHUP, 0};
             return poll(&state, 1, 0) > 0 && (state.revents & (POLLRDHUP | POLLHUP | POLLERR));
         };
-        return reply(client, compare(Config(), user, hungUp).code);
+        // A broken install (unreadable networks, a camera driver error) must answer
+        // "failed" so PAM falls back to the password, not take the service down.
+        try {
+            return reply(client, compare(Config(), user, hungUp).code);
+        } catch (const std::exception &error) {
+            std::cerr << "kenning daemon: scan failed: " << error.what() << '\n';
+            return reply(client, Error);
+        }
     }
     reply(client, Aborted);
 }

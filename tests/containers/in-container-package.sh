@@ -79,6 +79,9 @@ test_package() {
         grep -q "$path" <<< "$list" || missing+=" $path"
     done
     [[ -z ${missing:-} ]] && result "files installed" PASS || result "files installed" FAIL "missing:$missing"
+    # The networks must be real files: a symlink into the build tree breaks the service.
+    links=$(find /usr/share/kenning/models -name '*.onnx' ! -type f)
+    [[ -z $links ]] && result "networks are real files" PASS || result "networks are real files" FAIL "$links"
     echo "   PAM module: $(grep pam_kenning.so <<< "$list")"
 
     check "service user created" id kenning

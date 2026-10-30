@@ -27,7 +27,9 @@ foreach(network face_detection_yunet_2023mar.onnx face_recognition_sface_2021dec
         message(FATAL_ERROR "${network} not found in KENNING_NETWORKS_DIR (${KENNING_NETWORKS_DIR}). "
                             "Download it from https://github.com/opencv/opencv_zoo (models/face_detection_yunet, models/face_recognition_sface).")
     endif()
-    install(FILES "${KENNING_NETWORKS_DIR}/${network}" DESTINATION ${CMAKE_INSTALL_DATADIR}/kenning/models)
+    # Package sources are often symlinks (makepkg's are); install the file itself.
+    file(REAL_PATH "${KENNING_NETWORKS_DIR}/${network}" network_file)
+    install(FILES "${network_file}" DESTINATION ${CMAKE_INSTALL_DATADIR}/kenning/models RENAME ${network})
 endforeach()
 
 # Scripts the packages and the lock screen add-on call by this fixed path.
