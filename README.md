@@ -31,6 +31,7 @@ version with Howdy's dlib engine vendored as a fallback (existing Howdy face
 models keep working, but it needs `python-dlib` from the AUR). Faces enrolled
 with Howdy have to be enrolled again here.
 
-Known limitation: the lock screen authenticates as the user, so face models in
-/etc/faceunlock/models are readable by local users. A system service that owns the
-camera and models (like fprintd) would remove that.
+Face models are readable only by root. Face checks go through a small service
+(`faceunlock daemon`, started on demand by systemd via /run/faceunlock.sock) that
+owns the camera and the models, like fprintd does for fingerprints; it answers only
+for root or for the user's own account.

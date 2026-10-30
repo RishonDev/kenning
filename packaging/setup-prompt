@@ -12,6 +12,7 @@ import fcntl
 import getpass
 import glob
 import os
+import socket
 import struct
 import subprocess
 import sys
@@ -49,6 +50,19 @@ def has_ir_camera() -> bool:
     return False
 
 
+def has_face_model(user: str) -> bool | None:
+    """Asks the face unlock service (face models are root-only); None if it can't be reached."""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as service:
+            service.settimeout(5)
+            service.connect("/run/faceunlock.sock")
+            service.sendall(f"has-model {user}\n".encode())
+            reply = service.recv(16).decode().strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    return reply == "0"
+
+
 def main() -> int:
     state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "faceunlock")
     marker = os.path.join(state, "setup-prompted")
@@ -59,7 +73,10 @@ def main() -> int:
         os.makedirs(state, exist_ok=True)
         open(marker, "w").close()
 
-    if os.path.exists(f"/etc/faceunlock/models/{getpass.getuser()}.dat"):
+    enrolled = has_face_model(getpass.getuser())
+    if enrolled is None:
+        return 0
+    if enrolled:
         done()
         return 0
     # Only right after the computer starts, like a welcome; a later login in the same

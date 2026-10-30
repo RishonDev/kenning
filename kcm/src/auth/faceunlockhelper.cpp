@@ -168,9 +168,21 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
 namespace
 {
+// Face models are root-only: the face unlock service reads them for everyone else.
+// The config stays readable, since pam_faceunlock checks it in the caller's process.
+void secureModels()
+{
+    const QString models = QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath();
+    QDir().mkpath(models);
+    QFile::setPermissions(models, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    for (const QFileInfo &model : QDir(models).entryInfoList(QDir::Files)) {
+        QFile::setPermissions(model.absoluteFilePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+    }
+    QFile::setPermissions(FaceUnlock::engineConfigPath, standardPermissions);
+}
+
 // First-run setup so face unlock works without manual configuration: point the engine
-// at the IR camera if it has none, and let the lock screen (which authenticates as
-// the user) read the engine's config and face models.
+// at a camera if it has none, and keep the face models root-only.
 void prepareEngine()
 {
     QFile file(FaceUnlock::engineConfigPath);
@@ -186,8 +198,7 @@ void prepareEngine()
         }
     }
 
-    QDir().mkpath(QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath());
-    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/faceunlock")});
+    secureModels();
 }
 }
 
@@ -208,8 +219,7 @@ ActionReply FaceUnlockHelper::add(const QVariantMap &args)
     }
     prepareEngine();
     ActionReply reply = runStreaming(FaceUnlock::engineBinary, {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), label});
-    // The new model file is created root-only; keep it readable for the lock screen.
-    QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("a+rX"), QStringLiteral("/etc/faceunlock")});
+    secureModels();
     return reply;
 }
 

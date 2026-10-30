@@ -191,13 +191,15 @@ bool saveModels(const std::string &user, const std::vector<FaceModel> &models)
             {QStringLiteral("data"), data},
         });
     }
-    QSaveFile file(QString::fromStdString(modelPath(user)));
+    const QString path = QString::fromStdString(modelPath(user));
+    QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         return false;
     }
     file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
-    // The lock screen authenticates as the user and has to read the model.
-    return file.commit() && file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther);
+    // Only root reads face models; the lock screen asks the service (service.h). Set on
+    // the path: after commit() the QSaveFile no longer refers to the saved file.
+    return file.commit() && QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
 }
 
 double matchScore(double cosine)

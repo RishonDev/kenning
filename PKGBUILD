@@ -7,7 +7,7 @@ pkgbase=plasma-faceunlock
 pkgname=(plasma-faceunlock plasma-login-manager-faceunlock)
 pkgver=0.3.0
 _plmver=6.8.2
-pkgrel=8
+pkgrel=9
 arch=(x86_64)
 url='https://invent.kde.org/'
 license=(GPL-2.0-or-later MIT Apache-2.0)
@@ -56,13 +56,9 @@ package_plasma-faceunlock() {
 
   DESTDIR="$pkgdir" cmake --install engine-build
   install -Dm644 -t "$pkgdir/usr/share/plasma-faceunlock/models" *.onnx
-  # polkit 127+ runs its agent helper sandboxed; let it reach the camera
-  install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/polkit-agent-helper@.service.d/10-faceunlock.conf" <<CONF
-[Service]
-PrivateDevices=no
-DeviceAllow=char-video4linux rw
-DeviceAllow=/dev/uinput rw
-CONF
+  # The service socket is on by default (the PAM module needs it); nothing runs until used
+  install -d "$pkgdir/usr/lib/systemd/system/sockets.target.wants"
+  ln -s ../faceunlock.socket "$pkgdir/usr/lib/systemd/system/sockets.target.wants/faceunlock.socket"
 
   DESTDIR="$pkgdir" cmake --install kcm-build
   install -Dm755 "$startdir/lockscreen/faceunlock-lockscreen.py" "$pkgdir/usr/lib/plasma-faceunlock/faceunlock-lockscreen.py"

@@ -2,14 +2,14 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// pam_faceunlock: face authentication. The recognition runs in a separate
-// process (faceunlock compare USER) so OpenCV never loads into the program
-// asking for authentication. Messages match pam_howdy, which the login and lock
-// screens use to drive the face scan animation.
+// pam_faceunlock: face authentication. The recognition runs in the face unlock
+// service (faceunlock daemon, see service.h), which owns the camera and the
+// root-only face models, so OpenCV never loads into the program asking for
+// authentication. Messages match pam_howdy, which the login and lock screens use
+// to drive the face scan animation.
 
 #include "config.h"
-
-#include <fcntl.h>
+#include "service.h"
 
 #include <security/pam_ext.h>
 #include <security/pam_modules.h>
@@ -17,8 +17,6 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <spawn.h>
-#include <sys/wait.h>
 #include <syslog.h>
 
 namespace
@@ -51,27 +49,6 @@ bool remoteSession(pam_handle_t *pamh)
     }
     return std::getenv("SSH_CONNECTION") || std::getenv("SSH_CLIENT") || std::getenv("SSH_TTY");
 }
-
-int runCompare(const char *user)
-{
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
-    posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
-
-    // A fixed environment: the caller's (e.g. sudo's) is under the user's control.
-    const char *argv[] = {FACEUNLOCK_BINARY, "compare", user, nullptr};
-    const char *envp[] = {"PATH=/usr/bin", "LANG=C.UTF-8", nullptr};
-    pid_t pid = 0;
-    const int spawned = posix_spawn(&pid, FACEUNLOCK_BINARY, &actions, nullptr, const_cast<char **>(argv), const_cast<char **>(envp));
-    posix_spawn_file_actions_destroy(&actions);
-    if (spawned != 0) {
-        return FaceUnlock::Error;
-    }
-    int status = 0;
-    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) { }
-    return WIFEXITED(status) ? WEXITSTATUS(status) : FaceUnlock::Aborted;
-}
 }
 
 extern "C" {
@@ -99,7 +76,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
     if (pam_get_user(pamh, &user, nullptr) != PAM_SUCCESS || !user || !*user) {
         return PAM_USER_UNKNOWN;
     }
-    if (!std::filesystem::exists(FaceUnlock::modelPath(user))) {
+    // Quick check first, so users without a face model never see the scan start.
+    const int hasModel = FaceUnlock::askService("has-model", user, 5);
+    if (hasModel < 0) {
+        pam_syslog(pamh, LOG_ERR, "Face unlock service not reachable at %s", FaceUnlock::socketPath);
+        return PAM_AUTHINFO_UNAVAIL;
+    }
+    if (hasModel != FaceUnlock::Recognized) {
         return PAM_AUTHINFO_UNAVAIL;
     }
 
@@ -107,7 +90,12 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
         say(pamh, "Attempting facial authentication");
     }
 
-    const int code = runCompare(user);
+    // Requests are served one at a time, so allow for a scan already running.
+    const int timeout = int(config.number("video/timeout", 4)) * 2 + 10;
+    int code = FaceUnlock::askService("compare", user, timeout);
+    if (code < 0) {
+        code = FaceUnlock::Error;
+    }
     switch (code) {
     case FaceUnlock::Recognized:
         if (!config.boolean("core/no_confirmation", false)) {

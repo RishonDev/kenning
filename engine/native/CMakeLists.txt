@@ -19,18 +19,24 @@ target_link_libraries(faceunlock-engine PUBLIC ${OpenCV_LIBS} Qt6::Core)
 target_include_directories(faceunlock-engine PUBLIC ${OpenCV_INCLUDE_DIRS} src)
 set_target_properties(faceunlock-engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_executable(faceunlock src/main.cpp)
+set(FACEUNLOCK_SOCKET /run/faceunlock.sock CACHE STRING "Socket of the face unlock service")
+add_compile_definitions(FACEUNLOCK_SOCKET="${FACEUNLOCK_SOCKET}")
+
+add_executable(faceunlock src/main.cpp src/daemon.cpp src/daemon.h src/service.h)
 target_compile_definitions(faceunlock PRIVATE FACEUNLOCK_VERSION="${PROJECT_VERSION}")
 target_link_libraries(faceunlock PRIVATE faceunlock-engine)
 
-# The PAM module only needs config.h; OpenCV stays out of the programs that authenticate.
-add_library(pam_faceunlock MODULE src/pam_faceunlock.cpp src/config.h)
+# The PAM module only asks the service; OpenCV stays out of the programs that authenticate.
+add_library(pam_faceunlock MODULE src/pam_faceunlock.cpp src/config.h src/service.h)
 set_target_properties(pam_faceunlock PROPERTIES PREFIX "")
-target_compile_definitions(pam_faceunlock PRIVATE FACEUNLOCK_BINARY="${FACEUNLOCK_BINARY}")
 target_include_directories(pam_faceunlock PRIVATE src)
 target_link_libraries(pam_faceunlock PRIVATE ${PAM_LIBRARY})
 
 install(TARGETS faceunlock RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS pam_faceunlock LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/security)
+configure_file(systemd/faceunlock.service.in faceunlock.service @ONLY)
+configure_file(systemd/faceunlock.socket.in faceunlock.socket @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/faceunlock.service ${CMAKE_CURRENT_BINARY_DIR}/faceunlock.socket
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system)
 install(FILES config.ini DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/faceunlock)
 install(FILES models/LICENSE.yunet models/LICENSE.sface DESTINATION ${CMAKE_INSTALL_DATADIR}/plasma-faceunlock/models)

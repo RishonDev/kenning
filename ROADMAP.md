@@ -72,8 +72,9 @@ webcam:
       (uptime under 10 minutes) offers Set Up once if there is an IR camera
 - [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
       option is hidden in System Settings until it is (show a privacy warning then)
-- [ ] A root service that owns the camera and face models (like fprintd), so
-      models no longer have to be readable by local users
+- [x] A root service that owns the camera and face models (like fprintd), so
+      models no longer have to be readable by local users: `faceunlock daemon`,
+      socket-activated, answering only for root or the user's own account
 - [ ] Upstream route: a `kde-face` PAM service and a face authenticator in
       kscreenlocker beside fingerprint; the login manager auto-scan as a merge
       request; the settings page as a KCM or part of Users

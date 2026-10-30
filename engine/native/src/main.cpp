@@ -4,8 +4,10 @@
 */
 // faceunlock: manage face models and run recognition. Arguments follow Howdy's CLI:
 //   faceunlock [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test
-//   faceunlock compare USER     what pam_faceunlock runs; exit code as Howdy's compare.py
+//   faceunlock compare USER     one scan for USER; exit code as Howdy's compare.py
+//   faceunlock daemon           the service pam_faceunlock asks (systemd starts it)
 
+#include "daemon.h"
 #include "engine.h"
 
 #include <opencv2/core/utils/logger.hpp>
@@ -38,7 +40,8 @@ bool validUser(const std::string &user)
 int usage()
 {
     std::cerr << "usage: faceunlock [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test\n"
-                 "       faceunlock compare USER\n";
+                 "       faceunlock compare USER\n"
+                 "       faceunlock daemon\n";
     return Error;
 }
 
@@ -170,6 +173,12 @@ int main(int argc, char **argv)
     }
     const std::string command = positional[0];
 
+    if (command == "daemon") {
+        if (const int error = requireRoot()) {
+            return error;
+        }
+        return runDaemon();
+    }
     if (command == "compare") {
         // Run by pam_faceunlock with the user being authenticated.
         if (positional.size() != 2 || !validUser(positional[1])) {

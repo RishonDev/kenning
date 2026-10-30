@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+[Unit]
+Description=Face unlock service socket
+
+[Socket]
+ListenStream=@FACEUNLOCK_SOCKET@
+# Everyone may connect; the service only answers for root or the user's own account.
+SocketMode=0666
+
+[Install]
+WantedBy=sockets.target
