@@ -67,9 +67,9 @@ webcam:
 
 ## Follow-ups (not yet ordered)
 
-- [ ] Plug and play: installing the package leaves PAM on pam_howdy until Set Up
-      is run in System Settings; switch existing Howdy lines over (or prompt
-      for setup) on install
+- [x] Plug and play: install/upgrade drops pam_howdy lines once Howdy is gone,
+      removal drops pam_faceunlock lines, and the first login after startup
+      (uptime under 10 minutes) offers Set Up once if there is an IR camera
 - [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
       option is hidden in System Settings until it is (show a privacy warning then)
 - [ ] A root service that owns the camera and face models (like fprintd), so

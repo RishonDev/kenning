@@ -1,0 +1,35 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Keeps PAM from pointing at face modules that aren't installed. Run by the package:
+#   pam-tidy tidy     (install, upgrade) drop pam_howdy.so lines once Howdy is gone
+#   pam-tidy remove   (removal) drop pam_faceunlock.so lines before the module goes
+# A line for a missing "sufficient" module is skipped by PAM with an error in the
+# log, so this is about a clean system, not about getting locked out.
+set -eu
+
+case "${1:-}" in
+tidy)
+    [[ -e /usr/lib/security/pam_howdy.so ]] && exit 0
+    module=pam_howdy.so
+    ;;
+remove)
+    module=pam_faceunlock.so
+    ;;
+*)
+    echo "usage: $0 tidy|remove" >&2
+    exit 1
+    ;;
+esac
+
+for file in "${PAM_DIR:-/etc/pam.d}"/*; do
+    [[ -f $file && ! -L $file ]] || continue
+    # Only lines that use the module; comments mentioning it stay.
+    awk -v m="$module" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$file" || continue
+    awk -v m="$module" '!(index($0, m) && $0 !~ /^[[:space:]]*#/)' "$file" > "$file.faceunlock-new"
+    chmod --reference="$file" "$file.faceunlock-new"
+    chown --reference="$file" "$file.faceunlock-new"
+    mv "$file.faceunlock-new" "$file"
+    echo "  face unlock: removed $module from $file"
+done

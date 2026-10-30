@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+[Desktop Entry]
+Type=Application
+Name=Face Unlock setup prompt
+Comment=Offers to set up face unlock once, if this computer has an infrared camera
+Exec=/usr/lib/plasma-faceunlock/setup-prompt
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

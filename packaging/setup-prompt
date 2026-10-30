@@ -1,0 +1,88 @@
+#!/usr/bin/python3 -I
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Once per user, at the first login after startup: if this computer has an IR camera
+# and the user has no face model yet, offer to set up face unlock. Started from
+# /etc/xdg/autostart.
+# Ordinary webcams are less secure, so they are never advertised here; they can
+# still be chosen in System Settings.
+
+import fcntl
+import getpass
+import glob
+import os
+import struct
+import subprocess
+import sys
+import time
+
+# struct v4l2_fmtdesc: index, type, flags, description[32], pixelformat, mbus_code, reserved[3]
+FMTDESC = struct.Struct("=III32sII12x")
+VIDIOC_ENUM_FMT = 0xC0000000 | (FMTDESC.size << 16) | (ord("V") << 8) | 2
+CAPTURE = 1
+GREY = int.from_bytes(b"GREY", "little")
+# Seconds since boot within which the prompt may appear
+MAX_UPTIME = 600
+
+
+def has_ir_camera() -> bool:
+    """An IR sensor is the capture device that offers only greyscale frames."""
+    for path in sorted(glob.glob("/dev/v4l/by-path/*-video-index0")):
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            continue
+        formats = set()
+        try:
+            for index in range(32):
+                request = bytearray(FMTDESC.pack(index, CAPTURE, 0, b"", 0, 0))
+                try:
+                    fcntl.ioctl(fd, VIDIOC_ENUM_FMT, request)
+                except OSError:
+                    break
+                formats.add(FMTDESC.unpack(request)[4])
+        finally:
+            os.close(fd)
+        if formats == {GREY}:
+            return True
+    return False
+
+
+def main() -> int:
+    state = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "faceunlock")
+    marker = os.path.join(state, "setup-prompted")
+    if os.path.exists(marker):
+        return 0
+
+    def done() -> None:
+        os.makedirs(state, exist_ok=True)
+        open(marker, "w").close()
+
+    if os.path.exists(f"/etc/faceunlock/models/{getpass.getuser()}.dat"):
+        done()
+        return 0
+    # Only right after the computer starts, like a welcome; a later login in the same
+    # boot (or Plasma restarting) waits for the next startup.
+    with open("/proc/uptime") as uptime:
+        if float(uptime.read().split()[0]) >= MAX_UPTIME:
+            return 0
+    if not has_ir_camera():
+        # Ask again on a later startup, in case an IR camera is plugged in.
+        return 0
+
+    # Let the desktop settle before the first notification of the session.
+    time.sleep(15)
+    done()
+    result = subprocess.run(
+        ["notify-send", "--app-name=Face Unlock", "--icon=user-identity", "--action=setup=Set Up",
+         "Sign in with your face",
+         "This computer has an infrared camera that can recognize you on the login and lock screens."],
+        capture_output=True, text=True)
+    if result.stdout.strip() == "setup":
+        os.execvp("systemsettings", ["systemsettings", "kcm_faceunlock"])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

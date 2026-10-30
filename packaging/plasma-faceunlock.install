@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+
+post_install() {
+    /usr/lib/plasma-faceunlock/pam-tidy tidy
+    echo "  Open System Settings > Face Unlock and press Set Up to start using face unlock."
+}
+
+post_upgrade() {
+    /usr/lib/plasma-faceunlock/pam-tidy tidy
+}
+
+pre_remove() {
+    /usr/lib/plasma-faceunlock/pam-tidy remove
+}

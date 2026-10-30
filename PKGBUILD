@@ -7,7 +7,7 @@ pkgbase=plasma-faceunlock
 pkgname=(plasma-faceunlock plasma-login-manager-faceunlock)
 pkgver=0.3.0
 _plmver=6.8.2
-pkgrel=6
+pkgrel=8
 arch=(x86_64)
 url='https://invent.kde.org/'
 license=(GPL-2.0-or-later MIT Apache-2.0)
@@ -49,9 +49,10 @@ build() {
 package_plasma-faceunlock() {
   pkgdesc='Face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
-           libarchive opencv pam python)
+           libarchive libnotify opencv pam python)
   optdepends=('plasma-login-manager-faceunlock: start face unlock as soon as the login screen appears')
   backup=(etc/faceunlock/config.ini)
+  install=packaging/plasma-faceunlock.install
 
   DESTDIR="$pkgdir" cmake --install engine-build
   install -Dm644 -t "$pkgdir/usr/share/plasma-faceunlock/models" *.onnx
@@ -67,6 +68,8 @@ CONF
   install -Dm755 "$startdir/lockscreen/faceunlock-lockscreen.py" "$pkgdir/usr/lib/plasma-faceunlock/faceunlock-lockscreen.py"
   install -Dm644 "$startdir/kcm/src/ui/FaceScanIndicator.qml" "$pkgdir/usr/lib/plasma-faceunlock/FaceScanIndicator.qml"
   install -Dm644 -t "$pkgdir/usr/share/libalpm/hooks" "$startdir"/packaging/*.hook
+  install -Dm755 -t "$pkgdir/usr/lib/plasma-faceunlock" "$startdir/packaging/pam-tidy" "$startdir/packaging/setup-prompt"
+  install -Dm644 -t "$pkgdir/etc/xdg/autostart" "$startdir/packaging/org.kde.faceunlock.setupprompt.desktop"
 }
 
 package_plasma-login-manager-faceunlock() {
