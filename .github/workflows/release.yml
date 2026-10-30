@@ -1,0 +1,112 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+#
+# Builds the distribution packages on x86-64 and ARM64 and tests installing, using
+# and removing each one (tests/containers). A v* tag also attaches them, with
+# SHA256SUMS, to its GitHub release: a new release starts as a draft (a pre-release
+# for tags like v0.6.0-rc1) so its notes are written before it is published.
+# Started by hand, it only builds and tests.
+name: Release packages
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.distro }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { distro: debian13, image: "debian:13", arch: x86_64, runner: ubuntu-24.04 }
+          - { distro: debian13, image: "debian:13", arch: arm64, runner: ubuntu-24.04-arm }
+          - { distro: ubuntu26.04, image: "ubuntu:26.04", arch: x86_64, runner: ubuntu-24.04 }
+          - { distro: ubuntu26.04, image: "ubuntu:26.04", arch: arm64, runner: ubuntu-24.04-arm }
+          - { distro: ubuntu26.10, image: "ubuntu:26.10", arch: x86_64, runner: ubuntu-24.04 }
+          - { distro: ubuntu26.10, image: "ubuntu:26.10", arch: arm64, runner: ubuntu-24.04-arm }
+          - { distro: fedora44, image: "fedora:44", arch: x86_64, runner: ubuntu-24.04 }
+          - { distro: fedora44, image: "fedora:44", arch: arm64, runner: ubuntu-24.04-arm }
+          # The official Arch image is x86-64 only; Arch Linux ARM users build from source.
+          - { distro: arch, image: "archlinux:latest", arch: x86_64, runner: ubuntu-24.04 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the recognition networks and the login manager source
+        run: bash tests/containers/fetch-sources.sh
+
+      - name: Build and test in ${{ matrix.image }}
+        run: |
+          set -o pipefail
+          mkdir -m 777 out
+          docker run --rm -v "$PWD:/src:ro" -v "$PWD/out:/out" "${{ matrix.image }}" bash -c '
+              bash /src/tests/containers/in-container.sh &&
+              bash /src/tests/containers/in-container-package.sh build &&
+              bash /src/tests/containers/in-container-package.sh test' | tee test.log
+          if grep -q '^RESULT .*: FAIL' test.log; then
+              echo "::error::Some checks failed"
+              grep '^RESULT .*: FAIL' test.log
+              exit 1
+          fi
+
+      - name: Name the packages by distribution
+        run: |
+          mkdir assets
+          for file in out/*; do
+              base=${file##*/}
+              case $base in
+              *dbgsym* | *debuginfo* | *debugsource* | *-debug-*) ;;
+              # Debian and Ubuntu packages share one name; add the distribution.
+              *.deb) arch=${base##*_}; cp "$file" "assets/${base%_*}_${{ matrix.distro }}_${arch}" ;;
+              *) cp "$file" assets/ ;;
+              esac
+          done
+          ls -l assets
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.distro }}-${{ matrix.arch }}
+          path: assets/*
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-log-${{ matrix.distro }}-${{ matrix.arch }}
+          path: test.log
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          path: assets
+          merge-multiple: true
+
+      - name: Attach the packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd assets
+          sha256sum -- * > SHA256SUMS
+          if gh release view "$TAG" > /dev/null 2>&1; then
+              gh release upload "$TAG" --clobber -- *
+          else
+              flags=(--draft)
+              [[ $TAG == *-* ]] && flags+=(--prerelease)
+              gh release create "$TAG" "${flags[@]}" --title "Kenning ${TAG#v}" \
+                  --notes "Packages built and tested on x86-64 and ARM64 by the release workflow. Write the release notes here before publishing." -- *
+          fi
