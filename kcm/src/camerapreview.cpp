@@ -18,7 +18,6 @@
 namespace
 {
 constexpr unsigned bufferCount = 4;
-// How often the reader checks whether it should stop while no frame arrives.
 constexpr suseconds_t frameWaitMicroseconds = 200000;
 
 int xioctl(int fd, unsigned long request, void *arg)

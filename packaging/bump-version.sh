@@ -2,10 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 #
-# Sets the version everywhere it is written down and adds a changelog entry to the
-# Debian and RPM packaging:
-#   packaging/bump-version.sh 0.7.0 "Photos of failed attempts" "Try Face Again on the login screen"
-# Then review with git diff, commit, and tag v<version>.
+# Sets the version everywhere and adds Debian and RPM changelog entries:
+#   packaging/bump-version.sh 0.7.0 "What changed" "Something else"
 set -eu
 cd "$(dirname "$0")/.."
 version=${1:?usage: $0 <version> <changelog line>...}

@@ -4,8 +4,6 @@
 */
 #pragma once
 
-// The camera and the two recognition networks, shared by scanning and enrolment.
-
 #include "config.h"
 
 #include <opencv2/core.hpp>
@@ -63,13 +61,10 @@ public:
     double cameraMs() const;
     double networksMs() const;
 
-    // Unless Missing or Black, image holds the frame as BGR, scaled down to video/max_height.
-    // Unusable frames are still worth searching: at night an IR picture is mostly
-    // black background around a well-lit face.
+    // Unless Missing or Black, image holds the frame as BGR, at most video/max_height tall.
     Frame read(cv::Mat &image);
     // The frame to search, plus turned copies when video/rotate asks for them.
     std::vector<cv::Mat> orientations(const cv::Mat &image) const;
-    // One row per face (see YuNet).
     cv::Mat detectFaces(const cv::Mat &image);
     cv::Mat encode(const cv::Mat &image, const cv::Mat &face);
     double cosineSimilarity(const cv::Mat &feature, const cv::Mat &known) const;

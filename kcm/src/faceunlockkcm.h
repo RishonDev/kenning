@@ -9,8 +9,6 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-// System Settings page for face unlock.
-//
 // settings is one flat map that QML edits through setValue():
 //   "core/…", "video/…", "snapshots/…"  /etc/kenning/config.ini (helper)
 //   "pam/<service>"                      pam_kenning.so in /etc/pam.d (helper)
@@ -21,21 +19,19 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_OBJECT
     Q_PROPERTY(QVariantMap settings READ settings NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList faces READ faces NOTIFY facesChanged)
-    // {id, name, description, author, removable}; user-installed themes come first
     Q_PROPERTY(QVariantList themes READ themes NOTIFY themesChanged)
     Q_PROPERTY(QVariantList snapshots READ snapshots NOTIFY snapshotsChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString userName READ userName CONSTANT)
     Q_PROPERTY(QString displayName READ displayName CONSTANT)
-    // The configured camera, or before setup the one setup will pick
     Q_PROPERTY(QString devicePath READ devicePath NOTIFY settingsChanged)
     Q_PROPERTY(QString previewPath READ previewPath NOTIFY settingsChanged)
-    // An ordinary colour webcam rather than an IR camera: less secure, needs light
+    // A colour webcam rather than an IR camera
     Q_PROPERTY(bool colourCamera READ colourCamera NOTIFY settingsChanged)
     Q_PROPERTY(bool engineInstalled READ engineInstalled CONSTANT)
     Q_PROPERTY(bool lockScreenPatched READ lockScreenPatched CONSTANT)
     Q_PROPERTY(bool loginScreenSupported READ loginScreenSupported CONSTANT)
-    // fprintd has a fingerprint of this user: the lock screen can start with either method
+    // fprintd has a fingerprint of this user
     Q_PROPERTY(bool fingerprintEnrolled READ fingerprintEnrolled NOTIFY settingsChanged)
 
 public:
@@ -79,8 +75,7 @@ Q_SIGNALS:
     void snapshotsChanged();
     void busyChanged();
     void progress(const QString &line);
-    // operation is "add", "remove" or "test"; exitCode is the command's exit status
-    // (-1 if authorization failed or the helper could not run it).
+    // exitCode is -1 if authorization failed or the helper couldn't run.
     void operationFinished(const QString &operation, int exitCode, const QString &message);
     void errorOccurred(const QString &message);
 

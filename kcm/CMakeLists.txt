@@ -1,7 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
-#
-# The System Settings page, its root helper and the bundled animation themes.
 
 set(QT_MIN_VERSION "6.8.0")
 set(KF6_MIN_VERSION "6.10.0")
@@ -20,7 +18,6 @@ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS Auth Config CoreAddons I
 add_definitions(-DTRANSLATION_DOMAIN="kcm_kenning")
 
 add_subdirectory(src)
-
 
 install(DIRECTORY themes/ DESTINATION ${KDE_INSTALL_DATADIR}/kenning/themes)
 

@@ -9,27 +9,23 @@
 namespace FaceUnlock
 {
 struct Camera {
-    QString path; // empty when there is no usable camera
-    bool colour = false; // an ordinary webcam rather than an IR camera
+    QString path; // empty without a usable camera
+    bool colour = false;
 };
 
 struct CameraFormats {
     bool capture = false;
-    bool loopback = false; // v4l2loopback: a virtual camera any program can feed
+    bool loopback = false; // v4l2loopback
     bool grey = false;
     bool colour = false;
 };
 
 CameraFormats probeCamera(const QString &path);
 
-// The camera face unlock should use: the IR sensor (the capture device that only
-// offers greyscale frames) if there is one, otherwise an ordinary colour webcam.
-// Only /dev/v4l/by-path devices count, which leaves out virtual cameras such as
-// v4l2loopback: any program can feed those, including a video of the user.
-// by-path names survive reboots and replugging, unlike /dev/videoN.
+// The IR sensor (greyscale only) if there is one, else a colour webcam. Only by-path devices,
+// so virtual cameras, which any program can feed, are left out.
 Camera findCamera();
 
-// A colour camera for previews. Virtual cameras are fine here, since nothing is
-// authenticated with them.
+// A colour camera for previews; virtual cameras are fine, nothing is authenticated with them.
 QString findPreviewCamera();
 }

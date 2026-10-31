@@ -1,7 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
-#
-# The face recognition engine, the service and the PAM module.
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect videoio dnn)
 find_package(Qt6 REQUIRED COMPONENTS Core)
@@ -19,7 +17,6 @@ set(KENNING_SNAPSHOTSDIR ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/kenning/snapsho
 set(KENNING_SOCKET /run/kenning.sock CACHE STRING "Socket of the face unlock service")
 set(KENNING_SERVICE_USER kenning CACHE STRING "System user the service runs as and that owns the face models")
 
-# Paths and names every part agrees on (config.h), for the engine and the settings page.
 add_library(kenning-config INTERFACE)
 target_include_directories(kenning-config INTERFACE src)
 target_compile_definitions(kenning-config INTERFACE

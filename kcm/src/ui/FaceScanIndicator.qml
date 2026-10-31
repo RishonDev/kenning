@@ -8,26 +8,20 @@ import QtQuick.Layouts
 
 import org.kde.kirigami as Kirigami
 
-// Face unlock progress, shared by the login screen, the lock screen and the Face
-// Unlock settings page. The visuals come from a theme: <dir>/<id>/contents/ui/main.qml
-// in /usr/local/share/kenning/themes (installed by the user) or
-// /usr/share/kenning/themes (packaged). A theme that fails to load falls back
-// to "hello". See THEMES.md for the theme API.
+// Face unlock progress for the login screen, the lock screen and the settings page; themes: see THEMES.md.
 Item {
     id: root
 
     // 0 idle (hidden), 1 scanning, 2 recognized, 3 failed
     property int faceState: 0
     property string message
-    // Theme id
     property string style: "hello"
     property var themeDirs: ["file:///usr/local/share/kenning/themes/", "file:///usr/share/kenning/themes/"]
 
     readonly property bool active: faceState !== 0
     readonly property string themeId: /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(style) ? style : "hello"
 
-    // The login form is disabled while PAM runs, which would grey the text out;
-    // keep the text colour from while the form was last enabled.
+// The form is disabled while PAM runs, which would grey the text out.
     property color textColor
     Component.onCompleted: textColor = Kirigami.Theme.textColor
     Connections {
@@ -57,7 +51,6 @@ Item {
         }
     }
 
-    // Tries each theme directory in turn, then the packaged default.
     property int attempt: 0
     onThemeIdChanged: attempt = 0
 

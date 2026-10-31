@@ -2,10 +2,7 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// kenning: manage face models and run recognition. Arguments follow Howdy's CLI:
-//   kenning [--plain] [-y] [-U USER] add [LABEL] | remove ID | clear | list | test
-//   kenning compare USER     one scan for USER; exit code as Howdy's compare.py
-//   kenning daemon           the service pam_kenning asks (systemd starts it)
+// kenning: manage face models and run recognition, with Howdy's arguments.
 
 #include "daemon.h"
 #include "engine.h"
@@ -60,7 +57,6 @@ int add(const std::string &user, std::string label, bool plain)
     if (const int error = requireRoot()) {
         return error;
     }
-    // Each model adds comparisons to every scan.
     constexpr std::size_t manyModels = 3;
     std::vector<FaceModel> models = loadModels(user);
     if (models.size() > manyModels) {
@@ -159,7 +155,6 @@ int list(const std::string &user, bool plain)
     return 0;
 }
 
-// Without root only the service can read the face models: ask it, without the details.
 int testAsUser(const Config &config, const std::string &user)
 {
     const int code = askService("compare", user, scanTimeoutSeconds(config));
@@ -250,11 +245,9 @@ int main(int argc, char **argv)
     const std::string command = positional[0];
 
     if (command == "daemon") {
-        // Runs as the service user (systemd), or as root when started by hand.
         return runDaemon();
     }
     if (command == "compare") {
-        // Run by pam_kenning with the user being authenticated.
         if (positional.size() != 2 || !validUser(positional[1])) {
             return Aborted;
         }

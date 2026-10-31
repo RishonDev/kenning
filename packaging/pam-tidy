@@ -3,20 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # Keeps PAM pointing only at face modules that are installed. Run by the package:
-#   pam-tidy tidy      (install, upgrade) drop pam_howdy.so lines once Howdy is gone
-#   pam-tidy migrate   (install, upgrade) move from the earlier plasma-faceunlock name:
-#                      pam_faceunlock.so lines become pam_kenning.so; if removing the
-#                      old package already dropped them, switch face unlock back on
-#                      where Set Up does (when face models were carried over)
-#   pam-tidy remove    (removal) drop pam_kenning.so lines before the module goes
-#   pam-tidy lockscreen on|off|status
-#                      face unlock on the lock screen (System Settings). Plasma 6.8 and
-#                      newer have a Face sign-in method of their own, the PAM service
-#                      kde-face, which Kenning provides; older ones get pam_kenning.so in
-#                      the password service, kde. tidy also moves between the two when
-#                      Plasma is upgraded. status prints "face on", "password off", ...
-# A line for a missing "sufficient" module is skipped by PAM with an error in the
-# log, so this is about a clean system, not about getting locked out.
+#   pam-tidy tidy | migrate | remove
+#   pam-tidy lockscreen on | off | status   (Plasma 6.8+: its kde-face service; older: the kde service)
 set -eu
 
 pam_dir=${PAM_DIR:-/etc/pam.d}
@@ -27,9 +15,7 @@ lockscreen_dir=${LOCKSCREEN_DIR:-/usr/share/plasma/shells/org.kde.plasma.desktop
 face_service=$pam_dir/kde-face
 face_marker='# kenning: kde-fingerprint with pam_kenning.so in place of pam_fprintd.so; removed with Kenning'
 
-# Prints the PAM files that use a module on a line that isn't a comment. Never
-# kde-face: without its pam_kenning.so line it would let anyone in, so it is only
-# ever written or removed whole.
+# PAM files using a module on a non-comment line. Never kde-face, which is only written or removed whole.
 files_using() {
     local file
     for file in "$pam_dir"/*; do
@@ -39,7 +25,6 @@ files_using() {
     return 0
 }
 
-# Rewrites a PAM file through an awk program, keeping its owner and mode.
 rewrite() {
     local file=$1
     shift
@@ -65,8 +50,7 @@ uses() { # file module
     [[ -f $1 ]] && awk -v m="$2" 'index($0, m) && $0 !~ /^[[:space:]]*#/ { found = 1 } END { exit !found }' "$1"
 }
 
-# Adds face unlock in front of a service's password check, copying the packaged
-# file to /etc first when there is no override yet.
+# Adds face unlock in front of a service's password check.
 add_to() { # service
     local file=$pam_dir/$1
     if [[ ! -e $file ]]; then
@@ -86,9 +70,7 @@ fingerprint_service() {
     return 1
 }
 
-# Whether the lock screen has Plasma's own Face sign-in method: a 6.8 or newer lock
-# screen, a greeter built with the kde-face service, and a fingerprint service to
-# model it on.
+# Whether the lock screen has Plasma's own Face sign-in method (Plasma 6.8 and newer).
 face_capable() {
     grep -q AuthenticatorModel "$lockscreen_dir/LockScreenUi.qml" 2> /dev/null || return 1
     local greeter found=
@@ -103,10 +85,7 @@ face_service_ours() {
     [[ -f $face_service ]] && grep -qF "$face_marker" "$face_service"
 }
 
-# kde-face is the distribution's kde-fingerprint with pam_kenning.so in place of
-# pam_fprintd.so. It fails closed: a recognized face ends the stack, anything else
-# ends it with pam_kenning's own result (so Plasma tells "not set up" from "not
-# recognized"), and pam_deny.so stands behind it should the line ever go missing.
+# kde-face is kde-fingerprint with pam_kenning.so in place of pam_fprintd.so, failing closed (pam_deny.so behind it).
 write_face_service() {
     if [[ -e $face_service ]] && ! face_service_ours; then
         echo "  kenning: $face_service exists and isn't Kenning's; leaving it" >&2
@@ -165,8 +144,7 @@ lockscreen() {
     return 0
 }
 
-# After a Plasma upgrade (or a downgrade), keep lock screen face unlock on where it
-# was, in the form this Plasma uses.
+# After a Plasma upgrade or downgrade, keep lock screen face unlock on in the form this Plasma uses.
 tidy_lockscreen() {
     if face_capable; then
         if uses "$pam_dir/kde" pam_kenning.so; then
@@ -192,12 +170,10 @@ migrate() {
 
     [[ -z $(files_using pam_kenning.so) ]] || return 0
     compgen -G "$kenning_dir/models/*.dat" > /dev/null || return 0
-    # Same services as Set Up: the login screen only with the Kenning login manager,
-    # and an ordinary webcam stays off sudo.
+    # Same services as Set Up: an ordinary webcam stays off sudo.
     local services=(kde)
     [[ -e ${LOGIN_MANAGER_SUPPORT:-/usr/share/kenning/login-manager} ]] && services+=(plasmalogin)
     grep -Eq '^[[:space:]]*colour[[:space:]]*=[[:space:]]*true' "$kenning_dir/config.ini" 2>/dev/null || services+=(sudo)
-    # Face first, everything else stays as the password fallback.
     for service in "${services[@]}"; do
         add_to "$service"
     done

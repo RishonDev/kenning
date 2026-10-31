@@ -4,22 +4,9 @@
 */
 #pragma once
 
-// The face unlock service (kenning daemon, socket-activated by systemd) owns the
-// camera and the face models, which only root can read. Clients talk to it over a
-// Unix socket, one request per connection:
-//
-//   request   "<command> <user>\n"   command: compare | has-model
-//   reply     "<code>\n"             an ExitCode: 0 recognized / has a model,
-//                                    10 no model, 11 timeout, 12 refused, 13 too dark,
-//                                    14 locked after too many failed attempts
-//
-// After [core] max_failures faces that were seen but not recognized within
-// failure_window minutes, the service refuses that user's face for lockout_minutes
-// (14, for has-model too), like pam_faillock does for passwords.
-//
-// The service answers only for root or for the user's own account, so nobody can
-// ask about someone else's face. Header-only so pam_kenning (which must not load
-// OpenCV) can use it.
+// The service (kenning daemon) owns the camera and the face models. One request per
+// connection: "<command> <user>\n" (compare or has-model), answered "<ExitCode>\n".
+// It answers only for root or the user's own account. Header-only, for pam_kenning.
 
 #include "config.h"
 
@@ -55,7 +42,6 @@ struct Request {
     std::string user;
 };
 
-// "<command> <user>\n", as sent by askService.
 inline std::optional<Request> parseRequest(std::string_view text)
 {
     const auto end = text.find('\n');
@@ -70,9 +56,7 @@ inline std::optional<Request> parseRequest(std::string_view text)
     return request;
 }
 
-// Sends one request and returns the reply code, or -1 when the service can't be
-// reached. timeoutSeconds bounds the whole wait (a scan takes up to video/timeout,
-// and requests are served one at a time).
+// Returns the reply code, or -1 when the service can't be reached.
 inline int askService(const std::string &command, const std::string &user, int timeoutSeconds)
 {
     const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);

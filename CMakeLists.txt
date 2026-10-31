@@ -1,11 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 #
-# Kenning in one build, used by every package format:
-#   cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DKENNING_NETWORKS_DIR=<dir with the .onnx files>
-#   cmake --build build && DESTDIR=... cmake --install build
-# Distribution-specific pieces (pacman hooks, dpkg and RPM triggers, install
-# scripts) live with each package format under packaging/.
+# One build for every package format; distribution-specific pieces live under packaging/.
 
 cmake_minimum_required(VERSION 3.20)
 project(kenning VERSION 0.6.0 LANGUAGES CXX)
@@ -27,7 +23,6 @@ if(BUILD_TESTING)
     add_subdirectory(autotests)
 endif()
 
-# KDE's code style: "cmake --build build --target clang-format", checked before each commit.
 find_package(ECM NO_MODULE QUIET)
 if(ECM_FOUND)
     list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
@@ -39,8 +34,7 @@ if(ECM_FOUND)
     kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
 endif()
 
-# The recognition networks (YuNet, MIT; SFace, Apache-2.0) from OpenCV Zoo; they
-# are too large for the repository, so packages download them.
+# The recognition networks are too large for the repository, so packages download them.
 foreach(network face_detection_yunet_2023mar.onnx face_recognition_sface_2021dec.onnx)
     if(NOT EXISTS "${KENNING_NETWORKS_DIR}/${network}")
         message(FATAL_ERROR "${network} not found in KENNING_NETWORKS_DIR (${KENNING_NETWORKS_DIR}). "
@@ -51,12 +45,10 @@ foreach(network face_detection_yunet_2023mar.onnx face_recognition_sface_2021dec
     install(FILES "${network_file}" DESTINATION ${CMAKE_INSTALL_DATADIR}/kenning/models RENAME ${network})
 endforeach()
 
-# Scripts the packages and the lock screen add-on call by this fixed path.
 install(PROGRAMS packaging/pam-tidy packaging/setup-prompt lockscreen/kenning-lockscreen.py DESTINATION lib/kenning)
 install(FILES kcm/src/ui/FaceScanIndicator.qml DESTINATION lib/kenning)
 install(FILES packaging/org.kde.kenning.setupprompt.desktop DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/autostart)
 
-# The service socket is on by default (pam_kenning needs it); nothing runs until used.
 set(wants "lib/systemd/system/sockets.target.wants")
 install(CODE "
     file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${wants}\")

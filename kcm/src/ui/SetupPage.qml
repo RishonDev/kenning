@@ -14,12 +14,10 @@ import org.kde.kirigami as Kirigami
 
 import org.kde.kenning
 
-// Guided face setup: preview, confirmation, countdown, then the guided capture.
 KCM.SimpleKCM {
     id: page
 
     property bool improving: false
-    // Set when the person accepted the ordinary-webcam warning on the settings page
     property bool webcamAccepted: false
     // "ready", "countdown", "capturing", "done", "failed"
     property string step: "ready"
@@ -34,7 +32,7 @@ KCM.SimpleKCM {
         property bool voice: true
     }
 
-    // Separate file, so a missing speech module only disables voice
+// Separate file, so a missing speech module only disables voice
     Loader {
         id: voice
         source: "Voice.qml"
@@ -82,7 +80,6 @@ KCM.SimpleKCM {
 
     title: improving ? i18n("Improve Recognition") : i18n("Set Up Face Recognition")
 
-    // The engine's instruction lines, in order
     readonly property var guidedSteps: [
         {match: "look straight into the camera", pose: "straight", text: i18n("Look straight at the camera")},
         {match: "to the left", pose: "left", text: i18n("Slowly turn your head a little to the left"), name: i18n("Turning left")},
@@ -94,7 +91,6 @@ KCM.SimpleKCM {
     property int stepIndex: -1
     property bool returning: false
     property var skippedSteps: []
-    // The engine's reason for each skipped step: "wrong way", "face lost", "too far", "not level" or "not far enough"
     property var skipReasons: []
 
     readonly property var missedSteps: skippedSteps.filter(index => !guidedSteps[index].optional)
@@ -134,7 +130,6 @@ KCM.SimpleKCM {
         return "";
     }
 
-    // "Name's face", then "Name's face 2"…; first name only if over 24 characters.
     function defaultLabel() {
         const taken = kcm.faces.map(face => face.label);
         const label = (name, number) => number === 1 ? i18nc("@info default name of the first face model", "%1's face", name)
@@ -184,9 +179,7 @@ KCM.SimpleKCM {
                 return;
             }
             if (exitCode === 0) {
-                // First face on this account: switch face unlock on where people expect it.
-                // A colour webcam can be fooled by a photo, so then only for signing in;
-                // approving system changes stays on the password.
+// First face: switch face unlock on. A colour webcam can be fooled by a photo, so not for system changes.
                 if (!page.improving && kcm.faces.length === 0) {
                     const services = ["pam/lockscreen"];
                     if (kcm.loginScreenSupported) {
@@ -227,8 +220,7 @@ KCM.SimpleKCM {
                 anchors.fill: parent
                 anchors.margins: Kirigami.Units.largeSpacing
                 devicePath: kcm.previewPath
-                // Stopped from the countdown on: while the webcam streams, the IR
-                // emitter of a combined camera stays off for a couple of seconds.
+// While the webcam streams, the IR emitter of a combined camera stays off for a couple of seconds.
                 active: page.visible && (page.step === "ready" || page.step === "failed")
                 visible: active && hasFrame
             }
@@ -241,7 +233,6 @@ KCM.SimpleKCM {
                 text: page.countdown
             }
 
-            // Placeholder while there is no picture
             ColumnLayout {
                 anchors.centerIn: parent
                 visible: !preview.visible && page.step !== "countdown" && page.step !== "capturing"
@@ -271,7 +262,6 @@ KCM.SimpleKCM {
                 returning: page.returning
             }
 
-            // Ring around the preview: orbits while capturing, closes on the result
             Shape {
                 id: ring
                 anchors.fill: parent
@@ -312,7 +302,7 @@ KCM.SimpleKCM {
             }
         }
 
-        // One dot per step: done, skipped (hollow), current, or still to come
+// Done, skipped (hollow), current, or still to come
         Row {
             Layout.alignment: Qt.AlignHCenter
             visible: page.step === "capturing" || page.step === "done"
@@ -322,7 +312,6 @@ KCM.SimpleKCM {
                 model: page.guidedSteps.length
                 Rectangle {
                     required property int index
-                    // An optional step that wasn't seen stays grey, without the skipped outline
                     readonly property bool optionalSkipped: page.skippedSteps.includes(index) && !!page.guidedSteps[index].optional
                     readonly property bool skipped: page.skippedSteps.includes(index) && !optionalSkipped
                     readonly property bool finished: !optionalSkipped && (index < page.stepIndex || (index === page.stepIndex && page.returning) || page.step === "done")
@@ -390,7 +379,6 @@ KCM.SimpleKCM {
             text: visible ? page.skippedSummary() : ""
         }
 
-        // A reminder of the warning accepted on the settings page
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: kcm.colourCamera && !page.improving && (page.step === "ready" || page.step === "failed")
@@ -449,7 +437,6 @@ KCM.SimpleKCM {
                 visible: page.step === "ready" || page.step === "failed"
                 icon.name: "media-record"
                 text: page.step === "failed" ? i18n("Try Again") : i18n("I'm Ready")
-                // An ordinary webcam only after its warning was accepted (settings page)
                 enabled: !kcm.busy && kcm.devicePath !== "" && (!kcm.colourCamera || page.improving || page.webcamAccepted)
                 onClicked: page.start()
             }
@@ -459,7 +446,7 @@ KCM.SimpleKCM {
                 text: page.improving ? i18n("Add Another Look") : i18n("Add a Look With or Without Glasses")
                 onClicked: {
                     page.improving = true;
-                    // Rebound: the face list may refresh after this
+// The face list may refresh after this
                     label.text = Qt.binding(page.defaultLabel);
                     page.step = "ready";
                 }

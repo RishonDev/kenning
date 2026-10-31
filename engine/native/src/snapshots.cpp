@@ -46,7 +46,6 @@ void pruneSnapshots(const fs::path &directory, std::size_t keep)
     if (photos.size() <= keep) {
         return;
     }
-    // Named by time, so the oldest sort first.
     std::sort(photos.begin(), photos.end());
     for (std::size_t i = 0; i + keep < photos.size(); ++i) {
         fs::remove(photos[i], error);

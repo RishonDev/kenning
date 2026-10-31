@@ -1,11 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 #
-# Builds the distribution packages on x86-64 and ARM64 and tests installing, using
-# and removing each one (tests/containers). A v* tag also attaches them, with
-# SHA256SUMS, to its GitHub release: a new release starts as a draft (a pre-release
-# for tags like v0.6.0-rc1) so its notes are written before it is published.
-# Started by hand, it only builds and tests.
+# Builds and tests the packages; a v* tag also attaches them to a draft release.
 name: Release packages
 
 on:

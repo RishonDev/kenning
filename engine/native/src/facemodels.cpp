@@ -112,7 +112,6 @@ bool saveModels(const std::string &user, const std::vector<FaceModel> &models)
 
 void giveToService(const std::string &path)
 {
-    // Only root can hand files over; a test build run as a user keeps its own.
     if (geteuid() != 0) {
         return;
     }

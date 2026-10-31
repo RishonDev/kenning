@@ -29,8 +29,7 @@ if(KENNING_BUILD_SETTINGS)
     )
 endif()
 
-# Loads the settings page and its QML without showing it. Needs kcmshell6 and the
-# QML modules System Settings uses, which package builds don't install.
+# Needs kcmshell6 and System Settings' QML modules, which package builds don't install.
 option(KENNING_KCM_SMOKE_TEST "Test that the settings page loads" OFF)
 if(KENNING_BUILD_SETTINGS AND KENNING_KCM_SMOKE_TEST)
     add_test(NAME kcm_smoketest COMMAND kcmshell6 --smoke-test kcm_kenning)

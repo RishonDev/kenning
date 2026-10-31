@@ -4,9 +4,7 @@
 */
 #pragma once
 
-// Photos of faces that weren't recognized ([snapshots] save_failed): one folder
-// per user, readable only by the service; System Settings shows them through its
-// root helper.
+// Photos of unrecognized faces ([snapshots] save_failed), one folder per user.
 
 #include <opencv2/core.hpp>
 

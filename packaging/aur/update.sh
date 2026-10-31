@@ -2,12 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Makes the AUR packaging from the repository's PKGBUILD. An AUR clone has no Kenning
-# source, so these download it instead of building their own checkout:
-#   packaging/aur/kenning/      the release the PKGBUILD names, from its GitHub tag
-#   packaging/aur/kenning-git/  the latest master (kenning-git, plasma-login-manager-kenning-git)
-# Each is one AUR repository: copy its PKGBUILD, kenning.install and .SRCINFO there.
-#   packaging/aur/update.sh        (after tagging and pushing a release)
+# Makes packaging/aur/kenning (the tagged release) and kenning-git (master) from the PKGBUILD;
+# each is one AUR repository. Run after tagging and pushing a release.
 set -eu
 cd "$(dirname "$0")/../.."
 version=$(sed -n 's/^pkgver=//p' PKGBUILD)

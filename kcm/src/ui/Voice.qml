@@ -6,7 +6,6 @@
 import QtQuick
 import QtTextToSpeech
 
-// Reads Set Up's instructions aloud.
 Item {
     id: voice
 
@@ -25,7 +24,6 @@ Item {
 
     TextToSpeech {
         id: tts
-        // Fall back to flite when speech-dispatcher isn't running
         engine: "speechd"
         onStateChanged: {
             if (state === TextToSpeech.Error && engine === "speechd" && availableEngines().includes("flite")) {

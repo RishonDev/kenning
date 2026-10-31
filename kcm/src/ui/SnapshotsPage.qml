@@ -15,7 +15,6 @@ KCM.GridViewKCM {
 
     title: i18nc("@title", "Failed Attempts")
 
-    // The photos need the user's password; nothing shows until it was given.
     property bool loaded: false
     Connections {
         target: kcm

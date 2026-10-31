@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 #
-# Loads the lock screen the add-on patched with the real Plasma greeter on each
-# distribution's Plasma version (tests/containers/lockscreen-qml.sh), whenever the
-# add-on or the scan animation changes.
+# Loads the patched lock screen in the real greeter on each distribution's Plasma.
 name: Lock screen add-on
 
 on:

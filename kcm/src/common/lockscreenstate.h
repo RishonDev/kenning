@@ -9,7 +9,7 @@
 namespace FaceUnlock
 {
 struct LockScreenState {
-    bool known = false; // pam-tidy answered
+    bool known = false;
     bool faceService = false; // Plasma's Face method rather than the password service
     bool enabled = false;
 };

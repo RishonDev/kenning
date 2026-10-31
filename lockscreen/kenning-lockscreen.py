@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Adds face unlock to the Plasma lock screen: the face scan animation (style chosen
-# in System Settings > Face Unlock), skipping the "Unlock" button after face
-# recognition, and a pause before unlocking. Run by a pacman hook after
-# plasma-desktop updates. All edits apply together or not at all, so a changed
-# upstream file stays stock.
+# Adds face unlock to the Plasma lock screen. Run by a pacman hook after plasma-desktop updates.
 #
 # usage: kenning-lockscreen.py [lockscreen dir] [FaceScanIndicator.qml]
 #        kenning-lockscreen.py --restore [lockscreen dir]   put the stock files back
@@ -110,32 +106,24 @@ UI_SUCCEEDED = ("""            if (authenticator.hadPrompt) {
 UI_FUNCTION = ("""    property string pendingPassword
 """, f"""    property string pendingPassword
 
-    // {MARKER}, {VERSION}: face scan progress for FaceScanIndicator (0 idle, 1 scanning,
-    // 2 recognized, 3 failed), fed by pam_howdy's messages.
+    // {MARKER}, {VERSION}
     property int faceState: 0
     property string faceMessage
     // False after a failure a new scan can't fix (lockout, no face model).
     property bool faceRetryable: true
 
-    // Sign-in method to start with, as authenticator type: 3 Plasma's Face method (Plasma
-    // 6.8 and newer with Kenning), 1 fingerprint (System Settings > Face Unlock, when a
-    // fingerprint is enrolled), or -1 for the one used last, as Plasma does by default.
-    // A method that isn't offered falls back to the one used last.
+    // Authenticator type to start with: 3 Plasma's Face method, 1 fingerprint, -1 the one used last.
     readonly property int preferredMethod: config.useLastMethod ? -1
                                            : config.preferredMethod === "fingerprint" ? 1 : 3
-    // Whether Plasma offers its Face method and it works (a face model, the service up).
     property bool faceOffered: false
-    // Asks the authenticator buttons to switch to the method of this type, if it works.
     signal switchMethod(int type)
 
-    // Switches after the current authenticator's signal has returned: switching deletes it.
+    // Switching deletes the current authenticator, so wait for its signal to return.
     function switchMethodLater(type) {{
         Qt.callLater(() => lockScreenUi.switchMethod(type));
     }}
 
-    // Plasma starts the fingerprint reader before its PAM worker is ready and doesn't retry
-    // until a key or the mouse wakes the screen; retry for a few seconds so a finger works
-    // straight away. Plasma ignores the retry while authentication is already running.
+    // Plasma starts the fingerprint reader before its PAM worker is ready and doesn't retry.
     Timer {{
         property int tries: 0
         interval: 500
@@ -150,9 +138,7 @@ UI_FUNCTION = ("""    property string pendingPassword
         }}
     }}
 
-    // Fingerprint first: when it fails or stops working, fall back to the face (Plasma's
-    // Face method, or the password, which scans the face first where face unlock lives
-    // there), and the password.
+    // Fingerprint failed: fall back to the face and the password.
     function fingerprintFallback() {{
         Qt.callLater(() => {{
             lockScreenUi.switchMethod(lockScreenUi.faceOffered ? 3 : 0);
@@ -160,9 +146,7 @@ UI_FUNCTION = ("""    property string pendingPassword
         }});
     }}
 
-    // Plasma's Face method failed: fall back to the password (and fingerprint, which
-    // Plasma runs beside it) instead of Plasma's immediate retry; waking the screen
-    // scans again.
+    // Plasma's Face method failed: fall back to the password instead of Plasma's immediate retry.
     function faceFallback() {{
         if (faceState !== 3) {{
             handleFaceMessage("Failure, general abort");
@@ -171,7 +155,6 @@ UI_FUNCTION = ("""    property string pendingPassword
         switchMethodLater(0);
     }}
 
-    // Returns true when the message belonged to face unlock and is shown by the indicator.
     function handleFaceMessage(msg) {{
         if (msg.startsWith("Attempting facial authentication")) {{
             faceState = 1;
@@ -206,8 +189,7 @@ UI_FUNCTION = ("""    property string pendingPassword
         onTriggered: lockScreenUi.faceState = 0
     }}
 
-    // pam_howdy runs once per PAM conversation; after it fails the conversation waits
-    // for a password, so a new scan needs a fresh conversation. Never while typing.
+    // pam_howdy runs once per PAM conversation, so a new scan needs a fresh one. Never while typing.
     property bool faceNeedsRetry: false
 
     function rescanFace() {{
@@ -223,7 +205,6 @@ UI_FUNCTION = ("""    property string pendingPassword
         authenticator.startAuthenticating();
     }}
 
-    // After resume, give the IR camera a moment to come back before scanning.
     Timer {{
         id: resumeRescanTimer
         interval: 1500
@@ -237,7 +218,6 @@ UI_FUNCTION = ("""    property string pendingPassword
         }}
     }}
 
-    // Unlock without the Unlock button, optionally showing the greeting first.
     function finishFaceUnlock() {{
         faceState = 2;
         faceMessage = i18nc("@info:status", "Welcome back");
@@ -255,7 +235,6 @@ UI_FUNCTION = ("""    property string pendingPassword
     }}
 """)
 
-# The fallback goes before the stock failure handling, which would retry the fingerprint.
 UI_FALLBACK = ("""        function onFailed(kind) {
             if (kind != 0) { // if this is coming from the noninteractive authenticators
                 return;
@@ -274,7 +253,6 @@ UI_FALLBACK = ("""        function onFailed(kind) {
             }
 """)
 
-# Start with the preferred method; otherwise, or when it isn't offered, with the one used last.
 UI_METHOD = ("""                            Component.onCompleted: {
                                 if (checked) {
                                     clicked()
@@ -306,9 +284,7 @@ UI_METHOD = ("""                            Component.onCompleted: {
                             }
 """)
 
-# A method that stops working falls back: Plasma's Face method (no face model, lid closed,
-# service down) quietly to the password, a preferred fingerprint reader (unplugged,
-# fprintd gone) to the face and password.
+# A method that stops working falls back: the face quietly to the password, fingerprint to the face.
 UI_DEFUNCT = ("""                            onFunctionalChanged: {
                                 if (functional) {
                                     return
@@ -359,14 +335,12 @@ UI_WAKE = ("""            } else if (uiVisible) {
             }
             authenticator.startAuthenticating();""")
 
-# A key that types text means the user is entering their password: drop the pending
-# face retry so the keypress that wakes the screen doesn't start a new scan.
+# Typing a password drops the pending face retry, so the keypress that wakes the screen doesn't scan.
 UI_KEYS = ("""        Keys.onPressed: event => {
             uiVisible = true;""", """        Keys.onPressed: event => {
             if (event.text.trim().length > 0) {
                 lockScreenUi.faceNeedsRetry = false;
-                // Typing while Plasma's Face method scans means a password: switch to it
-                // (the password field is hidden until then), keeping the key.
+                // Typing while Plasma's Face method scans means a password: switch to it, keeping the key.
                 if (authenticator.authenticator === 3) {
                     lockScreenUi.faceState = 0;
                     lockScreenUi.switchMethod(0);
@@ -379,8 +353,7 @@ UI_KEYS = ("""        Keys.onPressed: event => {
             }
             uiVisible = true;""")
 
-# A password submitted while the face scan runs has no prompt to answer yet (PAM is
-# still in the face module); hold it until the password prompt arrives.
+# A password submitted during the scan has no prompt yet (PAM is in the face module): hold it.
 UI_PASSWORD = ("""                    if (authenticator.pamTimeout) {
                         lockScreenUi.pendingPassword = password""", """                    if (authenticator.pamTimeout || lockScreenUi.faceState === 1) {
                         lockScreenUi.pendingPassword = password""")
@@ -423,7 +396,6 @@ UI_INFO = ("""        function onInfoMessageChanged() {
             }
         }""")
 
-# The indicator goes above the authenticator buttons, which only show with several methods.
 UI_INDICATOR = ("""                authenticationTypeItem: RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
@@ -470,19 +442,15 @@ UI_INDICATOR_END = ("""                    }
 
                 notificationMessage: {""")
 
-# Plasma before 6.8: face unlock runs in the password service, before its prompt.
-# Most of the 6.8 edits fit as they are: what they add for Plasma's Face method and
-# fingerprint switching checks authenticator.authenticator, which doesn't exist there,
-# so it stays idle. These take the place of the ones that don't fit.
+# Plasma before 6.8: face unlock runs in the password service, before its prompt. These
+# replace the 6.8 edits that don't fit; the rest stay idle without authenticator.authenticator.
 
-# The functions go before the theme settings; pendingPassword is ours there.
 UI_FUNCTION_BEFORE_6_8 = ("""    Kirigami.Theme.inherit: false
 """, UI_FUNCTION[1] + """
     Kirigami.Theme.inherit: false
 """)
 
-# Hold a password submitted while the face scan runs (PAM is still in the face module,
-# with no prompt to answer yet), and put the scan animation under the password field.
+# Hold a password submitted during the scan, and put the scan animation under the password field.
 UI_PASSWORD_BEFORE_6_8 = ("""                onPasswordResult: password => {
                     authenticator.respond(password)
                 }
@@ -528,7 +496,7 @@ UI_PROMPT_BEFORE_6_8 = ("""        function onPromptForSecretChanged(msg) {
             }
             mainBlock.showPassword = false;""")
 
-# Plasma 6.3 to 6.5: an older settings dialog (no configForm id) and message call.
+# Plasma 6.3 to 6.5: an older settings dialog and message call.
 CONFIG_QML_6_3 = (CONFIG_QML[0].replace("configForm.", ""), CONFIG_QML[1].replace("configForm.", ""))
 _I18N_6_8 = 'i18ndc("plasma_shell_org.kde.plasma.desktop", "@info:status", '
 _I18N_6_3 = 'i18nd("plasma_shell_org.kde.plasma.desktop", '
@@ -566,8 +534,7 @@ def is_patched(text: str) -> bool:
     return MARKER in text or any(marker in text for marker in LEGACY_MARKERS)
 
 
-# Unpatched copies, saved before the first patch. When the distribution updates
-# Plasma, its package manager writes fresh unpatched files, which replace these.
+# Unpatched copies, replaced whenever the package manager writes fresh files.
 ORIGINALS = Path(os.environ.get("KENNING_ORIGINALS", "/var/lib/kenning/lockscreen-originals"))
 
 
@@ -580,7 +547,6 @@ def original(name: str) -> str | None:
     if not shutil.which("pacman"):
         return None
     owner = subprocess.run(["pacman", "-Qo", f"{SYSTEM_LOCKSCREEN}/{name}"], capture_output=True, text=True).stdout.split()
-    # "<path> is owned by <package> <version>"
     if len(owner) < 2:
         return None
     package_name, version = owner[-2], owner[-1]
@@ -630,8 +596,7 @@ def main() -> int:
                           "package that provides it to update it", file=sys.stderr)
                     return 0
             stock[name] = text
-        # All or nothing: a Plasma version none of the edit sets fits keeps its stock
-        # lock screen, where face unlock still works, without the animation.
+        # All or nothing: a Plasma version no edit set fits keeps its stock lock screen.
         fits = [(version, edits) for version, edits in EDIT_SETS
                 if all(stock[name].count(old) == 1 for name, file_edits in edits.items() for old, _ in file_edits)]
         if not fits:
@@ -650,7 +615,6 @@ def main() -> int:
                 text = text.replace(old, new)
             patched[name] = text
 
-    # The indicator is a separate file; refresh it every run so updates reach it.
     if not indicator.is_file():
         print(f"kenning lock screen: {indicator} missing; leaving the lock screen stock", file=sys.stderr)
         return 0

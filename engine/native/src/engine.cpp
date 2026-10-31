@@ -141,18 +141,16 @@ enum class StepKind {
     LookBack
 };
 
-// The settings page matches these instructions to show its own text.
 struct EnrolmentStep {
     StepKind kind;
     const char *instruction;
     double HeadPose::*axis = nullptr; // turns only
     TurnLimits limits = {};
-    bool opposesPrevious = false; // the other way from the previous turn on this axis
+    bool opposesPrevious = false;
 };
 
 constexpr TurnLimits yawLimits{.minimum = 0.12, .maximum = 0.45, .maxDrift = 0.06};
-// Pitch falls when tilting up. Tilting up is the smaller movement: further than a
-// little and glasses reflect the infrared light, losing the face.
+// Pitch falls when tilting up; with glasses, tilting up further loses the face.
 constexpr TurnLimits tiltUpLimits{.minimum = 0.04, .maximum = 0.3, .maxDrift = 0.1, .direction = -1};
 constexpr TurnLimits tiltDownLimits{.minimum = 0.06, .maximum = 0.3, .maxDrift = 0.1, .direction = 1};
 constexpr EnrolmentStep lookBack{.kind = StepKind::LookBack, .instruction = "Please look back at the camera"};
@@ -176,7 +174,7 @@ constexpr EnrolmentStep enrolmentSteps[] = {
 struct StepBudget {
     int wanted; // encodings, or straight sightings when looking back
     std::chrono::seconds timeLimit;
-    int encodeEvery; // sightings, so the encodings cover a little movement
+    int encodeEvery; // so the encodings cover a little movement
 };
 
 StepBudget budgetFor(StepKind kind)
@@ -192,7 +190,7 @@ StepBudget budgetFor(StepKind kind)
     return {.wanted = 2, .timeLimit = std::chrono::seconds(4), .encodeEvery = 0};
 }
 
-// Lit frames allowed for looking straight; black frames while the camera warms up don't count.
+// Lit frames allowed for looking straight.
 constexpr int maxStraightFrames = 60;
 
 struct StepProgress {
@@ -200,7 +198,6 @@ struct StepProgress {
     int sightings = 0;
     bool hinted = false;
     HeadPose poseSum;
-    // What kept a turn from counting, for the reason given when it is skipped
     bool sawTooFar = false;
     bool sawDrifting = false;
     bool sawWrongWay = false;
@@ -230,7 +227,6 @@ public:
     {
     }
 
-    // A result when enrolment has to stop early.
     std::optional<ScanResult> runStep(const EnrolmentStep &step)
     {
         m_progress(step.instruction);
@@ -369,7 +365,6 @@ ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const P
     }
     Enrolment enrolment(pipeline, encodings, progress);
     for (const EnrolmentStep &step : enrolmentSteps) {
-        // Turns are measured from looking straight, so they need its encodings.
         if (step.kind != StepKind::LookStraight && encodings.empty()) {
             break;
         }

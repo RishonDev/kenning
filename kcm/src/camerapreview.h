@@ -10,7 +10,6 @@
 
 #include <atomic>
 
-// Reads frames from a V4L2 camera (GREY, YUYV or MJPG) on its own thread.
 class CameraReader : public QThread
 {
     Q_OBJECT
@@ -30,8 +29,7 @@ private:
     std::atomic_bool m_stop = false;
 };
 
-// Round, mirrored live preview of the face recognition camera. Set active to
-// false before the engine uses the camera; a V4L2 device has one reader at a time.
+// Set active to false before the engine uses the camera: a V4L2 device has one reader.
 class CameraPreview : public QQuickPaintedItem
 {
     Q_OBJECT

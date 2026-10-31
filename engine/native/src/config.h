@@ -4,8 +4,7 @@
 */
 #pragma once
 
-// Paths, exit codes and config.ini reading, header-only so pam_kenning can
-// use them without linking OpenCV or Qt.
+// Header-only, so pam_kenning can use it without OpenCV or Qt.
 
 #include <charconv>
 #include <fstream>
@@ -14,8 +13,7 @@
 
 namespace FaceUnlock
 {
-// Set at build time only: a runtime override would let a user point
-// authentication at their own face models.
+// Build time only: a runtime override could point authentication at other face models.
 #ifndef KENNING_SYSCONFDIR
 #define KENNING_SYSCONFDIR "/etc/kenning"
 #endif
@@ -25,17 +23,14 @@ namespace FaceUnlock
 
 inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
 inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
-// Longest face model label kept, as in Howdy.
 inline constexpr int maxLabelLength = 24;
 #ifndef KENNING_SNAPSHOTSDIR
 #define KENNING_SNAPSHOTSDIR "/var/lib/kenning/snapshots"
 #endif
-// Photos of faces that weren't recognized, per user ([snapshots] save_failed)
 inline constexpr const char *snapshotsDir = KENNING_SNAPSHOTSDIR;
 #ifndef KENNING_SERVICE_USER
 #define KENNING_SERVICE_USER "kenning"
 #endif
-// The service runs as this user and owns the face models (see kenning.service).
 inline constexpr const char *serviceUser = KENNING_SERVICE_USER;
 inline constexpr const char *detectorModel = KENNING_DATADIR "/models/face_detection_yunet_2023mar.onnx";
 inline constexpr const char *recognizerModel = KENNING_DATADIR "/models/face_recognition_sface_2021dec.onnx";

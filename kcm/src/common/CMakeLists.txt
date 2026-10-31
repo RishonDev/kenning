@@ -1,7 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
-#
-# Shared by the settings page and its root helper.
 
 add_library(kenning_settings_common STATIC
     camerafinder.cpp camerafinder.h

@@ -4,8 +4,7 @@
 */
 #pragma once
 
-// A user's face models: JSON in Howdy's layout, one file per user in modelsDir,
-// readable only by the service user.
+// Howdy's JSON layout, one file per user, readable only by the service user.
 
 #include <opencv2/core.hpp>
 
@@ -24,7 +23,6 @@ struct FaceModel {
 std::vector<FaceModel> readModels(const std::string &path);
 bool writeModels(const std::string &path, const std::vector<FaceModel> &models);
 
-// The same for a user's file, which belongs to the service user afterwards.
 std::vector<FaceModel> loadModels(const std::string &user);
 bool saveModels(const std::string &user, const std::vector<FaceModel> &models);
 

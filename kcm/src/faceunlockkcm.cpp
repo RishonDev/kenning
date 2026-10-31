@@ -38,7 +38,6 @@ namespace
 {
 const QString helperId = QStringLiteral("org.kde.kcontrol.kcmkenning");
 
-// Settings that the code below reads or writes by name.
 namespace Key
 {
 const QString animationStyle = QStringLiteral("Appearance/AnimationStyle");
@@ -52,7 +51,6 @@ const QString lockScreenFace = QStringLiteral("pam/lockscreen");
 const QString pamPrefix = QStringLiteral("pam/");
 }
 
-// config.ini's values keyed "section/key", as the engine reads them.
 QVariantMap readEngineConfig()
 {
     QVariantMap values;
@@ -78,8 +76,7 @@ KConfigGroup lockScreenGroup(const KSharedConfig::Ptr &config)
     return config->group(QStringLiteral("Greeter")).group(QStringLiteral("LnF")).group(QStringLiteral("General"));
 }
 
-// Whether fprintd has a fingerprint of this user on any reader. Without fprintd the
-// system bus answers at once that the service is unknown.
+// Whether fprintd has a fingerprint of this user on any reader.
 bool hasFingerprint(const QString &user)
 {
     constexpr int timeoutMs = 3000;
@@ -103,7 +100,6 @@ bool hasFingerprint(const QString &user)
     });
 }
 
-// A config file's text as the type of the setting's default.
 QVariant fromConfigText(const QVariant &defaultValue, const QString &text)
 {
     switch (defaultValue.typeId()) {
@@ -126,7 +122,6 @@ QString toConfigText(const QVariant &value)
     return value.toString();
 }
 
-// timeoutMs: -1 keeps KAuth's default.
 KAuth::ExecuteJob *helperJob(const QString &action, const QVariantMap &arguments = {}, int timeoutMs = -1)
 {
     KAuth::Action request(helperId + QLatin1Char('.') + action);
@@ -213,7 +208,6 @@ void FaceUnlockKcm::load()
     const KConfigGroup lock = lockScreenGroup(KSharedConfig::openConfig(QStringLiteral("kscreenlockerrc")));
     settings.insert(Key::showButton, lock.readEntry("faceUnlockShowButton", false));
     settings.insert(Key::unlockDelay, lock.readEntry("unlockDelay", 500));
-    // Saved empty while no fingerprint is enrolled; face is what the page offers first.
     const QString preferred = lock.readEntry("preferredMethod", QString());
     settings.insert(Key::preferredMethod, preferred == QLatin1String("fingerprint") ? preferred : QStringLiteral("face"));
     settings.insert(Key::useLastMethod, lock.readEntry("useLastMethod", false));
@@ -246,14 +240,12 @@ void FaceUnlockKcm::save()
         }
     }
 
-    // Per-user lock screen options; the style is mirrored so the lock screen can read it.
     auto config = KSharedConfig::openConfig(QStringLiteral("kscreenlockerrc"));
     KConfigGroup lock = lockScreenGroup(config);
     lock.writeEntry("faceUnlockShowButton", m_settings.value(Key::showButton).toBool());
     lock.writeEntry("unlockDelay", m_settings.value(Key::unlockDelay).toInt());
     lock.writeEntry("faceAnimation", m_settings.value(Key::animationStyle).toString());
-    // The lock screen only applies a preferred method while there is a fingerprint to choose;
-    // otherwise it starts with the method used last, as Plasma does.
+    // Plasma applies a preferred method only while there is a fingerprint to choose.
     const QString preferred = m_settings.value(Key::preferredMethod).toString();
     const bool useLast = m_settings.value(Key::useLastMethod).toBool();
     lock.writeEntry("preferredMethod", m_fingerprintEnrolled ? preferred : QString());
@@ -263,12 +255,10 @@ void FaceUnlockKcm::save()
         config->group(QStringLiteral("Authenticators")).writeEntry("Fingerprint", true);
     }
     if (m_lockScreenFaceService) {
-        // Plasma's Face method is switched on per user.
         const bool face = m_settings.value(Key::lockScreenFace).toBool();
         config->group(QStringLiteral("Authenticators")).writeEntry("Face", face);
         if (!face) {
-            // A remembered method that is switched off crashes the lock screen
-            // (https://bugs.kde.org/528042), so forget it too.
+            // A remembered method that is switched off crashes the lock screen (https://bugs.kde.org/528042).
             auto state = KSharedConfig::openStateConfig(QStringLiteral("kscreenlockerrc"));
             KConfigGroup greeter = state->group(QStringLiteral("Greeter"));
             if (greeter.readEntry("Authenticator") == QLatin1String("Face")) {
@@ -427,7 +417,6 @@ void FaceUnlockKcm::refreshSnapshots()
 {
     auto *job = helperJob(QStringLiteral("snapshots"));
     connect(job, &KJob::result, this, [this, job] {
-        // Cancelling the password prompt lands here too; the page offers to try again.
         if (job->error()) {
             return;
         }
@@ -493,7 +482,7 @@ void FaceUnlockKcm::refreshThemes()
 
 void FaceUnlockKcm::installTheme(const QUrl &archive)
 {
-    // Read as the user; the helper only ever sees the bytes.
+    // Read as the user; the helper only sees the bytes.
     QFile file(archive.toLocalFile());
     if (!file.open(QIODevice::ReadOnly)) {
         Q_EMIT errorOccurred(i18n("Could not read %1", archive.toLocalFile()));
@@ -539,8 +528,7 @@ void FaceUnlockKcm::removeFace(int id)
 
 void FaceUnlockKcm::testRecognition()
 {
-    // Testing your own face needs no administrator: the engine asks the Kenning
-    // service, which answers for the user's own account.
+    // The service answers for the user's own account, so no administrator is needed.
     if (m_busy) {
         return;
     }
@@ -570,7 +558,6 @@ void FaceUnlockKcm::runHelper(const QString &operation, const QVariantMap &argum
     }
     setBusy(true);
 
-    // Capturing a face can take a while; don't let KAuth give up on the helper.
     constexpr int helperTimeoutMs = 120000;
     auto *job = helperJob(operation, arguments, helperTimeoutMs);
     connect(job, &KAuth::ExecuteJob::newData, this, [this](const QVariantMap &data) {

@@ -2,14 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Once per user, at the first login after startup: if this computer has an IR camera
-# and the user has no face model yet, offer to set up face unlock. Started from
-# /etc/xdg/autostart.
-# At every login it also switches on Plasma's Face sign-in method for a user with a
-# face model, where Kenning provides it (Plasma 6.8 and newer) and the user hasn't
-# chosen otherwise: the method is switched on per user.
-# Ordinary webcams are less secure, so they are never advertised here; they can
-# still be chosen in System Settings.
+# At the first login after startup, offers to set up face unlock when there is an IR camera
+# and no face model. Also switches on Plasma's Face sign-in method for users with a face model.
 
 import fcntl
 import getpass
@@ -26,7 +20,6 @@ FMTDESC = struct.Struct("=III32sII12x")
 VIDIOC_ENUM_FMT = 0xC0000000 | (FMTDESC.size << 16) | (ord("V") << 8) | 2
 CAPTURE = 1
 GREY = int.from_bytes(b"GREY", "little")
-# Seconds since boot within which the prompt may appear
 MAX_UPTIME = 600
 
 
@@ -102,8 +95,7 @@ def main() -> int:
     if enrolled:
         done()
         return 0
-    # Only right after the computer starts, like a welcome; a later login in the same
-    # boot (or Plasma restarting) waits for the next startup.
+    # Only right after the computer starts, like a welcome.
     with open("/proc/uptime") as uptime:
         if float(uptime.read().split()[0]) >= MAX_UPTIME:
             return 0
@@ -111,7 +103,6 @@ def main() -> int:
         # Ask again on a later startup, in case an IR camera is plugged in.
         return 0
 
-    # Let the desktop settle before the first notification of the session.
     time.sleep(15)
     done()
     result = subprocess.run(

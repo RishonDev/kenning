@@ -2,11 +2,7 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// pam_kenning: face authentication. The recognition runs in the face unlock
-// service (kenning daemon, see service.h), which owns the camera and the
-// root-only face models, so OpenCV never loads into the program asking for
-// authentication. Messages match pam_howdy, which the login and lock screens use
-// to drive the face scan animation.
+// pam_kenning: asks the kenning service, so OpenCV never loads here. Messages match pam_howdy.
 
 #include "config.h"
 #include "service.h"
@@ -45,17 +41,7 @@ bool lidClosed()
     return false;
 }
 
-// True when the person asking may not be at this computer, so the camera would
-// look at someone else (possibly the real user, who would then approve a remote
-// sudo without knowing). The environment alone can't decide this: sudo passes the
-// caller's, and SSH_* can simply be unset. A process inside a logind session (an
-// SSH login is one) is judged by that session; the variables can only add a
-// refusal.
-//
-// Not covered, and not coverable here: on Plasma 6 terminals and apps run under the
-// user's service manager outside any session, like anything an SSH login starts
-// with systemd-run --user. Code already running as the user can therefore always
-// get a request started from the desktop; the sudo warning in System Settings says so.
+// True when the person asking may not be at this computer: logind decides, the environment can only add a refusal.
 bool remoteSession(pam_handle_t *pamh)
 {
     const void *rhost = nullptr;
@@ -67,7 +53,6 @@ bool remoteSession(pam_handle_t *pamh)
         return true;
     }
 #ifdef KENNING_HAVE_LOGIND
-    // The login session of the program asking (sudo, the lock screen, ...).
     char *session = nullptr;
     if (sd_pid_get_session(0, &session) >= 0 && session) {
         const int remote = sd_session_is_remote(session);
@@ -83,8 +68,7 @@ extern "C" {
 
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
 {
-    // Set by the login manager while checking a password the user typed, so a
-    // failed face scan isn't repeated before the password is checked.
+    // Set by the login manager while checking a typed password.
     if (const char *skip = pam_getenv(pamh, "FACEUNLOCK_SKIP"); skip && std::strcmp(skip, "1") == 0) {
         return PAM_AUTHINFO_UNAVAIL;
     }

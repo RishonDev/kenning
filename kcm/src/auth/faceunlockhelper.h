@@ -9,8 +9,6 @@
 
 using namespace KAuth;
 
-// Root side of the face unlock settings: face models, /etc/kenning/config.ini,
-// the PAM files that load pam_kenning.so and /etc/xdg/kenningrc.
 // Every action works on the calling user only.
 class FaceUnlockHelper : public QObject
 {

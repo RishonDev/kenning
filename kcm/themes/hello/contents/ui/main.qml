@@ -134,8 +134,7 @@ Item {
                 }
             }
 
-            // Animated face: eyes glance around while looking, the smile
-            // turns into a frown on failure, and a checkmark replaces it on success.
+// Eyes glance around while looking; a frown on failure, a checkmark on success.
             Item {
                 id: face
                 anchors.centerIn: parent

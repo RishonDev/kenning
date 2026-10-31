@@ -4,9 +4,7 @@
 */
 #pragma once
 
-// Face recognition on OpenCV's YuNet detector and SFace recognizer. Config keys,
-// model files and exit codes follow Howdy, so the settings page, PAM module and
-// the login and lock screens treat both engines the same way.
+// Recognition with OpenCV's YuNet and SFace. Config keys, model files and exit codes follow Howdy.
 
 #include "config.h"
 #include "facemodels.h"
@@ -41,16 +39,14 @@ struct ScanResult {
     double bestScore = noMatchScore;
     std::string message;
     ScanStats stats = {};
-    cv::Mat snapshot = {}; // the closest face that didn't match, with [snapshots] save_failed
+    cv::Mat snapshot = {}; // with [snapshots] save_failed
 };
 
-// Looks for the user's face until config video/timeout runs out, or until
-// cancelled() returns true (checked once per frame).
+// Looks for the user's face until video/timeout, or until cancelled() returns true.
 ScanResult compare(const Config &config, const std::string &user, const std::function<bool()> &cancelled = {});
 
 using ProgressCallback = std::function<void(const std::string &)>;
 
-// Captures encodings of exactly one face for a new model: looking straight, then
-// turned left, right, up and down. progress receives each instruction.
+// Enrols one face: straight, then turned left, right, up and down.
 ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const ProgressCallback &progress);
 }

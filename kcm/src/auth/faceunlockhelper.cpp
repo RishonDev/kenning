@@ -42,7 +42,7 @@ ActionReply failure(const QString &message)
 
 constexpr qsizetype maxThemeArchiveBytes = 32 * 1024 * 1024;
 
-// Returns an error message, or an empty string once archive is unpacked into extractPath.
+// Returns an error message, or an empty string on success.
 QString unpackThemeArchive(const QByteArray &archive, const QString &archivePath, const QString &extractPath)
 {
     QDir().mkpath(extractPath);
@@ -72,8 +72,7 @@ QString unpackThemeArchive(const QByteArray &archive, const QString &archivePath
     return {};
 }
 
-// A theme is one directory holding metadata.json and contents/ui/main.qml, either
-// at the top of the archive or as its only entry.
+// metadata.json and contents/ui/main.qml, at the top of the archive or in its only entry.
 QString findThemeRoot(const QString &extractPath)
 {
     const QStringList entries = QDir(extractPath).entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
@@ -83,7 +82,6 @@ QString findThemeRoot(const QString &extractPath)
     return extractPath;
 }
 
-// Runs a command, forwarding each output line to the settings page as it arrives.
 ActionReply runStreaming(const QString &program, const QStringList &arguments)
 {
     QProcess process;
@@ -129,7 +127,7 @@ bool writeFile(const QString &path, const QByteArray &contents, QFileDevice::Per
 
 constexpr auto standardPermissions = QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther;
 
-// Replaces "key = value" lines inside [section] of config.ini, keeping comments and layout.
+// Keeps comments and layout.
 bool updateEngineConfig(const QVariantMap &values)
 {
     QFile file(FaceUnlock::engineConfigPath);
@@ -157,8 +155,7 @@ bool updateEngineConfig(const QVariantMap &values)
             missing.remove(key);
         }
     }
-    // Keys newer than the user's config.ini (pacman keeps an edited one): add them
-    // under their section, creating the section if needed.
+    // Keys newer than the user's config.ini (pacman keeps an edited one) go under their section.
     for (auto it = missing.cbegin(); it != missing.cend(); ++it) {
         const QString group = it.key().section(QLatin1Char('/'), 0, 0);
         const QString entry = it.key().section(QLatin1Char('/'), 1) + QStringLiteral(" = ") + it.value().toString();
@@ -174,8 +171,7 @@ bool updateEngineConfig(const QVariantMap &values)
     return writeFile(FaceUnlock::engineConfigPath, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);
 }
 
-// Adds or removes the pam_kenning.so line (and drops any pam_howdy.so line). A service without an /etc override is
-// first copied from its packaged file in /usr/lib/pam.d.
+// A service without an /etc override is first copied from /usr/lib/pam.d.
 bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 {
     // The lock screen may use Plasma's own Face sign-in method instead; pam-tidy knows which.
@@ -206,7 +202,6 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
     lines.erase(std::remove_if(lines.begin(), lines.end(), FaceUnlock::isFacePamLine), lines.end());
     if (enabled) {
-        // Face first, everything else stays as the fallback.
         const auto firstAuth = std::find_if(lines.begin(), lines.end(), [](const QString &line) {
             return line.trimmed().startsWith(QLatin1String("auth"));
         });
@@ -218,9 +213,7 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
 namespace
 {
-// Face models belong to the Kenning service user (kenning.service), which reads them
-// for everyone else; nobody else can. The config stays readable, since pam_kenning
-// checks it in the caller's process.
+// The config stays readable: pam_kenning checks it in the caller's process.
 void secureModels()
 {
     const QString &models = FaceUnlock::modelsPath;
@@ -234,8 +227,6 @@ void secureModels()
     QFile::setPermissions(FaceUnlock::engineConfigPath, standardPermissions);
 }
 
-// First-run setup so face unlock works without manual configuration: point the engine
-// at a camera if it has none, and keep the face models root-only.
 void prepareEngine()
 {
     QFile file(FaceUnlock::engineConfigPath);
@@ -277,7 +268,6 @@ ActionReply FaceUnlockHelper::list(const QVariantMap &)
 
 ActionReply FaceUnlockHelper::add(const QVariantMap &args)
 {
-    // kenning drops commas itself; keep labels short as Howdy does.
     QString label = args.value(QStringLiteral("label")).toString().remove(QLatin1Char(',')).simplified().left(FaceUnlock::maxLabelLength);
     if (label.isEmpty()) {
         label = QStringLiteral("Face");
@@ -343,8 +333,7 @@ ActionReply FaceUnlockHelper::save(const QVariantMap &args)
 
 ActionReply FaceUnlockHelper::installtheme(const QVariantMap &args)
 {
-    // The settings page reads the archive as the user and sends its bytes, so the
-    // helper never opens a path chosen by the caller.
+    // Read by the page as the user, so the helper never opens a path chosen by the caller.
     const QByteArray archive = args.value(QStringLiteral("archive")).toByteArray();
     if (archive.isEmpty() || archive.size() > maxThemeArchiveBytes) {
         return failure(QStringLiteral("The theme archive is empty or larger than 32 MB"));
@@ -377,7 +366,6 @@ ActionReply FaceUnlockHelper::installtheme(const QVariantMap &args)
     if (!QDir().rename(themeRoot, destination)) {
         return failure(QStringLiteral("Could not install the theme to %1").arg(destination));
     }
-    // Readable by the login screen and lock screen, writable only by root.
     QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), QStringLiteral("root:root"), destination});
     QProcess::execute(QStringLiteral("/usr/bin/chmod"), {QStringLiteral("-R"), QStringLiteral("u=rwX,go=rX"), destination});
 
@@ -392,7 +380,6 @@ ActionReply FaceUnlockHelper::removetheme(const QVariantMap &args)
     if (!FaceUnlock::isThemeId(id)) {
         return failure(QStringLiteral("Invalid theme id"));
     }
-    // Only themes the user installed; packaged ones belong to the package manager.
     if (!QDir(FaceUnlock::userThemesPath + QLatin1Char('/') + id).removeRecursively()) {
         return failure(QStringLiteral("Could not remove the theme"));
     }

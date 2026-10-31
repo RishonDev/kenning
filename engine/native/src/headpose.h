@@ -4,8 +4,7 @@
 */
 #pragma once
 
-// Head turns during enrolment, judged from YuNet's landmarks. The values are
-// ratios, only meaningful relative to the same person looking straight ahead.
+// Ratios from YuNet's landmarks, meaningful only against the same person looking straight.
 
 #include <opencv2/core.hpp>
 
@@ -16,14 +15,13 @@ struct HeadPose {
     double pitch = 0; // nose height between eyes (0) and mouth (1)
 };
 
-// face is one YuNet detection row.
 HeadPose headPose(const cv::Mat &face);
 
 bool isLookingStraight(const HeadPose &pose, const HeadPose &straight);
 
 struct TurnLimits {
-    double minimum; // turn needed
-    double maximum; // further than this aligns faces badly
+    double minimum;
+    double maximum; // further aligns faces badly
     double maxDrift; // allowed on the other axis
     int direction = 0; // 1 or -1 when the turn must go that way, 0 for either
 };
@@ -36,8 +34,6 @@ enum class TurnVerdict {
     Drifting, // turned, but also moved on the other axis
 };
 
-// turn and drift are measured from looking straight. A mirrored camera swaps left
-// and right but not up and down, so turns oppose the previous one by sign, while
-// tilts have a fixed direction; previousTurn is 0 when there was none.
+// turn and drift are measured from looking straight; previousTurn is 0 when there was none.
 TurnVerdict judgeTurn(double turn, double drift, const TurnLimits &limits, bool mustOppose, double previousTurn);
 }

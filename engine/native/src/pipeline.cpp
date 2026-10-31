@@ -15,7 +15,6 @@ namespace FaceUnlock
 namespace
 {
 constexpr int histogramBins = 8;
-// More than this share of near-white pixels: washed out, no usable face.
 constexpr double washedOutPercent = 50;
 
 struct Networks {
@@ -25,7 +24,7 @@ struct Networks {
     double loadMs = 0; // 0 when they came from the cache
 };
 
-// Loaded once per process: the service runs many scans and keeps them.
+// Cached: the service runs many scans.
 Networks loadNetworks(float detectionThreshold)
 {
     static std::mutex mutex;
@@ -98,8 +97,7 @@ Pipeline::Pipeline(const Config &config)
     m_maxHeight = int(config.number("video/max_height", 320));
     m_darkThreshold = config.number("video/dark_threshold", 60);
     m_rotate = int(config.number("video/rotate", 0));
-    // Ordinary webcams keep colour, which the networks were trained on; greyscale
-    // matched worse in tests.
+    // Webcams keep colour: greyscale matched worse in tests.
     m_colour = config.boolean("video/colour", false);
 }
 

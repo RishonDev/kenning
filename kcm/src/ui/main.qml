@@ -26,7 +26,7 @@ KCM.SimpleKCM {
     // Above this the match is looser than SFace's recommended cosine of 0.363 (6.37)
     readonly property real lenientCertainty: 6.4
 
-    // Result of the last "Test": "" none, "ok", "fail"
+// "", "ok" or "fail"
     property string testResult: ""
     property string testMessage: ""
 
@@ -78,10 +78,8 @@ KCM.SimpleKCM {
         }
     ]
 
-    // No infrared camera: face unlock would use the ordinary webcam, which is less safe.
     Kirigami.PromptDialog {
         id: webcamDialog
-        // Over the window, not centred on the page's whole scrolling height
         parent: QQC2.Overlay.overlay
         title: i18nc("@title:window", "Use the Ordinary Webcam?")
         subtitle: i18n("This computer has no infrared camera, so face recognition would use the ordinary webcam. That is less safe:\n\n• A photo or video of you may be enough to unlock it.\n• It is less accurate, and needs your face lit from the front; it won't work in the dark or with a bright window behind you.\n\nIt will only be used to sign in. Installing software and other changes to the system will still need your password.")
@@ -98,7 +96,6 @@ KCM.SimpleKCM {
         ]
     }
 
-    // Most serious first
     header: ColumnLayout {
         spacing: 0
 
@@ -209,7 +206,7 @@ KCM.SimpleKCM {
             spacing: 0
             QQC2.CheckBox {
                 text: i18n("Login screen")
-                // Can always be switched off, only switched on with the Kenning login manager
+// Only switched on with the Kenning login manager
                 enabled: kcm.loginScreenSupported || settings["pam/login"]
                 checked: settings["pam/login"]
                 onToggled: kcm.setValue("pam/login", checked)
@@ -273,7 +270,6 @@ KCM.SimpleKCM {
             onValueModified: kcm.setValue("lock/unlockDelay", value)
         }
 
-        // With a fingerprint enrolled the lock screen can start with either method.
         RowLayout {
             Kirigami.FormData.label: i18n("Start with:")
             visible: kcm.fingerprintEnrolled
@@ -300,7 +296,6 @@ KCM.SimpleKCM {
             onToggled: kcm.setValue("lock/useLastMethod", checked)
         }
 
-        // Login screen (only with the Kenning login manager)
         Item {
             visible: kcm.loginScreenSupported
             Kirigami.FormData.isSection: true

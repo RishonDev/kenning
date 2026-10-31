@@ -9,8 +9,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 
-// Ripple: rings spread out from a small face while scanning, settle into a green
-// disc with a checkmark on success, or a red ring with a shake on failure.
+// Ripple: rings spread out while scanning, then a green disc or a red ring.
 // Theme API 1: the host (FaceScanIndicator) sets the properties below.
 Item {
     id: root

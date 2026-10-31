@@ -18,7 +18,6 @@ KCM.GridViewKCM {
 
     readonly property string selected: kcm.settings["Appearance/AnimationStyle"]
 
-    // Scanning → recognized → scanning → not recognized, shared by every preview
     readonly property var previewStates: [[1, i18n("Looking for you…")], [2, i18n("Welcome, %1", kcm.userName)],
                                           [1, i18n("Looking for you…")], [3, i18n("Couldn't recognize you")]]
     property int previewStep: 0

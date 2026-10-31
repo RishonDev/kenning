@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 #
-# On every push and pull request: builds everything on Arch Linux (the newest KDE
-# Frameworks), runs the unit tests and the settings page smoke test, and checks
-# the code style, shell scripts, Python and licence headers.
+# Builds and tests on Arch Linux, the newest KDE Frameworks, and checks style, scripts and licences.
 name: CI
 
 on:

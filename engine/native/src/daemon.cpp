@@ -2,8 +2,7 @@
     SPDX-FileCopyrightText: 2026 Rishon Jonathan R
     SPDX-License-Identifier: GPL-2.0-or-later
 */
-// kenning daemon: serves face checks for pam_kenning and the setup prompt, so
-// the face models can stay root-only. Protocol and access rules: service.h.
+// kenning daemon: face checks for pam_kenning, so the face models stay root-only.
 
 #include "daemon.h"
 #include "engine.h"
@@ -21,8 +20,7 @@ namespace FaceUnlock
 {
 namespace
 {
-// Socket activation keeps no process around between uses; after this long without
-// a request the service exits and systemd starts it again on the next one.
+// Socket activated: exits after this long without a request.
 constexpr int idleExitMs = 5 * 60 * 1000;
 // A client that connects and says nothing must not hold up everyone else.
 constexpr int clientTimeoutSeconds = 2;
@@ -51,7 +49,6 @@ std::optional<Request> receiveRequest(int client)
     return parseRequest(std::string_view(buffer, received));
 }
 
-// The client hung up: the lock screen restarted its check, or PAM gave up.
 bool clientHungUp(int client)
 {
     pollfd state{client, POLLRDHUP, 0};
@@ -69,7 +66,7 @@ int activatedSocket()
     return -1;
 }
 
-// For running by hand (debugging): create the socket ourselves.
+// For running by hand: create the socket ourselves.
 int ownSocket()
 {
     const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -140,8 +137,7 @@ private:
         if (m_failures.isLockedOut(uid, limits, FailureLimiter::Clock::now())) {
             return LockedOut;
         }
-        // A broken install (unreadable networks, a camera driver error) must answer
-        // "failed" so PAM falls back to the password, not take the service down.
+        // A broken install must answer "failed", so PAM falls back to the password.
         try {
             const ScanResult result = compare(config, user, [client] {
                 return clientHungUp(client);

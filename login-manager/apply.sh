@@ -2,9 +2,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Patches a Plasma Login Manager source tree for Kenning, whatever its version:
-# applies the newest patch in patches/ that fits without fuzz, then adds the scan
-# animation shared with the settings page and the lock screen.
+# Applies the newest patch that fits without fuzz, then adds the scan animation:
 #   login-manager/apply.sh <source dir>
 set -eu
 here=$(dirname "$(readlink -f "$0")")

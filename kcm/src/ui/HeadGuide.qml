@@ -13,7 +13,6 @@ Item {
 
     // "straight", "left", "right", "up" or "down"
     property string pose: "straight"
-    // Turning back from pose to looking straight
     property bool returning: false
 
     property real amount: 0
@@ -80,7 +79,6 @@ Item {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
 
-        // Head
         ShapePath {
             strokeColor: Kirigami.Theme.highlightColor
             strokeWidth: Kirigami.Units.smallSpacing
@@ -95,7 +93,6 @@ Item {
             }
         }
 
-        // Nose
         ShapePath {
             strokeColor: Kirigami.Theme.textColor
             strokeWidth: Kirigami.Units.smallSpacing * 0.75
@@ -112,7 +109,6 @@ Item {
             }
         }
 
-        // Mouth
         ShapePath {
             strokeColor: Kirigami.Theme.textColor
             strokeWidth: Kirigami.Units.smallSpacing * 0.75
@@ -145,7 +141,7 @@ Item {
         }
     }
 
-    // Arrow pointing the way, drawn pointing right and rotated
+// Drawn pointing right, then rotated
     Shape {
         id: arrow
         readonly property real gap: guide.headWidth / 2 + Kirigami.Units.largeSpacing * 1.5 + width / 2

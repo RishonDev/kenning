@@ -4,8 +4,6 @@
 */
 #pragma once
 
-// The settings the root helper may write, and the values it accepts for each.
-
 #include <QList>
 #include <QString>
 
@@ -20,9 +18,7 @@ struct Setting {
     std::function<bool(const QString &)> accepts;
 };
 
-// Engine settings, keyed "section/key" as in config.ini.
 std::optional<Setting> engineSetting(const QString &id);
-// Login screen settings in kenningrc, keyed "Group/Key".
 std::optional<Setting> systemSetting(const QString &id);
 
 bool isBoolText(const QString &value);
