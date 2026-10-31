@@ -5,7 +5,7 @@
 
 pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
-pkgver=0.5.2
+pkgver=0.6.0
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64 aarch64)
@@ -51,7 +51,9 @@ package_kenning() {
   pkgdesc='Kenning: face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
            libarchive libnotify opencv pam python)
-  optdepends=('plasma-login-manager-kenning: start face unlock as soon as the login screen appears')
+  optdepends=('plasma-login-manager-kenning: start face unlock as soon as the login screen appears'
+              'qt6-speech: read the setup steps aloud'
+              'speech-dispatcher: read the setup steps aloud (with a voice such as espeak-ng)')
   backup=(etc/kenning/config.ini)
   # Earlier name; the install script moves its settings and face models across
   conflicts=(plasma-faceunlock)

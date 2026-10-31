@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Name:           kenning
-Version:        0.5.2
+Version:        0.6.0
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
@@ -36,6 +36,9 @@ Requires:       python3
 Requires:       qt6-qtdeclarative
 Requires:       systemd
 Recommends:     plasma-desktop
+# Reads the setup steps aloud
+Recommends:     qt6-qtspeech
+Recommends:     speech-dispatcher
 
 %description
 Kenning signs you in with your face: on the lock screen, for sudo and, with its
@@ -112,15 +115,22 @@ python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
 %{_datadir}/applications/kcm_kenning.desktop
 
 %changelog
-* Sat Oct 31 2026 Rishon Jonathan R <kenning@invalid> - 0.5.2-1
+* Sat Oct 31 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.6.0-1
+- Guided face setup with head turns, a countdown and spoken steps
+- Set Up previews the ordinary webcam instead of the infrared picture
+- Settings page laid out like Plasma's own
+- "Try Face Again" button on the lock screen after face unlock fails
+- Frames washed out by bright light are skipped like dark ones
+
+* Sat Oct 31 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.5.2-1
 - Lock screen scan animation on Plasma 6.3 to 6.7
 
-* Sat Oct 31 2026 Rishon Jonathan R <kenning@invalid> - 0.5.1-1
+* Sat Oct 31 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.5.1-1
 - Lock face unlock for a few minutes after repeated unrecognized faces, like pam_faillock
 
-* Sat Oct 31 2026 Rishon Jonathan R <kenning@invalid> - 0.5.0-1
+* Sat Oct 31 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.5.0-1
 - Use Plasma 6.8's Face sign-in method (PAM service kde-face) on the lock screen
 - Choose face or fingerprint first on the lock screen when a fingerprint is enrolled
 
-* Fri Oct 30 2026 Rishon Jonathan R <kenning@invalid> - 0.4.0-1
+* Fri Oct 30 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.4.0-1
 - First Fedora package
