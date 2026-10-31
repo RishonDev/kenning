@@ -37,9 +37,10 @@ and tests them in containers. On Plasma 6.8 and newer the lock screen uses Plasm
 own Face sign-in method: Kenning provides its PAM service, `kde-face` (made from the
 distribution's `kde-fingerprint` with `pam_kenning.so` in place of `pam_fprintd.so`),
 and the lock screen add-on adds the scan animation, the fallback to the password and
-fingerprint, and switching to the password when you type. On older Plasma face unlock
-runs before the password check in the `kde` service, and the stock lock screen
-unlocks with your face after pressing Unlock. Face unlock on the login screen needs `plasma-login-manager-kenning`,
+fingerprint, and switching to the password when you type. On Plasma 6.3 to 6.7 face
+unlock runs before the password check in the `kde` service; the add-on adds the scan
+animation there too, and unlocks without pressing Unlock. An unknown Plasma version
+keeps its stock lock screen, which still unlocks with your face after pressing Unlock. Face unlock on the login screen needs `plasma-login-manager-kenning`,
 packaged for Arch only so far.
 
 Then open System Settings > Face Unlock and press Set Up: the IR camera is found

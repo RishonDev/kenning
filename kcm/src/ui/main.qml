@@ -365,7 +365,7 @@ KCM.SimpleKCM {
                 Layout.fillWidth: true
                 visible: !kcm.lockScreenPatched
                 type: Kirigami.MessageType.Information
-                text: i18n("The lock screen animation and these options need Plasma 6.8 or newer. Face unlock still works on this lock screen: look at the camera, then press Unlock.")
+                text: i18n("The lock screen animation and these options aren't available for this Plasma version. Face unlock still works on this lock screen: look at the camera, then press Unlock.")
             }
 
             // Login screen (only with the Kenning login manager)
