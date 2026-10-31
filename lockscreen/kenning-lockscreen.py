@@ -22,7 +22,7 @@ from pathlib import Path
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 8"
+VERSION = "face unlock patch 9"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -450,12 +450,76 @@ UI_INDICATOR_END = ("""                    }
 
                 notificationMessage: {""")
 
-EDITS = {
-    "config.xml": [CONFIG_XML],
-    "config.qml": [CONFIG_QML],
-    "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS, UI_PASSWORD, UI_PROMPT,
-                         UI_FALLBACK, UI_METHOD, UI_DEFUNCT, UI_FACE_SUCCEEDED],
-}
+# Plasma before 6.8: face unlock runs in the password service, before its prompt.
+# Most of the 6.8 edits fit as they are: what they add for Plasma's Face method and
+# fingerprint switching checks authenticator.authenticator, which doesn't exist there,
+# so it stays idle. These take the place of the ones that don't fit.
+
+# The functions go before the theme settings; pendingPassword is ours there.
+UI_FUNCTION_BEFORE_6_8 = ("""    Kirigami.Theme.inherit: false
+""", UI_FUNCTION[1] + """
+    Kirigami.Theme.inherit: false
+""")
+
+# Hold a password submitted while the face scan runs (PAM is still in the face module,
+# with no prompt to answer yet), and put the scan animation under the password field.
+UI_PASSWORD_BEFORE_6_8 = ("""                onPasswordResult: password => {
+                    authenticator.respond(password)
+                }
+""", """                onPasswordResult: password => {
+                    if (lockScreenUi.faceState === 1) {
+                        lockScreenUi.pendingPassword = password;
+                        return;
+                    }
+                    authenticator.respond(password)
+                }
+
+                FaceScanIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    faceState: lockScreenUi.faceState
+                    message: lockScreenUi.faceMessage
+                    style: config.faceAnimation || "hello"
+                }
+""")
+
+UI_PROMPT_BEFORE_6_8 = ("""        function onPromptForSecretChanged(msg) {
+            mainBlock.showPassword = false;""", """        function onPromptForSecretChanged(msg) {
+            if (lockScreenUi.pendingPassword.length > 0) {
+                authenticator.respond(lockScreenUi.pendingPassword);
+                lockScreenUi.pendingPassword = "";
+                return;
+            }
+            mainBlock.showPassword = false;""")
+
+# Plasma 6.3 to 6.5: an older settings dialog (no configForm id) and message call.
+CONFIG_QML_6_3 = (CONFIG_QML[0].replace("configForm.", ""), CONFIG_QML[1].replace("configForm.", ""))
+_I18N_6_8 = 'i18ndc("plasma_shell_org.kde.plasma.desktop", "@info:status", '
+_I18N_6_3 = 'i18nd("plasma_shell_org.kde.plasma.desktop", '
+UI_FAILED_6_3 = (UI_FAILED[0].replace(_I18N_6_8, _I18N_6_3), UI_FAILED[1].replace(_I18N_6_8, _I18N_6_3))
+
+_UI_BEFORE_6_8 = [UI_SUCCEEDED, UI_FUNCTION_BEFORE_6_8, UI_INFO, UI_WAKE, UI_KEYS, UI_PASSWORD_BEFORE_6_8,
+                  UI_PROMPT_BEFORE_6_8, UI_FALLBACK]
+
+# Edit sets by Plasma version, newest first; the first whose edits all fit is used.
+EDIT_SETS = [
+    ("6.8", {
+        "config.xml": [CONFIG_XML],
+        "config.qml": [CONFIG_QML],
+        "LockScreenUi.qml": [UI_SUCCEEDED, UI_FUNCTION, UI_FAILED, UI_INFO, UI_INDICATOR, UI_INDICATOR_END, UI_WAKE, UI_KEYS,
+                             UI_PASSWORD, UI_PROMPT, UI_FALLBACK, UI_METHOD, UI_DEFUNCT, UI_FACE_SUCCEEDED],
+    }),
+    ("6.6", {
+        "config.xml": [CONFIG_XML],
+        "config.qml": [CONFIG_QML],
+        "LockScreenUi.qml": _UI_BEFORE_6_8 + [UI_FAILED],
+    }),
+    ("6.3", {
+        "config.xml": [CONFIG_XML],
+        "config.qml": [CONFIG_QML_6_3],
+        "LockScreenUi.qml": _UI_BEFORE_6_8 + [UI_FAILED_6_3],
+    }),
+]
+FILES = list(EDIT_SETS[0][1])
 
 
 SYSTEM_LOCKSCREEN = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
@@ -494,7 +558,7 @@ def original(name: str) -> str | None:
 
 
 def restore() -> int:
-    for name in EDITS:
+    for name in FILES:
         if not is_patched((lockscreen / name).read_text()):
             continue
         text = original(name)
@@ -515,29 +579,39 @@ def main() -> int:
         return 0
     if RESTORE:
         return restore()
-    patched = {}
-    originals = {}
-    for name, edits in EDITS.items():
-        text = (lockscreen / name).read_text()
-        if VERSION in text:
-            print(f"kenning lock screen: {name} already patched")
-            continue
-        if is_patched(text):
-            text = original(name)
-            if text is None:
-                print(f"kenning lock screen: {name} has an older patch and no saved original; reinstall the "
-                      "package that provides it to update it", file=sys.stderr)
-                return 0
-        originals[name] = text
-        for old, new in edits:
-            if text.count(old) != 1:
-                # All or nothing: an older or newer Plasma keeps its stock lock screen,
-                # where face unlock still works, without the animation.
-                print(f"kenning lock screen: {name} doesn't match the Plasma version this add-on supports "
-                      "(6.8 or newer); leaving the lock screen stock", file=sys.stderr)
-                return 0
-            text = text.replace(old, new)
-        patched[name] = text
+    current = {name: (lockscreen / name).read_text() for name in FILES}
+    if all(VERSION in text for text in current.values()):
+        print("kenning lock screen: already patched")
+        edits = None
+    else:
+        stock = {}
+        for name, text in current.items():
+            if is_patched(text):
+                text = original(name)
+                if text is None:
+                    print(f"kenning lock screen: {name} has an older patch and no saved original; reinstall the "
+                          "package that provides it to update it", file=sys.stderr)
+                    return 0
+            stock[name] = text
+        # All or nothing: a Plasma version none of the edit sets fits keeps its stock
+        # lock screen, where face unlock still works, without the animation.
+        fits = [(version, edits) for version, edits in EDIT_SETS
+                if all(stock[name].count(old) == 1 for name, file_edits in edits.items() for old, _ in file_edits)]
+        if not fits:
+            print("kenning lock screen: LockScreenUi.qml doesn't match a Plasma version this add-on supports "
+                  "(6.3 or newer); leaving the lock screen stock", file=sys.stderr)
+            return 0
+        version, edits = fits[0]
+        patched = {}
+        for name, file_edits in edits.items():
+            text = stock[name]
+            for old, new in file_edits:
+                if text.count(old) != 1:
+                    print(f"kenning lock screen: {name} edits overlap for Plasma {version}; leaving the lock screen "
+                          "stock", file=sys.stderr)
+                    return 0
+                text = text.replace(old, new)
+            patched[name] = text
 
     # The indicator is a separate file; refresh it every run so updates reach it.
     if not indicator.is_file():
@@ -545,13 +619,14 @@ def main() -> int:
         return 0
     shutil.copyfile(indicator, lockscreen / "FaceScanIndicator.qml")
 
+    if edits is None:
+        return 0
     ORIGINALS.mkdir(parents=True, exist_ok=True)
-    for name, text in originals.items():
+    for name, text in stock.items():
         (ORIGINALS / name).write_text(text)
     for name, text in patched.items():
         (lockscreen / name).write_text(text)
-    if patched:
-        print(f"kenning lock screen: patched {', '.join(patched)}")
+    print(f"kenning lock screen: patched {', '.join(patched)} (Plasma {version} lock screen)")
     return 0
 
 

@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+#
+# Loads the lock screen the add-on patched with the real Plasma greeter on each
+# distribution's Plasma version (tests/containers/lockscreen-qml.sh), whenever the
+# add-on or the scan animation changes.
+name: Lock screen add-on
+
+on:
+  push:
+    paths:
+      - "lockscreen/**"
+      - "kcm/src/ui/FaceScanIndicator.qml"
+      - "kcm/themes/**"
+      - "tests/containers/lockscreen-qml.sh"
+      - ".github/workflows/lockscreen.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:13", "ubuntu:26.04", "ubuntu:26.10", "fedora:44", "archlinux:latest"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch and load the lock screen
+        run: |
+          set -o pipefail
+          docker run --rm -v "$PWD:/src:ro" "${{ matrix.image }}" bash /src/tests/containers/lockscreen-qml.sh | tee test.log
+          if grep -q '^RESULT .*: FAIL' test.log; then
+              echo "::error::Some checks failed"
+              exit 1
+          fi
