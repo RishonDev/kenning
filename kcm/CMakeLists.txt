@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.20)
-project(kcm_kenning VERSION 0.1.0)
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+#
+# The System Settings page, its root helper and the bundled animation themes.
 
 set(QT_MIN_VERSION "6.8.0")
 set(KF6_MIN_VERSION "6.10.0")
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})

@@ -17,6 +17,10 @@
 
 namespace
 {
+constexpr unsigned bufferCount = 4;
+// How often the reader checks whether it should stop while no frame arrives.
+constexpr suseconds_t frameWaitMicroseconds = 200000;
+
 int xioctl(int fd, unsigned long request, void *arg)
 {
     int result;
@@ -96,7 +100,7 @@ void CameraReader::run()
     }
 
     v4l2_requestbuffers request{};
-    request.count = 4;
+    request.count = bufferCount;
     request.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     request.memory = V4L2_MEMORY_MMAP;
     if (xioctl(fd, VIDIOC_REQBUFS, &request) < 0 || request.count == 0) {
@@ -134,7 +138,7 @@ void CameraReader::run()
             fd_set fds;
             FD_ZERO(&fds);
             FD_SET(fd, &fds);
-            timeval timeout{0, 200000};
+            timeval timeout{0, frameWaitMicroseconds};
             if (select(fd + 1, &fds, nullptr, nullptr, &timeout) <= 0) {
                 continue;
             }

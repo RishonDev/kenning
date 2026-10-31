@@ -9,6 +9,7 @@
 // the login and lock screens treat both engines the same way.
 
 #include "config.h"
+#include "facemodels.h"
 
 #include <opencv2/core.hpp>
 
@@ -18,21 +19,11 @@
 
 namespace FaceUnlock
 {
-struct FaceModel {
-    int id = 0;
-    std::string label;
-    long long time = 0;
-    std::vector<cv::Mat> encodings; // SFace features, 1x128 CV_32F
-};
-
-std::vector<FaceModel> loadModels(const std::string &user);
-bool saveModels(const std::string &user, const std::vector<FaceModel> &models);
-// Hands a file in the models directory to the service user (when run as root).
-void giveToService(const std::string &path);
-
 // Score as Howdy reports it: lower means a closer match. For SFace this is
 // (1 - cosine similarity) * 10, so the recommended cosine of 0.363 is 6.37.
 double matchScore(double cosine);
+// The score reported when no face was compared at all.
+constexpr double noMatchScore = 99;
 
 // What a scan saw, for kenning test.
 struct ScanStats {
@@ -42,24 +33,26 @@ struct ScanStats {
     double detectMs = 0; // total time in the detector
     double encodeMs = 0; // total time aligning and encoding faces
     int frames = 0;
-    int darkFrames = 0;
+    int unusableFrames = 0; // too dark or too bright
     int faceFrames = 0; // frames with at least one face
     double bestDetection = 0; // highest detector confidence, 0 to 1
 };
 
 struct ScanResult {
     ExitCode code = Error;
-    double bestScore = 99;
+    double bestScore = noMatchScore;
     std::string message;
-    ScanStats stats;
-    cv::Mat snapshot; // the closest face that didn't match, with [snapshots] save_failed
+    ScanStats stats = {};
+    cv::Mat snapshot = {}; // the closest face that didn't match, with [snapshots] save_failed
 };
 
 // Looks for the user's face until config video/timeout runs out, or until
 // cancelled() returns true (checked once per frame).
 ScanResult compare(const Config &config, const std::string &user, const std::function<bool()> &cancelled = {});
 
+using ProgressCallback = std::function<void(const std::string &)>;
+
 // Captures encodings of exactly one face for a new model: looking straight, then
 // turned left, right, up and down. progress receives each instruction.
-ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const std::function<void(const std::string &)> &progress);
+ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const ProgressCallback &progress);
 }

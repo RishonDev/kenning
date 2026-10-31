@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+#
+# On every push and pull request: builds everything on Arch Linux (the newest KDE
+# Frameworks), runs the unit tests and the settings page smoke test, and checks
+# the code style, shell scripts, Python and licence headers.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git base-devel cmake ninja extra-cmake-modules clang \
+              qt6-base qt6-declarative qt6-speech opencv pam systemd-libs \
+              kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma
+
+      - uses: actions/checkout@v4
+
+      - name: Fetch the recognition networks
+        run: bash tests/containers/fetch-sources.sh
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DKENNING_KCM_SMOKE_TEST=ON
+          -DCMAKE_CXX_FLAGS="-Wall -Wextra -Werror"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Code style (KDE clang-format)
+        run: |
+          git config --global --add safe.directory "$PWD"
+          cmake --build build --target clang-format
+          git diff --exit-code || { echo "::error::Run 'cmake --build build --target clang-format' and commit the result"; exit 1; }
+
+  lint:
+    name: Scripts and licences
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell scripts (shellcheck)
+        run: |
+          shellcheck --severity=warning packaging/pam-tidy packaging/aur/update.sh packaging/ppa/*.sh \
+              login-manager/apply.sh tests/containers/*.sh
+
+      - name: Python (compile)
+        run: python3 -m py_compile lockscreen/kenning-lockscreen.py packaging/setup-prompt
+
+      - name: Licence headers (REUSE)
+        uses: fsfe/reuse-action@v5

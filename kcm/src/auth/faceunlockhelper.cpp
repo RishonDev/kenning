@@ -4,7 +4,9 @@
 */
 #include "faceunlockhelper.h"
 #include "camerafinder.h"
-#include "faceunlockpaths.h"
+#include "lockscreenstate.h"
+#include "paths.h"
+#include "settingsschema.h"
 
 #include <KAuth/HelperSupport>
 #include <KConfig>
@@ -14,11 +16,11 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
-#include <QProcess>
-#include <QRegularExpression>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QTemporaryDir>
 
@@ -36,6 +38,49 @@ ActionReply failure(const QString &message)
     ActionReply reply = ActionReply::HelperErrorReply();
     reply.setErrorDescription(message);
     return reply;
+}
+
+constexpr qsizetype maxThemeArchiveBytes = 32 * 1024 * 1024;
+
+// Returns an error message, or an empty string once archive is unpacked into extractPath.
+QString unpackThemeArchive(const QByteArray &archive, const QString &archivePath, const QString &extractPath)
+{
+    QDir().mkpath(extractPath);
+    QSaveFile file(archivePath);
+    if (!file.open(QIODevice::WriteOnly) || file.write(archive) != archive.size() || !file.commit()) {
+        return QStringLiteral("Could not store the theme archive");
+    }
+
+    // bsdtar refuses absolute paths and ".." by default; don't keep owners or modes.
+    constexpr int unpackTimeoutMs = 60000;
+    QProcess bsdtar;
+    bsdtar.start(
+        QStringLiteral("/usr/bin/bsdtar"),
+        {QStringLiteral("-xf"), archivePath, QStringLiteral("-C"), extractPath, QStringLiteral("--no-same-owner"), QStringLiteral("--no-same-permissions")});
+    if (!bsdtar.waitForFinished(unpackTimeoutMs) || bsdtar.exitStatus() != QProcess::NormalExit || bsdtar.exitCode() != 0) {
+        return QStringLiteral("The file is not a theme archive that can be unpacked");
+    }
+
+    // Only plain files and directories: a symlink could point anywhere on the system.
+    QDirIterator entries(extractPath, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System, QDirIterator::Subdirectories);
+    while (entries.hasNext()) {
+        const QFileInfo entry(entries.next());
+        if (entry.isSymLink() || !(entry.isFile() || entry.isDir())) {
+            return QStringLiteral("Theme archives may only contain plain files and folders");
+        }
+    }
+    return {};
+}
+
+// A theme is one directory holding metadata.json and contents/ui/main.qml, either
+// at the top of the archive or as its only entry.
+QString findThemeRoot(const QString &extractPath)
+{
+    const QStringList entries = QDir(extractPath).entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
+    if (!QFile::exists(extractPath + QStringLiteral("/metadata.json")) && entries.size() == 1) {
+        return extractPath + QLatin1Char('/') + entries.first();
+    }
+    return extractPath;
 }
 
 // Runs a command, forwarding each output line to the settings page as it arrives.
@@ -102,7 +147,7 @@ bool updateEngineConfig(const QVariantMap &values)
             section = trimmed.mid(1, trimmed.size() - 2);
             continue;
         }
-        const int equals = line.indexOf(QLatin1Char('='));
+        const qsizetype equals = line.indexOf(QLatin1Char('='));
         if (equals < 0 || trimmed.startsWith(QLatin1Char('#'))) {
             continue;
         }
@@ -178,10 +223,11 @@ namespace
 // checks it in the caller's process.
 void secureModels()
 {
-    const QString models = QFileInfo(FaceUnlock::modelPath(QStringLiteral("x"))).absolutePath();
+    const QString &models = FaceUnlock::modelsPath;
     QDir().mkpath(models);
     QFile::setPermissions(models, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
-    QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), FaceUnlock::serviceUser + QLatin1Char(':') + FaceUnlock::serviceUser, models});
+    const QString owner = FaceUnlock::serviceUserName + QLatin1Char(':') + FaceUnlock::serviceUserName;
+    QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), owner, models});
     for (const QFileInfo &model : QDir(models).entryInfoList(QDir::Files)) {
         QFile::setPermissions(model.absoluteFilePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     }
@@ -232,12 +278,14 @@ ActionReply FaceUnlockHelper::list(const QVariantMap &)
 ActionReply FaceUnlockHelper::add(const QVariantMap &args)
 {
     // kenning drops commas itself; keep labels short as Howdy does.
-    QString label = args.value(QStringLiteral("label")).toString().remove(QLatin1Char(',')).simplified().left(24);
+    QString label = args.value(QStringLiteral("label")).toString().remove(QLatin1Char(',')).simplified().left(FaceUnlock::maxLabelLength);
     if (label.isEmpty()) {
         label = QStringLiteral("Face");
     }
     prepareEngine();
-    ActionReply reply = runStreaming(FaceUnlock::engineBinary, {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), QStringLiteral("--"), label});
+    ActionReply reply =
+        runStreaming(FaceUnlock::engineBinary,
+                     {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), QStringLiteral("--"), label});
     secureModels();
     return reply;
 }
@@ -298,7 +346,7 @@ ActionReply FaceUnlockHelper::installtheme(const QVariantMap &args)
     // The settings page reads the archive as the user and sends its bytes, so the
     // helper never opens a path chosen by the caller.
     const QByteArray archive = args.value(QStringLiteral("archive")).toByteArray();
-    if (archive.isEmpty() || archive.size() > 32 * 1024 * 1024) {
+    if (archive.isEmpty() || archive.size() > maxThemeArchiveBytes) {
         return failure(QStringLiteral("The theme archive is empty or larger than 32 MB"));
     }
 
@@ -308,37 +356,12 @@ ActionReply FaceUnlockHelper::installtheme(const QVariantMap &args)
     if (!work.isValid()) {
         return failure(QStringLiteral("Could not create a temporary directory"));
     }
-    const QString archivePath = work.filePath(QStringLiteral("theme.archive"));
     const QString extractPath = work.filePath(QStringLiteral("theme"));
-    QDir().mkpath(extractPath);
-    if (!writeFile(archivePath, archive, QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
-        return failure(QStringLiteral("Could not store the theme archive"));
+    if (const QString error = unpackThemeArchive(archive, work.filePath(QStringLiteral("theme.archive")), extractPath); !error.isEmpty()) {
+        return failure(error);
     }
 
-    // bsdtar refuses absolute paths and ".." by default; don't keep owners or modes.
-    QProcess bsdtar;
-    bsdtar.start(QStringLiteral("/usr/bin/bsdtar"),
-                 {QStringLiteral("-xf"), archivePath, QStringLiteral("-C"), extractPath, QStringLiteral("--no-same-owner"), QStringLiteral("--no-same-permissions")});
-    if (!bsdtar.waitForFinished(60000) || bsdtar.exitStatus() != QProcess::NormalExit || bsdtar.exitCode() != 0) {
-        return failure(QStringLiteral("The file is not a theme archive that can be unpacked"));
-    }
-
-    // Only plain files and directories: a symlink could point anywhere on the system.
-    QDirIterator it(extractPath, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System, QDirIterator::Subdirectories);
-    while (it.hasNext()) {
-        const QFileInfo info(it.next());
-        if (info.isSymLink() || !(info.isFile() || info.isDir())) {
-            return failure(QStringLiteral("Theme archives may only contain plain files and folders"));
-        }
-    }
-
-    // A theme is one directory holding metadata.json and contents/ui/main.qml,
-    // either at the top of the archive or as its only entry.
-    QString themeRoot = extractPath;
-    const QStringList entries = QDir(extractPath).entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
-    if (!QFile::exists(extractPath + QStringLiteral("/metadata.json")) && entries.size() == 1) {
-        themeRoot = extractPath + QLatin1Char('/') + entries.first();
-    }
+    const QString themeRoot = findThemeRoot(extractPath);
     QFile metadataFile(themeRoot + QStringLiteral("/metadata.json"));
     if (!metadataFile.open(QIODevice::ReadOnly) || !QFile::exists(themeRoot + QStringLiteral("/contents/ui/main.qml"))) {
         return failure(QStringLiteral("The archive has no metadata.json and contents/ui/main.qml"));
@@ -369,7 +392,7 @@ ActionReply FaceUnlockHelper::removetheme(const QVariantMap &args)
     if (!FaceUnlock::isThemeId(id)) {
         return failure(QStringLiteral("Invalid theme id"));
     }
-    // Only themes the user installed; packaged ones belong to pacman.
+    // Only themes the user installed; packaged ones belong to the package manager.
     if (!QDir(FaceUnlock::userThemesPath + QLatin1Char('/') + id).removeRecursively()) {
         return failure(QStringLiteral("Could not remove the theme"));
     }

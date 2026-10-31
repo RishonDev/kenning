@@ -85,7 +85,7 @@ Q_SIGNALS:
     void errorOccurred(const QString &message);
 
 private:
-    void runHelper(const QString &operation, const QVariantMap &args);
+    void runHelper(const QString &operation, const QVariantMap &arguments);
     void setBusy(bool busy);
     void updateState();
     static QVariantMap defaultSettings();

@@ -26,7 +26,9 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
@@ -38,6 +40,35 @@ namespace FaceUnlock
 #define KENNING_SOCKET "/run/kenning.sock"
 #endif
 inline constexpr const char *socketPath = KENNING_SOCKET;
+
+// For has-model, which answers at once.
+inline constexpr int quickTimeoutSeconds = 5;
+
+// For compare: requests are served one at a time, so allow for a scan already running.
+inline int scanTimeoutSeconds(const Config &config)
+{
+    return int(config.number("video/timeout", 4)) * 2 + 10;
+}
+
+struct Request {
+    std::string command;
+    std::string user;
+};
+
+// "<command> <user>\n", as sent by askService.
+inline std::optional<Request> parseRequest(std::string_view text)
+{
+    const auto end = text.find('\n');
+    const auto space = text.find(' ');
+    if (end == std::string_view::npos || space == std::string_view::npos || space > end) {
+        return std::nullopt;
+    }
+    Request request{std::string(text.substr(0, space)), std::string(text.substr(space + 1, end - space - 1))};
+    if (request.command.empty() || request.user.empty()) {
+        return std::nullopt;
+    }
+    return request;
+}
 
 // Sends one request and returns the reply code, or -1 when the service can't be
 // reached. timeoutSeconds bounds the whole wait (a scan takes up to video/timeout,

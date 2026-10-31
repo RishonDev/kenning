@@ -7,6 +7,7 @@
 // Paths, exit codes and config.ini reading, header-only so pam_kenning can
 // use them without linking OpenCV or Qt.
 
+#include <charconv>
 #include <fstream>
 #include <map>
 #include <string>
@@ -24,6 +25,8 @@ namespace FaceUnlock
 
 inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
 inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
+// Longest face model label kept, as in Howdy.
+inline constexpr int maxLabelLength = 24;
 #ifndef KENNING_SNAPSHOTSDIR
 #define KENNING_SNAPSHOTSDIR "/var/lib/kenning/snapshots"
 #endif
@@ -76,19 +79,24 @@ public:
         return it == m_values.end() ? fallback : it->second;
     }
 
+    // Like std::stod: a leading number counts, anything after it is ignored.
     double number(const std::string &key, double fallback) const
     {
-        try {
-            return std::stod(string(key));
-        } catch (...) {
-            return fallback;
-        }
+        const std::string text = string(key);
+        double value = fallback;
+        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+        return error == std::errc() ? value : fallback;
     }
 
     bool boolean(const std::string &key, bool fallback) const
     {
         const std::string value = string(key);
         return value.empty() ? fallback : value == "true";
+    }
+
+    const std::map<std::string, std::string> &values() const
+    {
+        return m_values;
     }
 
 private:

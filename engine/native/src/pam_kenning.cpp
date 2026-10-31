@@ -105,7 +105,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
         return PAM_USER_UNKNOWN;
     }
     // Quick check first, so users without a face model never see the scan start.
-    const int hasModel = FaceUnlock::askService("has-model", user, 5);
+    const int hasModel = FaceUnlock::askService("has-model", user, FaceUnlock::quickTimeoutSeconds);
     if (hasModel < 0) {
         pam_syslog(pamh, LOG_ERR, "Face unlock service not reachable at %s", FaceUnlock::socketPath);
         return PAM_AUTHINFO_UNAVAIL;
@@ -122,9 +122,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
         say(pamh, "Attempting facial authentication");
     }
 
-    // Requests are served one at a time, so allow for a scan already running.
-    const int timeout = int(config.number("video/timeout", 4)) * 2 + 10;
-    int code = FaceUnlock::askService("compare", user, timeout);
+    int code = FaceUnlock::askService("compare", user, FaceUnlock::scanTimeoutSeconds(config));
     if (code < 0) {
         code = FaceUnlock::Error;
     }

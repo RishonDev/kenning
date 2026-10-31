@@ -60,8 +60,10 @@ int add(const std::string &user, std::string label, bool plain)
     if (const int error = requireRoot()) {
         return error;
     }
+    // Each model adds comparisons to every scan.
+    constexpr std::size_t manyModels = 3;
     std::vector<FaceModel> models = loadModels(user);
-    if (models.size() > 3) {
+    if (models.size() > manyModels) {
         std::cout << "NOTICE: Each additional model slows down the face recognition engine slightly\n";
     }
     const int nextId = models.empty() ? 0 : models.back().id + 1;
@@ -69,7 +71,7 @@ int add(const std::string &user, std::string label, bool plain)
     if (label.empty()) {
         label = "Model #" + std::to_string(nextId);
     }
-    label = label.substr(0, 24);
+    label = label.substr(0, std::size_t(maxLabelLength));
     if (!plain) {
         std::cout << "Adding face model for the user " << user << '\n';
     }
@@ -83,8 +85,6 @@ int add(const std::string &user, std::string label, bool plain)
         return Error;
     }
 
-    std::filesystem::create_directories(modelsDir);
-    std::filesystem::permissions(modelsDir, std::filesystem::perms(0755));
     models.push_back(model);
     if (!saveModels(user, models)) {
         std::cout << "Could not save the face model" << std::endl;
@@ -124,7 +124,7 @@ int list(const std::string &user, bool plain)
 {
     // Face models belong to the service user; others can only ask whether there are any.
     if (geteuid() != 0) {
-        const int code = askService("has-model", user, 5);
+        const int code = askService("has-model", user, quickTimeoutSeconds);
         if (code == Recognized) {
             if (!plain) {
                 std::cout << "Face recognition is set up for " << user << ". To see the face models, run:\n\n\tsudo kenning list\n";
@@ -157,6 +157,57 @@ int list(const std::string &user, bool plain)
         }
     }
     return 0;
+}
+
+// Without root only the service can read the face models: ask it, without the details.
+int testAsUser(const Config &config, const std::string &user)
+{
+    const int code = askService("compare", user, scanTimeoutSeconds(config));
+    switch (code) {
+    case Recognized:
+        std::cout << "Identified face as " << user << '\n';
+        break;
+    case NoModel:
+        std::cout << "Failure, no face model known\n";
+        break;
+    case Timeout:
+        std::cout << "Failure, timeout reached\n";
+        break;
+    case TooDark:
+        std::cout << "Failure, image too dark\n";
+        break;
+    case LockedOut:
+        std::cout << "Failure, too many attempts; face unlock is locked for a few minutes\n";
+        break;
+    case -1:
+        std::cout << "Failure, the Kenning service isn't reachable at " << socketPath << '\n';
+        return Error;
+    default:
+        std::cout << "Failure, general abort\n";
+        break;
+    }
+    std::cout << "  (sudo kenning test shows the scores and timings)" << std::endl;
+    return code;
+}
+
+int test(const std::string &user)
+{
+    const Config config;
+    if (geteuid() != 0) {
+        return testAsUser(config, user);
+    }
+    const ScanResult result = compare(config, user);
+    const ScanStats &stats = result.stats;
+    std::cout << result.message << '\n'
+              << "  best score       " << result.bestScore << " (needs " << config.number("video/certainty", 6.0) << " or lower)\n"
+              << "  frames           " << stats.frames << " read, " << stats.unusableFrames << " too dark or bright, " << stats.faceFrames << " with a face\n"
+              << "  face confidence  " << stats.bestDetection << " (detector keeps " << config.number("video/detection_threshold", 0.8) << " or higher)\n"
+              << "  camera open      " << stats.cameraMs << " ms\n"
+              << "  networks load    " << stats.networksMs << " ms\n"
+              << "  first frame      " << stats.firstFrameMs << " ms after start\n"
+              << "  detection        " << stats.detectMs << " ms total\n"
+              << "  encoding         " << stats.encodeMs << " ms total" << std::endl;
+    return result.code;
 }
 }
 
@@ -234,35 +285,7 @@ int main(int argc, char **argv)
         return list(user, plain);
     }
     if (command == "test") {
-        const Config config;
-        if (geteuid() != 0) {
-            // Only the service can read the face models: ask it, without the details.
-            const int timeout = int(config.number("video/timeout", 4)) * 2 + 10;
-            const int code = askService("compare", user, timeout);
-            switch (code) {
-            case Recognized: std::cout << "Identified face as " << user << '\n'; break;
-            case NoModel: std::cout << "Failure, no face model known\n"; break;
-            case Timeout: std::cout << "Failure, timeout reached\n"; break;
-            case TooDark: std::cout << "Failure, image too dark\n"; break;
-            case LockedOut: std::cout << "Failure, too many attempts; face unlock is locked for a few minutes\n"; break;
-            case -1: std::cout << "Failure, the Kenning service isn't reachable at " << socketPath << '\n'; return Error;
-            default: std::cout << "Failure, general abort\n"; break;
-            }
-            std::cout << "  (sudo kenning test shows the scores and timings)" << std::endl;
-            return code;
-        }
-        const ScanResult result = compare(config, user);
-        const ScanStats &s = result.stats;
-        std::cout << result.message << '\n'
-                  << "  best score       " << result.bestScore << " (needs " << config.number("video/certainty", 6.0) << " or lower)\n"
-                  << "  frames           " << s.frames << " read, " << s.darkFrames << " too dark, " << s.faceFrames << " with a face\n"
-                  << "  face confidence  " << s.bestDetection << " (detector keeps 0.8 or higher)\n"
-                  << "  camera open      " << s.cameraMs << " ms\n"
-                  << "  networks load    " << s.networksMs << " ms\n"
-                  << "  first frame      " << s.firstFrameMs << " ms after start\n"
-                  << "  detection        " << s.detectMs << " ms total\n"
-                  << "  encoding         " << s.encodeMs << " ms total" << std::endl;
-        return result.code;
+        return test(user);
     }
     if (command == "version") {
         std::cout << "kenning " << KENNING_VERSION << '\n';

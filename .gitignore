@@ -13,3 +13,4 @@ __pycache__/
 plasma-login-manager-*.tar.xz*
 /tests/containers/logs/
 /dist/
+.clang-format

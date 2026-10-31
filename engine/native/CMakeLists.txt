@@ -1,9 +1,7 @@
-cmake_minimum_required(VERSION 3.20)
-project(kenning VERSION 0.6.0 LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-include(GNUInstallDirs)
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+#
+# The face recognition engine, the service and the PAM module.
 
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect videoio dnn)
 find_package(Qt6 REQUIRED COMPONENTS Core)
@@ -17,27 +15,42 @@ endif()
 set(KENNING_BINARY ${CMAKE_INSTALL_FULL_BINDIR}/kenning)
 set(KENNING_SYSCONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/kenning CACHE PATH "Config and face models")
 set(KENNING_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}/kenning CACHE PATH "Recognition networks")
-add_compile_definitions(KENNING_SYSCONFDIR="${KENNING_SYSCONFDIR}" KENNING_DATADIR="${KENNING_DATADIR}")
-
-add_library(kenning-engine STATIC src/engine.cpp src/engine.h src/config.h)
-target_link_libraries(kenning-engine PUBLIC ${OpenCV_LIBS} Qt6::Core)
-target_include_directories(kenning-engine PUBLIC ${OpenCV_INCLUDE_DIRS} src)
-set_target_properties(kenning-engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
+set(KENNING_SNAPSHOTSDIR ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/kenning/snapshots CACHE PATH "Photos of failed attempts")
 set(KENNING_SOCKET /run/kenning.sock CACHE STRING "Socket of the face unlock service")
-add_compile_definitions(KENNING_SOCKET="${KENNING_SOCKET}")
 set(KENNING_SERVICE_USER kenning CACHE STRING "System user the service runs as and that owns the face models")
-add_compile_definitions(KENNING_SERVICE_USER="${KENNING_SERVICE_USER}")
 
-add_executable(kenning src/main.cpp src/daemon.cpp src/daemon.h src/service.h)
+# Paths and names every part agrees on (config.h), for the engine and the settings page.
+add_library(kenning-config INTERFACE)
+target_include_directories(kenning-config INTERFACE src)
+target_compile_definitions(kenning-config INTERFACE
+    KENNING_SYSCONFDIR="${KENNING_SYSCONFDIR}"
+    KENNING_DATADIR="${KENNING_DATADIR}"
+    KENNING_SNAPSHOTSDIR="${KENNING_SNAPSHOTSDIR}"
+    KENNING_SOCKET="${KENNING_SOCKET}"
+    KENNING_SERVICE_USER="${KENNING_SERVICE_USER}"
+)
+
+add_library(kenning-engine STATIC
+    src/config.h
+    src/engine.cpp src/engine.h
+    src/facemodels.cpp src/facemodels.h
+    src/failurelimiter.cpp src/failurelimiter.h
+    src/headpose.cpp src/headpose.h
+    src/pipeline.cpp src/pipeline.h
+    src/service.h
+    src/snapshots.cpp src/snapshots.h
+)
+target_link_libraries(kenning-engine PUBLIC ${OpenCV_LIBS} Qt6::Core kenning-config)
+target_include_directories(kenning-engine PUBLIC ${OpenCV_INCLUDE_DIRS})
+
+add_executable(kenning src/main.cpp src/daemon.cpp src/daemon.h)
 target_compile_definitions(kenning PRIVATE KENNING_VERSION="${PROJECT_VERSION}")
 target_link_libraries(kenning PRIVATE kenning-engine)
 
 # The PAM module only asks the service; OpenCV stays out of the programs that authenticate.
-add_library(pam_kenning MODULE src/pam_kenning.cpp src/config.h src/service.h)
+add_library(pam_kenning MODULE src/pam_kenning.cpp)
 set_target_properties(pam_kenning PROPERTIES PREFIX "")
-target_include_directories(pam_kenning PRIVATE src)
-target_link_libraries(pam_kenning PRIVATE ${PAM_LIBRARY})
+target_link_libraries(pam_kenning PRIVATE kenning-config ${PAM_LIBRARY})
 if(LIBSYSTEMD_FOUND)
     target_compile_definitions(pam_kenning PRIVATE KENNING_HAVE_LOGIND)
     target_link_libraries(pam_kenning PRIVATE PkgConfig::LIBSYSTEMD)

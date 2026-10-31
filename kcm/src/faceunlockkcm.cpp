@@ -5,7 +5,9 @@
 #include "faceunlockkcm.h"
 #include "camerafinder.h"
 #include "camerapreview.h"
-#include "faceunlockpaths.h"
+#include "lockscreenstate.h"
+#include "paths.h"
+#include "settingsschema.h"
 
 #include <KAuth/Action>
 #include <KAuth/ExecuteJob>
@@ -16,17 +18,17 @@
 #include <KSharedConfig>
 #include <KUser>
 
-#include <QDateTime>
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
-#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
 #include <QQmlEngine>
 #include <QUrl>
 
@@ -36,22 +38,27 @@ namespace
 {
 const QString helperId = QStringLiteral("org.kde.kcontrol.kcmkenning");
 
-// Values from config.ini keyed "section/key". Multi-line values are not needed here.
+// Settings that the code below reads or writes by name.
+namespace Key
+{
+const QString animationStyle = QStringLiteral("Appearance/AnimationStyle");
+const QString autoScan = QStringLiteral("LoginScreen/AutoScan");
+const QString welcomePause = QStringLiteral("LoginScreen/WelcomePause");
+const QString showButton = QStringLiteral("lock/faceUnlockShowButton");
+const QString unlockDelay = QStringLiteral("lock/unlockDelay");
+const QString preferredMethod = QStringLiteral("lock/preferredMethod");
+const QString useLastMethod = QStringLiteral("lock/useLastMethod");
+const QString lockScreenFace = QStringLiteral("pam/lockscreen");
+const QString pamPrefix = QStringLiteral("pam/");
+}
+
+// config.ini's values keyed "section/key", as the engine reads them.
 QVariantMap readEngineConfig()
 {
     QVariantMap values;
-    QFile file(FaceUnlock::engineConfigPath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return values;
-    }
-    QString section;
-    for (const QString &raw : QString::fromUtf8(file.readAll()).split(QLatin1Char('\n'))) {
-        const QString line = raw.trimmed();
-        if (line.startsWith(QLatin1Char('[')) && line.endsWith(QLatin1Char(']'))) {
-            section = line.mid(1, line.size() - 2);
-        } else if (const int equals = line.indexOf(QLatin1Char('=')); equals > 0 && !line.startsWith(QLatin1Char('#'))) {
-            values.insert(section + QLatin1Char('/') + line.left(equals).trimmed(), line.mid(equals + 1).trimmed());
-        }
+    const FaceUnlock::Config config(FaceUnlock::configPath);
+    for (const auto &[key, value] : config.values()) {
+        values.insert(QString::fromStdString(key), QString::fromStdString(value));
     }
     return values;
 }
@@ -75,11 +82,14 @@ KConfigGroup lockScreenGroup(const KSharedConfig::Ptr &config)
 // system bus answers at once that the service is unknown.
 bool hasFingerprint(const QString &user)
 {
+    constexpr int timeoutMs = 3000;
     const QString service = QStringLiteral("net.reactivated.Fprint");
-    QDBusMessage devices = QDBusConnection::systemBus().call(
-        QDBusMessage::createMethodCall(service, QStringLiteral("/net/reactivated/Fprint/Manager"), service + QStringLiteral(".Manager"), QStringLiteral("GetDevices")),
-        QDBus::Block,
-        3000);
+    const QDBusMessage devices = QDBusConnection::systemBus().call(QDBusMessage::createMethodCall(service,
+                                                                                                  QStringLiteral("/net/reactivated/Fprint/Manager"),
+                                                                                                  service + QStringLiteral(".Manager"),
+                                                                                                  QStringLiteral("GetDevices")),
+                                                                   QDBus::Block,
+                                                                   timeoutMs);
     if (devices.type() != QDBusMessage::ReplyMessage || devices.arguments().isEmpty()) {
         return false;
     }
@@ -88,31 +98,42 @@ bool hasFingerprint(const QString &user)
         QDBusMessage call = QDBusMessage::createMethodCall(service, path.path(), service + QStringLiteral(".Device"), QStringLiteral("ListEnrolledFingers"));
         call << user;
         // No fingerprints is an error reply (NoEnrolledPrints), not an empty list.
-        const QDBusMessage fingers = QDBusConnection::systemBus().call(call, QDBus::Block, 3000);
+        const QDBusMessage fingers = QDBusConnection::systemBus().call(call, QDBus::Block, timeoutMs);
         return fingers.type() == QDBusMessage::ReplyMessage && !fingers.arguments().isEmpty() && !fingers.arguments().constFirst().toStringList().isEmpty();
     });
 }
 
-QVariant typed(const QVariant &defaultValue, const QString &text)
+// A config file's text as the type of the setting's default.
+QVariant fromConfigText(const QVariant &defaultValue, const QString &text)
 {
-    if (defaultValue.typeId() == QMetaType::Bool) {
+    switch (defaultValue.typeId()) {
+    case QMetaType::Bool:
         return text == QLatin1String("true");
-    }
-    if (defaultValue.typeId() == QMetaType::Int) {
+    case QMetaType::Int:
         return text.toInt();
-    }
-    if (defaultValue.typeId() == QMetaType::Double) {
+    case QMetaType::Double:
         return text.toDouble();
+    default:
+        return text;
     }
-    return text;
 }
 
-QString asText(const QVariant &value)
+QString toConfigText(const QVariant &value)
 {
     if (value.typeId() == QMetaType::Bool) {
         return value.toBool() ? QStringLiteral("true") : QStringLiteral("false");
     }
     return value.toString();
+}
+
+// timeoutMs: -1 keeps KAuth's default.
+KAuth::ExecuteJob *helperJob(const QString &action, const QVariantMap &arguments = {}, int timeoutMs = -1)
+{
+    KAuth::Action request(helperId + QLatin1Char('.') + action);
+    request.setHelperId(helperId);
+    request.setArguments(arguments);
+    request.setTimeout(timeoutMs);
+    return request.execute();
 }
 }
 
@@ -136,16 +157,16 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("video/dark_threshold"), 60},
         {QStringLiteral("snapshots/save_failed"), false},
         {QStringLiteral("pam/login"), true},
-        {QStringLiteral("pam/lockscreen"), true},
+        {Key::lockScreenFace, true},
         {QStringLiteral("pam/sudo"), true},
         {QStringLiteral("pam/polkit"), false},
-        {QStringLiteral("Appearance/AnimationStyle"), QStringLiteral("hello")},
-        {QStringLiteral("LoginScreen/AutoScan"), true},
-        {QStringLiteral("LoginScreen/WelcomePause"), 1000},
-        {QStringLiteral("lock/faceUnlockShowButton"), false},
-        {QStringLiteral("lock/unlockDelay"), 500},
-        {QStringLiteral("lock/preferredMethod"), QStringLiteral("face")},
-        {QStringLiteral("lock/useLastMethod"), false},
+        {Key::animationStyle, QStringLiteral("hello")},
+        {Key::autoScan, true},
+        {Key::welcomePause, 1000},
+        {Key::showButton, false},
+        {Key::unlockDelay, 500},
+        {Key::preferredMethod, QStringLiteral("face")},
+        {Key::useLastMethod, false},
     };
 }
 
@@ -157,7 +178,7 @@ void FaceUnlockKcm::load()
     const QVariantMap engine = readEngineConfig();
     for (auto it = engine.cbegin(); it != engine.cend(); ++it) {
         if (defaults.contains(it.key())) {
-            settings.insert(it.key(), typed(defaults.value(it.key()), it.value().toString()));
+            settings.insert(it.key(), fromConfigText(defaults.value(it.key()), it.value().toString()));
         }
     }
     const QString configured = engine.value(QStringLiteral("video/device_path")).toString();
@@ -174,28 +195,28 @@ void FaceUnlockKcm::load()
     m_previewPath = colourPath.isEmpty() ? m_devicePath : colourPath;
 
     for (const auto &service : FaceUnlock::pamServices()) {
-        settings.insert(QStringLiteral("pam/") + service.id, pamUsesEngine(service.path));
+        settings.insert(Key::pamPrefix + service.id, pamUsesEngine(service.path));
     }
     const FaceUnlock::LockScreenState lockScreen = FaceUnlock::lockScreenState();
     m_lockScreenFaceService = lockScreen.faceService;
     if (lockScreen.known) {
-        settings.insert(QStringLiteral("pam/lockscreen"), lockScreen.enabled);
+        settings.insert(Key::lockScreenFace, lockScreen.enabled);
     }
 
     KConfig system(FaceUnlock::systemConfigPath, KConfig::SimpleConfig);
-    for (const QString &key : {QStringLiteral("Appearance/AnimationStyle"), QStringLiteral("LoginScreen/AutoScan"), QStringLiteral("LoginScreen/WelcomePause")}) {
+    for (const QString &key : {Key::animationStyle, Key::autoScan, Key::welcomePause}) {
         const auto setting = FaceUnlock::systemSetting(key);
-        const QString text = system.group(setting->group).readEntry(setting->key, asText(defaults.value(key)));
-        settings.insert(key, typed(defaults.value(key), text));
+        const QString text = system.group(setting->group).readEntry(setting->key, toConfigText(defaults.value(key)));
+        settings.insert(key, fromConfigText(defaults.value(key), text));
     }
 
     const KConfigGroup lock = lockScreenGroup(KSharedConfig::openConfig(QStringLiteral("kscreenlockerrc")));
-    settings.insert(QStringLiteral("lock/faceUnlockShowButton"), lock.readEntry("faceUnlockShowButton", false));
-    settings.insert(QStringLiteral("lock/unlockDelay"), lock.readEntry("unlockDelay", 500));
+    settings.insert(Key::showButton, lock.readEntry("faceUnlockShowButton", false));
+    settings.insert(Key::unlockDelay, lock.readEntry("unlockDelay", 500));
     // Saved empty while no fingerprint is enrolled; face is what the page offers first.
     const QString preferred = lock.readEntry("preferredMethod", QString());
-    settings.insert(QStringLiteral("lock/preferredMethod"), preferred == QLatin1String("fingerprint") ? preferred : QStringLiteral("face"));
-    settings.insert(QStringLiteral("lock/useLastMethod"), lock.readEntry("useLastMethod", false));
+    settings.insert(Key::preferredMethod, preferred == QLatin1String("fingerprint") ? preferred : QStringLiteral("face"));
+    settings.insert(Key::useLastMethod, lock.readEntry("useLastMethod", false));
     m_fingerprintEnrolled = hasFingerprint(userName());
 
     m_settings = settings;
@@ -216,25 +237,25 @@ void FaceUnlockKcm::save()
             continue;
         }
         const QString key = it.key();
-        if (key.startsWith(QLatin1String("pam/"))) {
-            pam.insert(key.mid(4), it.value());
+        if (key.startsWith(Key::pamPrefix)) {
+            pam.insert(key.mid(Key::pamPrefix.size()), it.value());
         } else if (FaceUnlock::systemSetting(key)) {
-            system.insert(key, asText(it.value()));
+            system.insert(key, toConfigText(it.value()));
         } else if (FaceUnlock::engineSetting(key)) {
-            engine.insert(key, asText(it.value()));
+            engine.insert(key, toConfigText(it.value()));
         }
     }
 
     // Per-user lock screen options; the style is mirrored so the lock screen can read it.
     auto config = KSharedConfig::openConfig(QStringLiteral("kscreenlockerrc"));
     KConfigGroup lock = lockScreenGroup(config);
-    lock.writeEntry("faceUnlockShowButton", m_settings.value(QStringLiteral("lock/faceUnlockShowButton")).toBool());
-    lock.writeEntry("unlockDelay", m_settings.value(QStringLiteral("lock/unlockDelay")).toInt());
-    lock.writeEntry("faceAnimation", m_settings.value(QStringLiteral("Appearance/AnimationStyle")).toString());
+    lock.writeEntry("faceUnlockShowButton", m_settings.value(Key::showButton).toBool());
+    lock.writeEntry("unlockDelay", m_settings.value(Key::unlockDelay).toInt());
+    lock.writeEntry("faceAnimation", m_settings.value(Key::animationStyle).toString());
     // The lock screen only applies a preferred method while there is a fingerprint to choose;
     // otherwise it starts with the method used last, as Plasma does.
-    const QString preferred = m_settings.value(QStringLiteral("lock/preferredMethod")).toString();
-    const bool useLast = m_settings.value(QStringLiteral("lock/useLastMethod")).toBool();
+    const QString preferred = m_settings.value(Key::preferredMethod).toString();
+    const bool useLast = m_settings.value(Key::useLastMethod).toBool();
     lock.writeEntry("preferredMethod", m_fingerprintEnrolled ? preferred : QString());
     lock.writeEntry("useLastMethod", useLast);
     if (m_fingerprintEnrolled && !useLast && preferred == QLatin1String("fingerprint")) {
@@ -243,7 +264,7 @@ void FaceUnlockKcm::save()
     }
     if (m_lockScreenFaceService) {
         // Plasma's Face method is switched on per user.
-        const bool face = m_settings.value(QStringLiteral("pam/lockscreen")).toBool();
+        const bool face = m_settings.value(Key::lockScreenFace).toBool();
         config->group(QStringLiteral("Authenticators")).writeEntry("Face", face);
         if (!face) {
             // A remembered method that is switched off crashes the lock screen
@@ -264,10 +285,7 @@ void FaceUnlockKcm::save()
         return;
     }
 
-    KAuth::Action action(helperId + QStringLiteral(".save"));
-    action.setHelperId(helperId);
-    action.setArguments({{QStringLiteral("engine"), engine}, {QStringLiteral("pam"), pam}, {QStringLiteral("system"), system}});
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("save"), {{QStringLiteral("engine"), engine}, {QStringLiteral("pam"), pam}, {QStringLiteral("system"), system}});
     connect(job, &KJob::result, this, [this, job] {
         if (job->error()) {
             Q_EMIT errorOccurred(job->errorString());
@@ -359,7 +377,7 @@ bool FaceUnlockKcm::colourCamera() const
 
 bool FaceUnlockKcm::engineInstalled() const
 {
-    return QFile::exists(QStringLiteral("/usr/lib/security/pam_kenning.so")) && QFile::exists(FaceUnlock::engineBinary);
+    return QFile::exists(FaceUnlock::pamModulePath) && QFile::exists(FaceUnlock::engineBinary);
 }
 
 bool FaceUnlockKcm::lockScreenPatched() const
@@ -380,9 +398,7 @@ bool FaceUnlockKcm::fingerprintEnrolled() const
 
 void FaceUnlockKcm::refreshFaces()
 {
-    KAuth::Action action(helperId + QStringLiteral(".list"));
-    action.setHelperId(helperId);
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("list"));
     connect(job, &KJob::result, this, [this, job] {
         if (job->error()) {
             return;
@@ -409,9 +425,7 @@ QVariantList FaceUnlockKcm::snapshots() const
 
 void FaceUnlockKcm::refreshSnapshots()
 {
-    KAuth::Action action(helperId + QStringLiteral(".snapshots"));
-    action.setHelperId(helperId);
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("snapshots"));
     connect(job, &KJob::result, this, [this, job] {
         // Cancelling the password prompt lands here too; the page offers to try again.
         if (job->error()) {
@@ -422,7 +436,8 @@ void FaceUnlockKcm::refreshSnapshots()
             const QVariantMap photo = value.toMap();
             m_snapshots.append(QVariantMap{
                 {QStringLiteral("time"), QDateTime::fromSecsSinceEpoch(photo.value(QStringLiteral("time")).toLongLong())},
-                {QStringLiteral("source"), QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(photo.value(QStringLiteral("data")).toByteArray().toBase64()))},
+                {QStringLiteral("source"),
+                 QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(photo.value(QStringLiteral("data")).toByteArray().toBase64()))},
             });
         }
         Q_EMIT snapshotsChanged();
@@ -432,9 +447,7 @@ void FaceUnlockKcm::refreshSnapshots()
 
 void FaceUnlockKcm::clearSnapshots()
 {
-    KAuth::Action action(helperId + QStringLiteral(".clearsnapshots"));
-    action.setHelperId(helperId);
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("clearsnapshots"));
     connect(job, &KJob::result, this, [this, job] {
         if (job->error()) {
             Q_EMIT errorOccurred(job->errorString());
@@ -486,35 +499,29 @@ void FaceUnlockKcm::installTheme(const QUrl &archive)
         Q_EMIT errorOccurred(i18n("Could not read %1", archive.toLocalFile()));
         return;
     }
-    KAuth::Action action(helperId + QStringLiteral(".installtheme"));
-    action.setHelperId(helperId);
-    action.setArguments({{QStringLiteral("archive"), file.readAll()}});
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("installtheme"), {{QStringLiteral("archive"), file.readAll()}});
     connect(job, &KJob::result, this, [this, job] {
         if (job->error()) {
             Q_EMIT errorOccurred(job->errorString());
             return;
         }
         refreshThemes();
-        setValue(QStringLiteral("Appearance/AnimationStyle"), job->data().value(QStringLiteral("id")).toString());
+        setValue(Key::animationStyle, job->data().value(QStringLiteral("id")).toString());
     });
     job->start();
 }
 
 void FaceUnlockKcm::removeTheme(const QString &id)
 {
-    KAuth::Action action(helperId + QStringLiteral(".removetheme"));
-    action.setHelperId(helperId);
-    action.setArguments({{QStringLiteral("id"), id}});
-    auto *job = action.execute();
+    auto *job = helperJob(QStringLiteral("removetheme"), {{QStringLiteral("id"), id}});
     connect(job, &KJob::result, this, [this, job, id] {
         if (job->error()) {
             Q_EMIT errorOccurred(job->errorString());
             return;
         }
         refreshThemes();
-        if (m_settings.value(QStringLiteral("Appearance/AnimationStyle")).toString() == id) {
-            setValue(QStringLiteral("Appearance/AnimationStyle"), QStringLiteral("hello"));
+        if (m_settings.value(Key::animationStyle).toString() == id) {
+            setValue(Key::animationStyle, QStringLiteral("hello"));
         }
     });
     job->start();
@@ -556,19 +563,16 @@ void FaceUnlockKcm::testRecognition()
     process->start(FaceUnlock::engineBinary, {QStringLiteral("test")});
 }
 
-void FaceUnlockKcm::runHelper(const QString &operation, const QVariantMap &args)
+void FaceUnlockKcm::runHelper(const QString &operation, const QVariantMap &arguments)
 {
     if (m_busy) {
         return;
     }
     setBusy(true);
 
-    KAuth::Action action(helperId + QLatin1Char('.') + operation);
-    action.setHelperId(helperId);
-    action.setArguments(args);
     // Capturing a face can take a while; don't let KAuth give up on the helper.
-    action.setTimeout(120000);
-    auto *job = action.execute();
+    constexpr int helperTimeoutMs = 120000;
+    auto *job = helperJob(operation, arguments, helperTimeoutMs);
     connect(job, &KAuth::ExecuteJob::newData, this, [this](const QVariantMap &data) {
         Q_EMIT progress(data.value(QStringLiteral("line")).toString());
     });

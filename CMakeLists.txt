@@ -9,15 +9,34 @@
 
 cmake_minimum_required(VERSION 3.20)
 project(kenning VERSION 0.6.0 LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(GNUInstallDirs)
 
 option(KENNING_BUILD_SETTINGS "Build the System Settings page (needs KDE Frameworks 6)" ON)
 set(KENNING_NETWORKS_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH
     "Directory with face_detection_yunet_2023mar.onnx and face_recognition_sface_2021dec.onnx")
 
+include(CTest)
+
 add_subdirectory(engine/native)
 if(KENNING_BUILD_SETTINGS)
     add_subdirectory(kcm)
+endif()
+if(BUILD_TESTING)
+    add_subdirectory(autotests)
+endif()
+
+# KDE's code style: "cmake --build build --target clang-format", checked before each commit.
+find_package(ECM NO_MODULE QUIET)
+if(ECM_FOUND)
+    list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+    include(KDEClangFormat)
+    include(KDEGitCommitHooks)
+    file(GLOB_RECURSE formatted_sources CONFIGURE_DEPENDS
+        autotests/*.cpp autotests/*.h engine/native/src/*.cpp engine/native/src/*.h kcm/src/*.cpp kcm/src/*.h)
+    kde_clang_format(${formatted_sources})
+    kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
 endif()
 
 # The recognition networks (YuNet, MIT; SFace, Apache-2.0) from OpenCV Zoo; they

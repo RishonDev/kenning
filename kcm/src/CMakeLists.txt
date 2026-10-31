@@ -1,12 +1,14 @@
+add_subdirectory(common)
+
 kcmutils_add_qml_kcm(kcm_kenning)
 
 target_sources(kcm_kenning PRIVATE
     faceunlockkcm.cpp faceunlockkcm.h
     camerapreview.cpp camerapreview.h
-    faceunlockpaths.h camerafinder.h
 )
 
 target_link_libraries(kcm_kenning PRIVATE
+    kenning_settings_common
     Qt6::DBus
     Qt6::Quick
     KF6::AuthCore
