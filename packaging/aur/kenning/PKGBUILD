@@ -7,7 +7,7 @@
 
 pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
-pkgver=0.5.1
+pkgver=0.5.2
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64 aarch64)
@@ -23,7 +23,7 @@ source=("kenning-$pkgver.tar.gz::https://github.com/RishonDev/kenning/archive/re
         https://download.kde.org/stable/plasma/$_plmver/plasma-login-manager-$_plmver.tar.xz{,.sig}
         https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
         https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx)
-sha256sums=('7e210c63d29723907554595d48c5a6aa303e5bbc7270c12104348bfffa917d71'
+sha256sums=('105697b1d51d2b2518755b5869568cee78b607a4ad93f48ab8edc1a05b197887'
             '4a6e2b65b5d462fcf43b2a5be3c3e6244f479451b6dcfa00dcbf33fbc5cd093a'
             'SKIP'
             '8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4'
