@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="220" viewBox="0 0 880 220" role="img" aria-label="Kenning: face unlock for KDE Plasma">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3daee9"/>
+      <stop offset="1" stop-color="#1d99f3"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(130 110)">
+    <circle r="78" fill="none" stroke="#dde3e8" stroke-width="8"/>
+    <circle r="78" fill="none" stroke="url(#ring)" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="330 160" transform="rotate(-100)"/>
+    <circle r="56" fill="#eff3f6"/>
+    <circle cx="-19" cy="-10" r="6" fill="#3daee9"/>
+    <circle cx="19" cy="-10" r="6" fill="#3daee9"/>
+    <path d="M -22 16 Q 0 36 22 16" fill="none" stroke="#3daee9" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <text x="250" y="112" font-family="'Noto Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="68" font-weight="600" fill="#232629">Kenning</text>
+  <text x="252" y="156" font-family="'Noto Sans', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="26" fill="#5b6268">Face unlock for KDE Plasma</text>
+</svg>

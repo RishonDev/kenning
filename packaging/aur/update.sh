@@ -21,7 +21,7 @@ original = open("PKGBUILD").read()
 
 def make(git):
     header, _, body = original.partition("\npkgbase=")
-    s = ("# Maintainer: Rishon Jonathan R <kenning@invalid>\n"
+    s = ("# Maintainer: Rishon Jonathan R <mithicalaviator85@gmail.com>\n"
          "# Generated from the Kenning repository's PKGBUILD by packaging/aur/update.sh\n"
          + header + "\npkgbase=" + body)
     def once(old, new):

@@ -1,4 +1,4 @@
-# Maintainer: Rishon Jonathan R <kenning@invalid>
+# Maintainer: Rishon Jonathan R <mithicalaviator85@gmail.com>
 # Generated from the Kenning repository's PKGBUILD by packaging/aur/update.sh
 # Kenning, face unlock for Plasma, in one build: `makepkg -si` installs both packages.
 #   kenning                       face recognition engine and service (engine/native, OpenCV),

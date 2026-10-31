@@ -80,13 +80,18 @@ webcam:
       built and install-tested in containers (Ubuntu 26.04 and 26.10, Fedora 44);
       the lock screen add-on keeps its own copies of the originals instead of
       using pacman's cache
-- [ ] Lock screen animation on Plasma 6.3-6.7 (Debian 13, Ubuntu 26.04 LTS): those
-      versions need their own patch, tested against a running Plasma
+- [x] Lock screen animation on Plasma 6.3-6.7 (Debian 13, Ubuntu 26.04 LTS): the
+      add-on has edit sets for 6.3 and 6.6 beside 6.8, checked by loading the real
+      greeter offscreen in CI (6.3.6, 6.6.6, 6.7.5, 6.8.2)
 - [ ] Login screen face unlock beyond Arch: plasma-login-manager-kenning for
       Fedora, or an SDDM greeter patch
 - [x] Plug and play: install/upgrade drops pam_howdy lines once Howdy is gone,
       removal drops pam_kenning lines, and the first login after startup
       (uptime under 10 minutes) offers Set Up once if there is an IR camera
+- [x] A "Try Face Again" button on the lock screen after face unlock fails
+      (add-on patch 10): calls rescanFace(), hidden while a password is typed,
+      during a lockout and without a face model
+- [ ] The same button on the login screen (plasma-login-manager-kenning)
 - [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
       option is hidden in System Settings until it is (show a privacy warning then)
 - [x] A root service that owns the camera and face models (like fprintd), so
@@ -124,6 +129,20 @@ webcam:
       5 / 15 / 10 by default, 0 turns it off). Nobody in front of the camera,
       darkness or a scan cancelled by typing doesn't count. The service stays
       running while it remembers failures, so its idle exit can't reset them
+- [x] Guided enrolment: Set Up asks for looking straight, then turning left,
+      right, up and down, and keeps encodings for each angle (the head pose comes
+      from the detector's landmarks; a turn that isn't seen in time is skipped).
+      It asks to look back at the camera between turns, rejects a turn that
+      drifts on the other axis (with a hint), and shows an animated head and a
+      dot per step.
+      Afterwards it offers a second look with glasses taken off or put on.
+      It starts only when the person confirms they're ready, after a 3-second
+      countdown; the steps are read aloud (on by default, a checkbox; needs
+      speech-dispatcher, otherwise the checkbox says so). The preview shows the
+      ordinary webcam (a virtual one is fine for that) while the IR camera scans
+      Learning from successful unlocks was decided against (2026-10-31): each
+      learned sample widens what gets accepted, a slow drift towards whoever
+      unlocks; deliberate captures cover the same changes
 - [x] Preferred sign-in method when a fingerprint is enrolled (System Settings,
       Lock screen): face first (fingerprint and password after a face failure),
       or fingerprint first (face and password when it fails or times out), or

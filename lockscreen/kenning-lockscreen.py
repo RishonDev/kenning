@@ -22,7 +22,7 @@ from pathlib import Path
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 9"
+VERSION = "face unlock patch 10"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -116,6 +116,8 @@ UI_FUNCTION = ("""    property string pendingPassword
     // 2 recognized, 3 failed), fed by pam_howdy's messages.
     property int faceState: 0
     property string faceMessage
+    // False after a failure a new scan can't fix (lockout, no face model).
+    property bool faceRetryable: true
 
     // Sign-in method to start with, as authenticator type: 3 Plasma's Face method (Plasma
     // 6.8 and newer with Kenning), 1 fingerprint (System Settings > Face Unlock, when a
@@ -175,6 +177,7 @@ UI_FUNCTION = ("""    property string pendingPassword
     function handleFaceMessage(msg) {{
         if (msg.startsWith("Attempting facial authentication")) {{
             faceState = 1;
+            faceRetryable = true;
             faceMessage = i18nc("@info:status", "Looking for you…");
             lockScreenRoot.uiVisible = true;
             return true;
@@ -186,7 +189,8 @@ UI_FUNCTION = ("""    property string pendingPassword
         }}
         if (/^(Failure, |Face detection image too dark)/.test(msg)) {{
             faceState = 3;
-            faceMessage = msg.includes("too dark") ? i18nc("@info:status", "It's too dark to see you")
+            faceRetryable = !msg.includes("too many attempts") && !msg.includes("no face model");
+            faceMessage = msg.includes("too dark") ? i18nc("@info:status", "Too dark or bright to see you")
                         : msg.includes("too many attempts") ? i18nc("@info:status", "Too many attempts. Use your password.")
                         : msg.includes("no face model") ? i18nc("@info:status", "Face unlock isn't set up")
                         : i18nc("@info:status", "Couldn't recognize you");
@@ -435,6 +439,15 @@ UI_INDICATOR = ("""                authenticationTypeItem: RowLayout {
                         style: config.faceAnimation || "hello"
                     }
 
+                    PlasmaComponents3.Button {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceRetryable && lockScreenUi.faceState !== 1
+                                 && mainBlock.mainPasswordBox.text.length === 0
+                        icon.name: "view-refresh"
+                        text: i18nc("@action:button", "Try Face Again")
+                        onClicked: lockScreenUi.rescanFace()
+                    }
+
                     RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
@@ -479,6 +492,15 @@ UI_PASSWORD_BEFORE_6_8 = ("""                onPasswordResult: password => {
                     faceState: lockScreenUi.faceState
                     message: lockScreenUi.faceMessage
                     style: config.faceAnimation || "hello"
+                }
+
+                PlasmaComponents3.Button {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceRetryable && lockScreenUi.faceState !== 1
+                             && mainBlock.mainPasswordBox.text.length === 0
+                    icon.name: "view-refresh"
+                    text: i18nc("@action:button", "Try Face Again")
+                    onClicked: lockScreenUi.rescanFace()
                 }
 """)
 

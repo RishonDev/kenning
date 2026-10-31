@@ -58,7 +58,7 @@ struct ScanResult {
 // cancelled() returns true (checked once per frame).
 ScanResult compare(const Config &config, const std::string &user, const std::function<bool()> &cancelled = {});
 
-// Captures encodings of exactly one face for a new model. progress receives
-// Howdy's messages ("Please look straight into the camera", "Scan complete" …).
+// Captures encodings of exactly one face for a new model: looking straight, then
+// turned left, right, up and down. progress receives each instruction.
 ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const std::function<void(const std::string &)> &progress);
 }

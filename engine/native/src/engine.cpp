@@ -19,6 +19,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <chrono>
+#include <cmath>
 #include <future>
 #include <mutex>
 #include <optional>
@@ -133,7 +134,9 @@ struct Pipeline {
         if (darkness >= 100) {
             return Frame::Black;
         }
-        if (darkness > darkThreshold) {
+        // Washed out (sunlight, a bright lamp) counts as too dark: either way no usable face.
+        const double brightness = total > 0 ? hist.at<float>(histSize - 1) / total * 100 : 0;
+        if (darkness > darkThreshold || brightness > 50) {
             return Frame::Dark;
         }
 
@@ -336,45 +339,139 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
     return {Timeout, best, "Failure, timeout reached", stats};
 }
 
+namespace
+{
+// Head pose from YuNet's landmarks (columns 4-13: eyes, nose tip, mouth corners),
+// only meaningful relative to the same person looking straight ahead.
+struct Pose {
+    double yaw = 0;
+    double pitch = 0;
+};
+
+Pose headPose(const cv::Mat &face)
+{
+    const auto at = [&face](int column) {
+        return double(face.at<float>(0, column));
+    };
+    const double eyesX = (at(4) + at(6)) / 2;
+    const double eyesY = (at(5) + at(7)) / 2;
+    const double eyeDistance = std::max(1.0, std::hypot(at(6) - at(4), at(7) - at(5)));
+    const double mouthY = (at(11) + at(13)) / 2;
+    return {(at(8) - eyesX) / eyeDistance, (at(9) - eyesY) / std::max(1.0, mouthY - eyesY)};
+}
+
+// The camera may be mirrored, so the first turn on an axis sets the direction and
+// the second must go the other way.
+struct EnrollStep {
+    const char *instruction;
+    double Pose::*axis; // nullptr: looking straight
+    double minimum; // turn needed, from looking straight
+    double maximum; // further than this aligns faces badly
+    bool opposite; // the other way from the previous step
+    double steady = 0; // drift allowed on the other axis
+    bool back = false; // back to looking straight, nothing captured
+};
+}
+
 ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const std::function<void(const std::string &)> &progress)
 {
     Pipeline pipeline(config);
     if (!pipeline.ready()) {
         return {Error, 99, "Failure, not possible to open camera at configured path"};
     }
-    progress("Please look straight into the camera");
 
-    // Like Howdy: up to 60 frames. Keep a few encodings spread over the capture so
-    // small changes in pose are covered. Black frames while a camera warms up (or
-    // fades in, as some webcams do) don't count, within a time limit.
+    // Only looking straight is required; a turn not seen in time is skipped.
+    const EnrollStep back{"Please look back at the camera", nullptr, 0, 0, false, 0, true};
+    const EnrollStep steps[] = {
+        {"Please look straight into the camera", nullptr, 0, 0, false},
+        {"Please turn your head slightly to the left", &Pose::yaw, 0.12, 0.45, false, 0.06},
+        back,
+        {"Please turn your head slightly to the right", &Pose::yaw, 0.12, 0.45, true, 0.06},
+        back,
+        {"Please tilt your head slightly up", &Pose::pitch, 0.07, 0.3, false, 0.1},
+        back,
+        {"Please tilt your head slightly down", &Pose::pitch, 0.07, 0.3, true, 0.1},
+    };
+    // Black frames while the camera warms up don't count.
     constexpr int maxFrames = 60;
-    constexpr int wanted = 5;
-    const auto deadline = Clock::now() + std::chrono::seconds(6);
     int litFrames = 0;
     int darkFrames = 0;
-    int hits = 0;
-    while (litFrames < maxFrames && int(encodings.size()) < wanted && Clock::now() < deadline) {
-        cv::Mat image;
-        const auto frame = pipeline.read(image);
-        if (frame == Pipeline::Frame::Missing || frame == Pipeline::Frame::Black) {
-            continue;
+    Pose straight;
+    double direction = 0; // sign of the previous turn on the same axis
+
+    for (const EnrollStep &step : steps) {
+        const bool looking = step.axis == nullptr && !step.back;
+        if (!looking && encodings.empty()) {
+            break;
         }
-        ++litFrames;
-        if (frame == Pipeline::Frame::Dark) {
-            ++darkFrames;
-            continue;
-        }
-        for (const cv::Mat &view : pipeline.orientations(image)) {
-            const cv::Mat faces = pipeline.faces(view);
-            if (faces.rows > 1) {
-                return {Aborted, 99, "Multiple faces detected, aborting"};
+        progress(step.instruction);
+        const int wanted = looking ? 3 : 2;
+        const auto deadline = Clock::now() + std::chrono::seconds(looking ? 6 : step.back ? 4 : 5);
+        int captured = 0;
+        int hits = 0;
+        bool hinted = false;
+        Pose sum;
+        while (captured < wanted && Clock::now() < deadline && (!looking || litFrames < maxFrames)) {
+            cv::Mat image;
+            const auto frame = pipeline.read(image);
+            if (frame == Pipeline::Frame::Missing || frame == Pipeline::Frame::Black) {
+                continue;
             }
-            if (faces.rows == 1) {
+            ++litFrames;
+            if (frame == Pipeline::Frame::Dark) {
+                ++darkFrames;
+                continue;
+            }
+            for (const cv::Mat &view : pipeline.orientations(image)) {
+                const cv::Mat faces = pipeline.faces(view);
+                if (faces.rows > 1) {
+                    encodings.clear();
+                    return {Aborted, 99, "Multiple faces detected, aborting"};
+                }
+                if (faces.rows == 0) {
+                    continue;
+                }
+                const Pose pose = headPose(faces.row(0));
+                if (step.back) {
+                    if (std::abs(pose.yaw - straight.yaw) < 0.08 && std::abs(pose.pitch - straight.pitch) < 0.05) {
+                        ++captured;
+                    }
+                    break;
+                }
+                if (!looking) {
+                    const double turn = pose.*step.axis - straight.*step.axis;
+                    const double drift = step.axis == &Pose::yaw ? pose.pitch - straight.pitch : pose.yaw - straight.yaw;
+                    if (std::abs(turn) >= step.minimum / 2 && std::abs(drift) > step.steady) {
+                        if (!hinted) {
+                            progress(step.axis == &Pose::yaw ? "Hint: keep your head level" : "Hint: keep your face toward the screen");
+                            hinted = true;
+                        }
+                        break;
+                    }
+                    if (std::abs(turn) < step.minimum || std::abs(turn) > step.maximum
+                        || (step.opposite && direction != 0 && std::signbit(turn) == std::signbit(direction))) {
+                        break;
+                    }
+                    if (!step.opposite) {
+                        direction = turn;
+                    }
+                }
                 // Every few hits, so the encodings cover a little movement.
-                if (++hits % 3 == 1) {
+                if (++hits % (looking ? 3 : 2) == 1) {
                     encodings.push_back(pipeline.encode(view, faces.row(0)));
+                    ++captured;
+                    sum.yaw += pose.yaw;
+                    sum.pitch += pose.pitch;
                 }
                 break;
+            }
+        }
+        if (looking && captured > 0) {
+            straight = {sum.yaw / captured, sum.pitch / captured};
+        } else if (!looking && !step.back && captured == 0) {
+            progress("Skipped, that turn wasn't seen");
+            if (!step.opposite) {
+                direction = 0;
             }
         }
     }
@@ -388,7 +485,7 @@ ScanResult enroll(const Config &config, std::vector<cv::Mat> &encodings, const s
                                              : "Camera saw only black frames - is IR emitter working?"};
     }
     if (darkFrames == litFrames) {
-        return {TooDark, 99, "All frames were too dark, please check dark_threshold in config"};
+        return {TooDark, 99, "All frames were too dark or too bright, please check dark_threshold in config"};
     }
     return {Aborted, 99, "No face detected, aborting"};
 }

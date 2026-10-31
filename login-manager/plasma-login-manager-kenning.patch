@@ -362,7 +362,7 @@ index f3233e1..8971c7e 100644
 +                greeterState.faceState = GreeterState.FaceState.Recognized;
 +            } else if (greeterState.faceState === GreeterState.FaceState.Scanning && greeterState.isFaceMessage(message)) {
 +                if (message.includes("too dark")) {
-+                    greeterState.faceMessage = i18nd("plasma_login", "It's too dark to see you");
++                    greeterState.faceMessage = i18nd("plasma_login", "Too dark or bright to see you");
 +                } else if (message.includes("no face model")) {
 +                    greeterState.faceMessage = i18nd("plasma_login", "Face unlock isn't set up");
 +                } else {

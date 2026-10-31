@@ -169,6 +169,9 @@ void FaceUnlockKcm::load()
         m_devicePath = configured;
         m_colourCamera = engine.value(QStringLiteral("video/colour")).toString() == QLatin1String("true");
     }
+    // The IR picture looks unsettling; preview the webcam when there is one.
+    const QString colourPath = m_colourCamera ? QString() : FaceUnlock::findPreviewCamera();
+    m_previewPath = colourPath.isEmpty() ? m_devicePath : colourPath;
 
     for (const auto &service : FaceUnlock::pamServices()) {
         settings.insert(QStringLiteral("pam/") + service.id, pamUsesEngine(service.path));
@@ -333,9 +336,20 @@ QString FaceUnlockKcm::userName() const
     return KUser().loginName();
 }
 
+QString FaceUnlockKcm::displayName() const
+{
+    const QString fullName = KUser().property(KUser::FullName).toString().trimmed();
+    return fullName.isEmpty() ? userName() : fullName;
+}
+
 QString FaceUnlockKcm::devicePath() const
 {
     return m_devicePath;
+}
+
+QString FaceUnlockKcm::previewPath() const
+{
+    return m_previewPath;
 }
 
 bool FaceUnlockKcm::colourCamera() const

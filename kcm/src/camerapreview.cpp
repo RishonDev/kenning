@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QPainterPath>
 
+#include <algorithm>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
@@ -38,13 +39,23 @@ QImage toImage(const v4l2_pix_format &format, const uchar *data, size_t size)
         return image;
     }
     case V4L2_PIX_FMT_YUYV: {
-        // The luma bytes alone make a good greyscale preview.
-        QImage image(width, height, QImage::Format_Grayscale8);
+        // Two pixels per 4 bytes (Y0 U Y1 V) sharing their colour; BT.601 video range.
+        QImage image(width, height, QImage::Format_RGB888);
+        const auto clamp = [](int value) {
+            return uchar(std::clamp(value >> 8, 0, 255));
+        };
         for (int y = 0; y < height && size_t((y + 1) * format.bytesperline) <= size; ++y) {
             const uchar *row = data + y * format.bytesperline;
             uchar *out = image.scanLine(y);
-            for (int x = 0; x < width; ++x) {
-                out[x] = row[x * 2];
+            for (int x = 0; x + 1 < width; x += 2) {
+                const int u = row[x * 2 + 1] - 128;
+                const int v = row[x * 2 + 3] - 128;
+                for (const int luma : {row[x * 2], row[x * 2 + 2]}) {
+                    const int c = 298 * (luma - 16) + 128;
+                    *out++ = clamp(c + 409 * v);
+                    *out++ = clamp(c - 100 * u - 208 * v);
+                    *out++ = clamp(c + 516 * u);
+                }
             }
         }
         return image;

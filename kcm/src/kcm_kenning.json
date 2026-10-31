@@ -1,5 +1,11 @@
 {
     "KPlugin": {
+        "Authors": [
+            {
+                "Email": "mithicalaviator85@gmail.com",
+                "Name": "Rishon Jonathan R"
+            }
+        ],
         "Description": "Sign in and unlock with your face",
         "Icon": "user-identity",
         "Name": "Face Unlock"
