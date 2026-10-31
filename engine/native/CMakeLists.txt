@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(GNUInstallDirs)
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc objdetect videoio dnn)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect videoio dnn)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_library(PAM_LIBRARY pam REQUIRED)
 # logind tells the PAM module whether a request comes from a remote session

@@ -289,7 +289,9 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
     stats.networksMs = pipeline.networksMs;
     const double certainty = config.number("video/certainty", 6.0);
     const auto deadline = Clock::now() + std::chrono::duration<double>(config.number("video/timeout", 4));
+    const bool keepSnapshot = config.boolean("snapshots/save_failed", false);
     double best = 99;
+    cv::Mat snapshot;
 
     while (Clock::now() < deadline) {
         if (cancelled && cancelled()) {
@@ -319,10 +321,14 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
                 start = Clock::now();
                 const cv::Mat feature = pipeline.encode(view, faces.row(i));
                 stats.encodeMs += millisecondsSince(start);
+                const double previous = best;
                 for (const FaceModel &model : models) {
                     for (const cv::Mat &known : model.encodings) {
                         best = std::min(best, matchScore(pipeline.recognizer->match(feature, known, cv::FaceRecognizerSF::FR_COSINE)));
                     }
+                }
+                if (keepSnapshot && (best < previous || snapshot.empty())) {
+                    snapshot = view.clone();
                 }
                 if (best <= certainty) {
                     stats.faceFrames += 1;
@@ -336,7 +342,7 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
     if (stats.frames > 0 && stats.darkFrames == stats.frames) {
         return {TooDark, best, "Failure, image too dark", stats};
     }
-    return {Timeout, best, "Failure, timeout reached", stats};
+    return {Timeout, best, "Failure, timeout reached", stats, stats.faceFrames > 0 ? snapshot : cv::Mat()};
 }
 
 namespace

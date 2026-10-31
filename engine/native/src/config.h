@@ -24,6 +24,11 @@ namespace FaceUnlock
 
 inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
 inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
+#ifndef KENNING_SNAPSHOTSDIR
+#define KENNING_SNAPSHOTSDIR "/var/lib/kenning/snapshots"
+#endif
+// Photos of faces that weren't recognized, per user ([snapshots] save_failed)
+inline constexpr const char *snapshotsDir = KENNING_SNAPSHOTSDIR;
 #ifndef KENNING_SERVICE_USER
 #define KENNING_SERVICE_USER "kenning"
 #endif

@@ -52,6 +52,7 @@ struct ScanResult {
     double bestScore = 99;
     std::string message;
     ScanStats stats;
+    cv::Mat snapshot; // the closest face that didn't match, with [snapshots] save_failed
 };
 
 // Looks for the user's face until config video/timeout runs out, or until

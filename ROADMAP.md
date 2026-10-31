@@ -83,17 +83,25 @@ webcam:
 - [x] Lock screen animation on Plasma 6.3-6.7 (Debian 13, Ubuntu 26.04 LTS): the
       add-on has edit sets for 6.3 and 6.6 beside 6.8, checked by loading the real
       greeter offscreen in CI (6.3.6, 6.6.6, 6.7.5, 6.8.2)
-- [ ] Login screen face unlock beyond Arch: plasma-login-manager-kenning for
-      Fedora, or an SDDM greeter patch
+- [ ] Login screen face unlock beyond Arch. Done: patches per Plasma Login
+      Manager version (login-manager/patches: 6.6 for Fedora 44's 6.6.4, 6.8),
+      and login-manager/apply.sh picks the newest that applies without fuzz.
+      Left: build plasma-login-manager-kenning for Fedora (and Debian/Ubuntu once
+      they ship Plasma Login Manager), ideally by rebuilding the distribution's
+      own package with the patch; check in CI that a patch fits each one
 - [x] Plug and play: install/upgrade drops pam_howdy lines once Howdy is gone,
       removal drops pam_kenning lines, and the first login after startup
       (uptime under 10 minutes) offers Set Up once if there is an IR camera
 - [x] A "Try Face Again" button on the lock screen after face unlock fails
       (add-on patch 10): calls rescanFace(), hidden while a password is typed,
       during a lockout and without a face model
-- [ ] The same button on the login screen (plasma-login-manager-kenning)
-- [ ] native engine: "Take a photo of failed attempts" isn't implemented; the
-      option is hidden in System Settings until it is (show a privacy warning then)
+- [x] The same button on the login screen (plasma-login-manager-kenning): runs
+      the empty-password attempt again
+- [x] Photos of failed attempts ([snapshots] save_failed, off by default): the
+      service keeps the frame with the closest face that didn't match, the newest
+      20 per user in /var/lib/kenning/snapshots (service-only, StateDirectory);
+      System Settings shows and deletes them through the root helper after the
+      user's own password, with a privacy note while it is on
 - [x] A root service that owns the camera and face models (like fprintd), so
       models no longer have to be readable by local users: `kenning daemon`,
       socket-activated, answering only for root or the user's own account
@@ -117,7 +125,8 @@ webcam:
       a key or mouse wakes the screen (the add-on retries for fingerprint;
       being fixed in !352).
       (3) a real preferred-method setting, and starting fingerprint only after
-      face fails, so the add-on's workarounds can go
+      face fails: done in the add-on (preferredMethod, fingerprintFallback); only
+      upstreaming is left, so the workaround can go
       (4) after stopAuthenticating(), startAuthenticating() doesn't start a
       new PAM worker until the method changes (!388, under review). The
       add-on's rescan stops and starts the password method where face unlock

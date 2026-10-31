@@ -10,6 +10,6 @@ SPDX-License-Identifier = "CC0-1.0"
 
 # Changes to KDE's Plasma Login Manager; the patched files keep their licences.
 [[annotations]]
-path = "login-manager/*.patch"
+path = "login-manager/patches/*.patch"
 SPDX-FileCopyrightText = ["2026 Rishon Jonathan R", "KDE contributors"]
 SPDX-License-Identifier = "GPL-2.0-or-later AND LGPL-2.0-or-later"

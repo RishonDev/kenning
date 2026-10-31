@@ -23,4 +23,6 @@ public Q_SLOTS:
     ActionReply save(const QVariantMap &args);
     ActionReply installtheme(const QVariantMap &args);
     ActionReply removetheme(const QVariantMap &args);
+    ActionReply snapshots(const QVariantMap &args);
+    ActionReply clearsnapshots(const QVariantMap &args);
 };

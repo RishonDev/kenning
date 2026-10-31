@@ -157,7 +157,7 @@ All three share one CMake install, and `tests/containers/` builds and tests them
 | `engine/native/` | The `kenning` command (enrol, list, remove, test), the service (`kenning daemon`) and `pam_kenning.so` |
 | `kcm/` | The System Settings page, its KAuth helper and the bundled themes |
 | `lockscreen/` | The lock screen add-on, re-applied after Plasma updates and undone on removal |
-| `login-manager/` | The patch for Plasma Login Manager: scans as soon as the login screen appears |
+| `login-manager/` | Patches for Plasma Login Manager, one per version, and `apply.sh`, which picks the one that fits: scans as soon as the login screen appears |
 | `packaging/` | Arch, Debian and Fedora packaging, PAM tidying, and the first-login setup prompt |
 | `tests/containers/` | Package and lock screen tests in distribution containers |
 

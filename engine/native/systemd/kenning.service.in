@@ -7,10 +7,13 @@ Requires=kenning.socket
 [Service]
 ExecStart=@KENNING_BINARY@ daemon
 # Reads the camera, the config and the face models (owned by this user); writes
-# nothing. Not root: it decodes frames from a USB device.
+# only photos of failed attempts, when switched on. Not root: it decodes frames
+# from a USB device.
 User=@KENNING_SERVICE_USER@
 Group=@KENNING_SERVICE_USER@
 SupplementaryGroups=video
+StateDirectory=kenning/snapshots
+StateDirectoryMode=0700
 DevicePolicy=closed
 DeviceAllow=char-video4linux rw
 CapabilityBoundingSet=

@@ -28,6 +28,8 @@ inline const QString lockScreenMarker = QStringLiteral("kenning lock screen patc
 // with this one.
 inline const QString loginManagerSupportPath = QStringLiteral("/usr/share/kenning/login-manager");
 inline const QString userThemesPath = QStringLiteral("/usr/local/share/kenning/themes");
+// Photos of faces that weren't recognized, one folder per user (kenning daemon)
+inline const QString snapshotsPath = QStringLiteral("/var/lib/kenning/snapshots");
 inline const QString systemThemesPath = QStringLiteral("/usr/share/kenning/themes");
 inline const QString pamLine = QStringLiteral("auth       sufficient                  pam_kenning.so");
 // Manages lock screen face unlock: Plasma's Face sign-in method (PAM service kde-face)

@@ -402,6 +402,50 @@ void FaceUnlockKcm::refreshFaces()
     job->start();
 }
 
+QVariantList FaceUnlockKcm::snapshots() const
+{
+    return m_snapshots;
+}
+
+void FaceUnlockKcm::refreshSnapshots()
+{
+    KAuth::Action action(helperId + QStringLiteral(".snapshots"));
+    action.setHelperId(helperId);
+    auto *job = action.execute();
+    connect(job, &KJob::result, this, [this, job] {
+        // Cancelling the password prompt lands here too; the page offers to try again.
+        if (job->error()) {
+            return;
+        }
+        m_snapshots.clear();
+        for (const QVariant &value : job->data().value(QStringLiteral("photos")).toList()) {
+            const QVariantMap photo = value.toMap();
+            m_snapshots.append(QVariantMap{
+                {QStringLiteral("time"), QDateTime::fromSecsSinceEpoch(photo.value(QStringLiteral("time")).toLongLong())},
+                {QStringLiteral("source"), QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(photo.value(QStringLiteral("data")).toByteArray().toBase64()))},
+            });
+        }
+        Q_EMIT snapshotsChanged();
+    });
+    job->start();
+}
+
+void FaceUnlockKcm::clearSnapshots()
+{
+    KAuth::Action action(helperId + QStringLiteral(".clearsnapshots"));
+    action.setHelperId(helperId);
+    auto *job = action.execute();
+    connect(job, &KJob::result, this, [this, job] {
+        if (job->error()) {
+            Q_EMIT errorOccurred(job->errorString());
+            return;
+        }
+        m_snapshots.clear();
+        Q_EMIT snapshotsChanged();
+    });
+    job->start();
+}
+
 QVariantList FaceUnlockKcm::themes() const
 {
     return m_themes;

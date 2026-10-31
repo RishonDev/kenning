@@ -376,6 +376,30 @@ ActionReply FaceUnlockHelper::removetheme(const QVariantMap &args)
     return ActionReply::SuccessReply();
 }
 
+ActionReply FaceUnlockHelper::snapshots(const QVariantMap &)
+{
+    QVariantList photos;
+    const QDir dir(FaceUnlock::snapshotsPath + QLatin1Char('/') + callerName());
+    for (const QFileInfo &info : dir.entryInfoList({QStringLiteral("*.jpg")}, QDir::Files, QDir::Name | QDir::Reversed)) {
+        QFile file(info.absoluteFilePath());
+        if (file.open(QIODevice::ReadOnly)) {
+            photos.append(QVariantMap{{QStringLiteral("time"), info.completeBaseName().toLongLong()}, {QStringLiteral("data"), file.readAll()}});
+        }
+    }
+    ActionReply reply = ActionReply::SuccessReply();
+    reply.addData(QStringLiteral("photos"), photos);
+    return reply;
+}
+
+ActionReply FaceUnlockHelper::clearsnapshots(const QVariantMap &)
+{
+    const QDir dir(FaceUnlock::snapshotsPath + QLatin1Char('/') + callerName());
+    for (const QString &name : dir.entryList({QStringLiteral("*.jpg")}, QDir::Files)) {
+        QFile::remove(dir.filePath(name));
+    }
+    return ActionReply::SuccessReply();
+}
+
 KAUTH_HELPER_MAIN("org.kde.kcontrol.kcmkenning", FaceUnlockHelper)
 
 #include "moc_faceunlockhelper.cpp"

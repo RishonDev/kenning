@@ -9,6 +9,8 @@
 #include "engine.h"
 #include "service.h"
 
+#include <opencv2/imgcodecs.hpp>
+
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -87,6 +89,38 @@ void recordResult(uid_t uid, const std::string &user, const ScanResult &result, 
         record.keepUntil = record.lockedUntil;
         std::cerr << "kenning daemon: face unlock locked for " << user << " for " << limit.lockout.count() << " minutes after "
                   << limit.maxFailures << " unrecognized faces\n";
+    }
+}
+
+// Keeps the newest photos of faces that weren't recognized, readable only by this
+// service; System Settings shows them through its root helper.
+constexpr int maxSnapshots = 20;
+
+void saveSnapshot(const std::string &user, const cv::Mat &image)
+{
+    namespace fs = std::filesystem;
+    std::error_code error;
+    const fs::path dir = fs::path(snapshotsDir) / user;
+    fs::create_directories(dir, error);
+    fs::permissions(dir, fs::perms::owner_all, error);
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const fs::path file = dir / (std::to_string(seconds) + ".jpg");
+    if (!cv::imwrite(file.string(), image, {cv::IMWRITE_JPEG_QUALITY, 85})) {
+        std::cerr << "kenning daemon: can't save " << file << '\n';
+        return;
+    }
+    fs::permissions(file, fs::perms::owner_read | fs::perms::owner_write, error);
+
+    std::vector<fs::path> photos;
+    for (const auto &entry : fs::directory_iterator(dir, error)) {
+        if (entry.path().extension() == ".jpg") {
+            photos.push_back(entry.path());
+        }
+    }
+    // Named by time, so the oldest sort first.
+    std::sort(photos.begin(), photos.end());
+    for (size_t i = 0; i + maxSnapshots < photos.size(); ++i) {
+        fs::remove(photos[i], error);
     }
 }
 
@@ -185,6 +219,9 @@ void serve(int client)
         try {
             const ScanResult result = compare(config, user, hungUp);
             recordResult(account->pw_uid, user, result, limit);
+            if (result.code == Timeout && !result.snapshot.empty()) {
+                saveSnapshot(user, result.snapshot);
+            }
             return reply(client, result.code);
         } catch (const std::exception &error) {
             std::cerr << "kenning daemon: scan failed: " << error.what() << '\n';
