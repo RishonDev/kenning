@@ -40,6 +40,7 @@ enum ExitCode {
     Timeout = 11,
     Aborted = 12,
     TooDark = 13,
+    LockedOut = 14, // too many failed attempts (the service's rate limit)
 };
 
 // config.ini values keyed "section/key"

@@ -22,7 +22,7 @@ from pathlib import Path
 MARKER = "kenning lock screen patch"
 # Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 7"
+VERSION = "face unlock patch 8"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -187,6 +187,7 @@ UI_FUNCTION = ("""    property string pendingPassword
         if (/^(Failure, |Face detection image too dark)/.test(msg)) {{
             faceState = 3;
             faceMessage = msg.includes("too dark") ? i18nc("@info:status", "It's too dark to see you")
+                        : msg.includes("too many attempts") ? i18nc("@info:status", "Too many attempts. Use your password.")
                         : msg.includes("no face model") ? i18nc("@info:status", "Face unlock isn't set up")
                         : i18nc("@info:status", "Couldn't recognize you");
             faceResetTimer.restart();

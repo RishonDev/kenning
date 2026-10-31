@@ -108,6 +108,17 @@ webcam:
       being fixed in !352).
       (3) a real preferred-method setting, and starting fingerprint only after
       face fails, so the add-on's workarounds can go
+      (4) after stopAuthenticating(), startAuthenticating() doesn't start a
+      new PAM worker until the method changes (!388, under review). The
+      add-on's rescan stops and starts the password method where face unlock
+      lives in the kde service (Plasma without kde-face), so it may not rescan
+      there until !388 lands
+- [x] Rate limit for face attempts (like pam_faillock): the service locks a
+      user's face unlock for lockout_minutes after max_failures faces that were
+      seen but not recognized within failure_window minutes (config.ini;
+      5 / 15 / 10 by default, 0 turns it off). Nobody in front of the camera,
+      darkness or a scan cancelled by typing doesn't count. The service stays
+      running while it remembers failures, so its idle exit can't reset them
 - [x] Preferred sign-in method when a fingerprint is enrolled (System Settings,
       Lock screen): face first (fingerprint and password after a face failure),
       or fingerprint first (face and password when it fails or times out), or

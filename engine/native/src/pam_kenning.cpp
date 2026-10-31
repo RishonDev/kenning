@@ -110,6 +110,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
         pam_syslog(pamh, LOG_ERR, "Face unlock service not reachable at %s", FaceUnlock::socketPath);
         return PAM_AUTHINFO_UNAVAIL;
     }
+    if (hasModel == FaceUnlock::LockedOut) {
+        say(pamh, "Failure, too many attempts; use your password");
+        return PAM_AUTHINFO_UNAVAIL;
+    }
     if (hasModel != FaceUnlock::Recognized) {
         return PAM_AUTHINFO_UNAVAIL;
     }
@@ -133,6 +137,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
         return PAM_SUCCESS;
     case FaceUnlock::NoModel:
         say(pamh, "Failure, no face model known");
+        return PAM_AUTHINFO_UNAVAIL;
+    case FaceUnlock::LockedOut:
+        say(pamh, "Failure, too many attempts; use your password");
         return PAM_AUTHINFO_UNAVAIL;
     case FaceUnlock::Timeout:
         say(pamh, "Failure, timeout reached");

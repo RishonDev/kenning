@@ -244,6 +244,7 @@ int main(int argc, char **argv)
             case NoModel: std::cout << "Failure, no face model known\n"; break;
             case Timeout: std::cout << "Failure, timeout reached\n"; break;
             case TooDark: std::cout << "Failure, image too dark\n"; break;
+            case LockedOut: std::cout << "Failure, too many attempts; face unlock is locked for a few minutes\n"; break;
             case -1: std::cout << "Failure, the Kenning service isn't reachable at " << socketPath << '\n'; return Error;
             default: std::cout << "Failure, general abort\n"; break;
             }

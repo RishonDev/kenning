@@ -10,7 +10,12 @@
 //
 //   request   "<command> <user>\n"   command: compare | has-model
 //   reply     "<code>\n"             an ExitCode: 0 recognized / has a model,
-//                                    10 no model, 11 timeout, 12 refused, 13 too dark
+//                                    10 no model, 11 timeout, 12 refused, 13 too dark,
+//                                    14 locked after too many failed attempts
+//
+// After [core] max_failures faces that were seen but not recognized within
+// failure_window minutes, the service refuses that user's face for lockout_minutes
+// (14, for has-model too), like pam_faillock does for passwords.
 //
 // The service answers only for root or for the user's own account, so nobody can
 // ask about someone else's face. Header-only so pam_kenning (which must not load

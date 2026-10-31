@@ -9,11 +9,15 @@
 #include "engine.h"
 #include "service.h"
 
+#include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <algorithm>
+#include <map>
 #include <poll.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <vector>
 
 namespace FaceUnlock
 {
@@ -22,6 +26,69 @@ namespace
 // Socket activation keeps no process around between uses; after this long without
 // a request the service exits and systemd starts it again on the next one.
 constexpr int idleExitMs = 5 * 60 * 1000;
+
+// Failed attempts per user, for the rate limit (service.h). Only a face that was
+// seen and not recognized counts: someone else, or a photo. An empty camera view,
+// darkness or a scan cancelled because a password was typed don't.
+using Clock = std::chrono::steady_clock;
+struct Attempts {
+    std::vector<Clock::time_point> failures; // within the window
+    Clock::time_point lockedUntil{};
+    Clock::time_point keepUntil{}; // forgettable after this
+};
+std::map<uid_t, Attempts> attempts;
+
+struct RateLimit {
+    int maxFailures; // 0: no limit
+    std::chrono::minutes window;
+    std::chrono::minutes lockout;
+    explicit RateLimit(const Config &config)
+        : maxFailures(std::max(0, int(config.number("core/max_failures", 5))))
+        , window(std::max(1, int(config.number("core/failure_window", 15))))
+        , lockout(std::max(1, int(config.number("core/lockout_minutes", 10))))
+    {
+    }
+};
+
+void forgetExpired()
+{
+    const auto now = Clock::now();
+    std::erase_if(attempts, [now](const auto &entry) {
+        return entry.second.keepUntil <= now;
+    });
+}
+
+bool lockedOut(uid_t uid, const RateLimit &limit)
+{
+    forgetExpired();
+    const auto found = attempts.find(uid);
+    return limit.maxFailures > 0 && found != attempts.end() && Clock::now() < found->second.lockedUntil;
+}
+
+void recordResult(uid_t uid, const std::string &user, const ScanResult &result, const RateLimit &limit)
+{
+    if (result.code == Recognized) {
+        attempts.erase(uid);
+        return;
+    }
+    if (limit.maxFailures == 0 || result.code != Timeout || result.stats.faceFrames == 0) {
+        return;
+    }
+    const auto now = Clock::now();
+    Attempts &record = attempts[uid];
+    std::erase_if(record.failures, [&](Clock::time_point time) {
+        return time + limit.window <= now;
+    });
+    record.failures.push_back(now);
+    record.keepUntil = now + limit.window;
+    if (int(record.failures.size()) >= limit.maxFailures) {
+        record.failures.clear();
+        record.lockedUntil = now + limit.lockout;
+        record.keepUntil = record.lockedUntil;
+        std::cerr << "kenning daemon: face unlock locked for " << user << " for " << limit.lockout.count() << " minutes after "
+                  << limit.maxFailures << " unrecognized faces\n";
+    }
+}
 
 // The listening socket from systemd (LISTEN_FDS, fd 3), or -1.
 int activatedSocket()
@@ -95,7 +162,10 @@ void serve(int client)
     }
 
     if (command == "has-model") {
-        return reply(client, std::filesystem::exists(modelPath(user)) ? Recognized : NoModel);
+        if (!std::filesystem::exists(modelPath(user))) {
+            return reply(client, NoModel);
+        }
+        return reply(client, lockedOut(account->pw_uid, RateLimit(Config())) ? LockedOut : Recognized);
     }
     if (command == "compare") {
         // Config is read per request so settings changes apply without a restart.
@@ -107,8 +177,15 @@ void serve(int client)
         };
         // A broken install (unreadable networks, a camera driver error) must answer
         // "failed" so PAM falls back to the password, not take the service down.
+        const Config config;
+        const RateLimit limit(config);
+        if (lockedOut(account->pw_uid, limit)) {
+            return reply(client, LockedOut);
+        }
         try {
-            return reply(client, compare(Config(), user, hungUp).code);
+            const ScanResult result = compare(config, user, hungUp);
+            recordResult(account->pw_uid, user, result, limit);
+            return reply(client, result.code);
         } catch (const std::exception &error) {
             std::cerr << "kenning daemon: scan failed: " << error.what() << '\n';
             return reply(client, Error);
@@ -134,7 +211,12 @@ int runDaemon()
         pollfd waiting{listener, POLLIN, 0};
         const int ready = poll(&waiting, 1, activated ? idleExitMs : -1);
         if (ready == 0) {
-            return 0;
+            // Exiting would forget failed attempts and lockouts: stay until they expire.
+            forgetExpired();
+            if (attempts.empty()) {
+                return 0;
+            }
+            continue;
         }
         if (ready < 0) {
             if (errno == EINTR) {
