@@ -8,7 +8,7 @@
 # scripts) live with each package format under packaging/.
 
 cmake_minimum_required(VERSION 3.20)
-project(kenning VERSION 0.5.0 LANGUAGES CXX)
+project(kenning VERSION 0.5.1 LANGUAGES CXX)
 include(GNUInstallDirs)
 
 option(KENNING_BUILD_SETTINGS "Build the System Settings page (needs KDE Frameworks 6)" ON)

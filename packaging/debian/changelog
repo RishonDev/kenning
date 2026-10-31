@@ -1,3 +1,10 @@
+kenning (0.5.1-1) unstable; urgency=medium
+
+  * Lock face unlock for a few minutes after repeated unrecognized faces,
+    like pam_faillock.
+
+ -- Rishon Jonathan R <kenning@invalid>  Sat, 31 Oct 2026 13:38:49 +0530
+
 kenning (0.5.0-1) unstable; urgency=medium
 
   * Use Plasma 6.8's Face sign-in method (PAM service kde-face) on the lock
