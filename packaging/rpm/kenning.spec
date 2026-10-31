@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Name:           kenning
-Version:        0.5.1
+Version:        0.5.2
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
@@ -112,6 +112,9 @@ python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
 %{_datadir}/applications/kcm_kenning.desktop
 
 %changelog
+* Sat Oct 31 2026 Rishon Jonathan R <kenning@invalid> - 0.5.2-1
+- Lock screen scan animation on Plasma 6.3 to 6.7
+
 * Sat Oct 31 2026 Rishon Jonathan R <kenning@invalid> - 0.5.1-1
 - Lock face unlock for a few minutes after repeated unrecognized faces, like pam_faillock
 

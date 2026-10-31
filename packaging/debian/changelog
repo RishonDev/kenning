@@ -1,3 +1,9 @@
+kenning (0.5.2-1) unstable; urgency=medium
+
+  * Lock screen scan animation on Plasma 6.3 to 6.7.
+
+ -- Rishon Jonathan R <kenning@invalid>  Sat, 31 Oct 2026 15:48:54 +0530
+
 kenning (0.5.1-1) unstable; urgency=medium
 
   * Lock face unlock for a few minutes after repeated unrecognized faces,
