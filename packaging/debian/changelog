@@ -1,3 +1,18 @@
+kenning (0.7.0-1) unstable; urgency=medium
+
+  * Works in dim rooms: dark infrared frames that show a face are used, about
+    a third faster
+  * Separate too dark and too bright messages; the lock screen keeps the
+    failure reason visible
+  * Photos of failed attempts (off by default) and Try Face Again on the
+    login screen
+  * Gentler Set Up tilts, with tilting up optional, and reasons for skipped
+    steps
+  * Security fixes: SSH requests outside a local session, theme archive
+    limits, a lockout that survives restarts
+
+ -- Rishon Jonathan R <mithicalaviator85@gmail.com>  Sun, 01 Nov 2026 01:54:21 +0530
+
 kenning (0.6.0-1) unstable; urgency=medium
 
   * Guided face setup: look straight, then turn left, right, up and down, with

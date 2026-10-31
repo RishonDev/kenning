@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Name:           kenning
-Version:        0.6.0
+Version:        0.7.0
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
@@ -116,6 +116,13 @@ python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
 %{_datadir}/applications/kcm_kenning.desktop
 
 %changelog
+* Sun Nov 01 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.7.0-1
+- Works in dim rooms: dark infrared frames that show a face are used, about a third faster
+- Separate too dark and too bright messages; the lock screen keeps the failure reason visible
+- Photos of failed attempts (off by default) and Try Face Again on the login screen
+- Gentler Set Up tilts, with tilting up optional, and reasons for skipped steps
+- Security fixes: SSH requests outside a local session, theme archive limits, a lockout that survives restarts
+
 * Sat Oct 31 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.6.0-1
 - Guided face setup with head turns, a countdown and spoken steps
 - Set Up previews the ordinary webcam instead of the infrared picture
