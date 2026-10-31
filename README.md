@@ -42,10 +42,18 @@ You need:
 
 - **KDE Plasma 6.3 or newer.** To check, open **System Settings › About this System** and look at **KDE Plasma Version**.
 - **A camera.** An IR camera, the kind laptops have for signing in with your face, works best. An ordinary webcam works too, but it's easier to fool (see [Security and limitations](#security-and-limitations)).
+- **One of these:** Ubuntu 26.04 or 26.10 (including Kubuntu), Debian 13, Fedora 44 or Arch Linux. **About this System** shows which one you have, next to **Operating System**.
 
 > [!WARNING]
 > With an ordinary webcam, a photo or video of you may be enough to unlock your computer. Use it only if that's an acceptable risk for you, and keep it off for administrator prompts.
-- **One of these:** Ubuntu 26.04 or 26.10 (including Kubuntu), Debian 13, Fedora 44 or Arch Linux. **About this System** shows which one you have, next to **Operating System**.
+
+> [!WARNING]
+> **Debian and Ubuntu are less complete for now.** Face unlock works on the lock screen, for administrator prompts and for `sudo`, but:
+> - **Not on the login screen.** Debian and Ubuntu use SDDM, and Kenning's login screen support needs Plasma Login Manager. Sign in with your password after starting the computer.
+> - **A simpler lock screen.** Their Plasma is older than 6.8, so face unlock runs before the password box instead of as its own sign-in option, and there's no **Try Face Again** button: if your face isn't recognized, type your password.
+> - **Only tested in containers so far,** not yet on real laptops. Please [report](https://github.com/RishonDev/kenning/issues/new/choose) anything that doesn't work.
+>
+> This improves once they ship Plasma 6.8 and Plasma Login Manager.
 
 ### 2. Download the package
 
@@ -229,7 +237,7 @@ Face unlock on the login screen needs `plasma-login-manager-kenning`, packaged f
 ### Known issues
 
 - Face unlock on the login screen needs Plasma Login Manager, so it isn't there yet on Debian and Ubuntu, which use SDDM. Their lock screen, `sudo` and administrator prompts work.
-- The Fedora packages are built and install-tested in containers, but haven't been tried on real hardware yet.
+- The Debian, Ubuntu and Fedora packages are built and install-tested in containers, but haven't been tried on real hardware yet.
 - Setup and recognition are tested on a few laptops so far. If your camera isn't found, or recognition is slow or unreliable, please [open an issue](https://github.com/RishonDev/kenning/issues/new/choose).
 
 ## Building
