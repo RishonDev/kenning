@@ -25,18 +25,19 @@ struct TurnLimits {
     double minimum; // turn needed
     double maximum; // further than this aligns faces badly
     double maxDrift; // allowed on the other axis
+    int direction = 0; // 1 or -1 when the turn must go that way, 0 for either
 };
 
 enum class TurnVerdict {
     Accepted,
     TooSmall,
     TooFar,
-    WrongWay, // the same way as the previous turn on this axis
+    WrongWay, // against the required direction, or the same way as the previous turn
     Drifting, // turned, but also moved on the other axis
 };
 
-// turn and drift are measured from looking straight. The camera may be mirrored,
-// so a turn that must oppose the previous one only compares signs with it;
-// previousTurn is 0 when there was none.
+// turn and drift are measured from looking straight. A mirrored camera swaps left
+// and right but not up and down, so turns oppose the previous one by sign, while
+// tilts have a fixed direction; previousTurn is 0 when there was none.
 TurnVerdict judgeTurn(double turn, double drift, const TurnLimits &limits, bool mustOppose, double previousTurn);
 }

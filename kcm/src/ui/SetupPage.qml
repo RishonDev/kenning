@@ -53,6 +53,7 @@ KCM.SimpleKCM {
         stepIndex = -1;
         returning = false;
         skippedSteps = [];
+        skipReasons = [];
         countdown = 3;
         step = "countdown";
         speak(i18n("Get ready."));
@@ -84,14 +85,32 @@ KCM.SimpleKCM {
     // The engine's instruction lines, in order
     readonly property var guidedSteps: [
         {match: "look straight into the camera", pose: "straight", text: i18n("Look straight at the camera")},
-        {match: "to the left", pose: "left", text: i18n("Slowly turn your head a little to the left")},
-        {match: "to the right", pose: "right", text: i18n("Now a little to the right")},
-        {match: "slightly up", pose: "up", text: i18n("Tilt your head a little up")},
-        {match: "slightly down", pose: "down", text: i18n("And a little down")},
+        {match: "to the left", pose: "left", text: i18n("Slowly turn your head a little to the left"), name: i18n("Turning left")},
+        {match: "to the right", pose: "right", text: i18n("Now a little to the right"), name: i18n("Turning right")},
+        // Optional: with glasses, tilting up often reflects the infrared light and loses the face
+        {match: "slightly up", pose: "up", text: i18n("Tilt your head a little up"), name: i18n("Tilting up"), optional: true},
+        {match: "slightly down", pose: "down", text: i18n("And a little down"), name: i18n("Tilting down")},
     ]
     property int stepIndex: -1
     property bool returning: false
     property var skippedSteps: []
+    // The engine's reason for each skipped step: "wrong way", "face lost", "too far", "not level" or "not far enough"
+    property var skipReasons: []
+
+    readonly property var missedSteps: skippedSteps.filter(index => !guidedSteps[index].optional)
+
+    function skippedSummary() {
+        const names = missedSteps.map(index => guidedSteps[index].name);
+        const steps = names.length === 1 ? i18n("%1 wasn't recorded. Face unlock still works, but may be less reliable from that angle.", names[0])
+                                         : i18n("These weren't recorded: %1. Face unlock still works, but may be less reliable from those angles.", names.join(", "));
+        const reasons = skipReasons.filter((reason, position) => !guidedSteps[skippedSteps[position]].optional);
+        const advice = reasons.includes("wrong way") ? i18n("Next time, move your head the way the arrow shows.")
+                     : reasons.includes("face lost") ? i18n("Next time, move your head less, so the camera keeps seeing your face. With glasses, a smaller movement helps.")
+                     : reasons.includes("too far") ? i18n("Next time, move your head a little less.")
+                     : reasons.includes("not level") ? i18n("Next time, keep your head level while turning, and facing the screen while tilting.")
+                     : i18n("Next time, move your head a little further and hold it there for a moment.");
+        return steps + " " + advice;
+    }
 
     function friendly(line) {
         if (line.includes("black frames")) {
@@ -148,6 +167,8 @@ KCM.SimpleKCM {
             }
             if (line.startsWith("Skipped")) {
                 page.skippedSteps = page.skippedSteps.concat([page.stepIndex]);
+                const reason = line.match(/\((.*)\)/);
+                page.skipReasons = page.skipReasons.concat([reason ? reason[1] : "not far enough"]);
                 return;
             }
             const text = page.friendly(line);
@@ -298,14 +319,16 @@ KCM.SimpleKCM {
                 model: page.guidedSteps.length
                 Rectangle {
                     required property int index
-                    readonly property bool skipped: page.skippedSteps.includes(index)
-                    readonly property bool finished: index < page.stepIndex || (index === page.stepIndex && page.returning) || page.step === "done"
+                    // An optional step that wasn't seen stays grey, without the skipped outline
+                    readonly property bool optionalSkipped: page.skippedSteps.includes(index) && !!page.guidedSteps[index].optional
+                    readonly property bool skipped: page.skippedSteps.includes(index) && !optionalSkipped
+                    readonly property bool finished: !optionalSkipped && (index < page.stepIndex || (index === page.stepIndex && page.returning) || page.step === "done")
                     width: Kirigami.Units.gridUnit * 0.6
                     height: width
                     radius: width / 2
                     color: skipped ? "transparent"
                          : finished ? Kirigami.Theme.positiveTextColor
-                         : index === page.stepIndex ? Kirigami.Theme.highlightColor
+                         : index === page.stepIndex && !optionalSkipped ? Kirigami.Theme.highlightColor
                          : Qt.alpha(Kirigami.Theme.textColor, 0.2)
                     border.width: skipped ? 2 : 0
                     border.color: Kirigami.Theme.disabledTextColor
@@ -355,6 +378,13 @@ KCM.SimpleKCM {
                     : i18n("Sit about an arm's length from the screen with your face in the frame. You'll look straight at the camera, then slowly turn your head left, right, up and down when asked, looking back at the camera after each turn. It takes under a minute.");
                 }
             }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: page.step === "done" && page.missedSteps.length > 0
+            type: Kirigami.MessageType.Information
+            text: visible ? page.skippedSummary() : ""
         }
 
         // A reminder of the warning accepted on the settings page

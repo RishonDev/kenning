@@ -73,6 +73,8 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
         }
         if (frame != Pipeline::Frame::Usable) {
             ++stats.unusableFrames;
+        }
+        if (frame == Pipeline::Frame::Black) {
             continue;
         }
         bool sawFace = false;
@@ -102,7 +104,7 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
         }
     }
 
-    if (stats.frames > 0 && stats.unusableFrames == stats.frames) {
+    if (stats.frames > 0 && stats.unusableFrames == stats.frames && stats.faceFrames == 0) {
         return {.code = TooDark, .bestScore = best, .message = "Failure, image too dark", .stats = stats};
     }
     // A photo only when someone was seen: a face that wasn't the user's.
@@ -127,7 +129,10 @@ struct EnrolmentStep {
 };
 
 constexpr TurnLimits yawLimits{.minimum = 0.12, .maximum = 0.45, .maxDrift = 0.06};
-constexpr TurnLimits pitchLimits{.minimum = 0.07, .maximum = 0.3, .maxDrift = 0.1};
+// Pitch falls when tilting up. Tilting up is the smaller movement: further than a
+// little and glasses reflect the infrared light, losing the face.
+constexpr TurnLimits tiltUpLimits{.minimum = 0.04, .maximum = 0.3, .maxDrift = 0.1, .direction = -1};
+constexpr TurnLimits tiltDownLimits{.minimum = 0.06, .maximum = 0.3, .maxDrift = 0.1, .direction = 1};
 constexpr EnrolmentStep lookBack{.kind = StepKind::LookBack, .instruction = "Please look back at the camera"};
 
 // Only looking straight is required; a turn not seen in time is skipped.
@@ -141,9 +146,9 @@ constexpr EnrolmentStep enrolmentSteps[] = {
      .limits = yawLimits,
      .opposesPrevious = true},
     lookBack,
-    {.kind = StepKind::Turn, .instruction = "Please tilt your head slightly up", .axis = &HeadPose::pitch, .limits = pitchLimits},
+    {.kind = StepKind::Turn, .instruction = "Please tilt your head slightly up", .axis = &HeadPose::pitch, .limits = tiltUpLimits},
     lookBack,
-    {.kind = StepKind::Turn, .instruction = "Please tilt your head slightly down", .axis = &HeadPose::pitch, .limits = pitchLimits, .opposesPrevious = true},
+    {.kind = StepKind::Turn, .instruction = "Please tilt your head slightly down", .axis = &HeadPose::pitch, .limits = tiltDownLimits},
 };
 
 struct StepBudget {
@@ -173,7 +178,25 @@ struct StepProgress {
     int sightings = 0;
     bool hinted = false;
     HeadPose poseSum;
+    // What kept a turn from counting, for the reason given when it is skipped
+    bool sawTooFar = false;
+    bool sawDrifting = false;
+    bool sawWrongWay = false;
+    int framesWithFace = 0;
+    int framesWithoutFace = 0;
 };
+
+// The settings page reads the part in brackets.
+std::string skippedMessage(const StepProgress &progress)
+{
+    const bool lostFace = progress.framesWithoutFace > progress.framesWithFace;
+    const char *reason = progress.sawWrongWay ? "wrong way"
+        : lostFace                            ? "face lost"
+        : progress.sawTooFar                  ? "too far"
+        : progress.sawDrifting                ? "not level"
+                                              : "not far enough";
+    return std::string("Skipped, that turn wasn't seen (") + reason + ")";
+}
 
 class Enrolment
 {
@@ -201,8 +224,8 @@ public:
             ++m_litFrames;
             if (frame == Pipeline::Frame::Unusable) {
                 ++m_unusableFrames;
-                continue;
             }
+            bool sawFace = false;
             for (const cv::Mat &view : m_pipeline.orientations(image)) {
                 const cv::Mat faces = m_pipeline.detectFaces(view);
                 if (faces.rows > 1) {
@@ -210,10 +233,12 @@ public:
                     return ScanResult{.code = Aborted, .message = "Multiple faces detected, aborting"};
                 }
                 if (faces.rows == 1) {
+                    sawFace = true;
                     handleFace(step, budget, view, faces.row(0), progress);
                     break;
                 }
             }
+            ++(sawFace ? progress.framesWithFace : progress.framesWithoutFace);
         }
         finishStep(step, progress);
         return std::nullopt;
@@ -259,7 +284,8 @@ private:
         case StepKind::LookStraight:
             break;
         }
-        if (++progress.sightings % budget.encodeEvery == 1) {
+        // Not the first sighting: the reading jumps while the camera settles.
+        if (++progress.sightings % budget.encodeEvery == 0) {
             m_encodings.push_back(m_pipeline.encode(view, face));
             ++progress.captured;
             progress.poseSum.yaw += pose.yaw;
@@ -273,6 +299,9 @@ private:
         const double turn = pose.*step.axis - m_straight.*step.axis;
         const double drift = turningSideways ? pose.pitch - m_straight.pitch : pose.yaw - m_straight.yaw;
         const TurnVerdict verdict = judgeTurn(turn, drift, step.limits, step.opposesPrevious, m_previousTurn);
+        progress.sawTooFar |= verdict == TurnVerdict::TooFar;
+        progress.sawDrifting |= verdict == TurnVerdict::Drifting;
+        progress.sawWrongWay |= verdict == TurnVerdict::WrongWay;
         if (verdict == TurnVerdict::Drifting && !progress.hinted) {
             m_progress(turningSideways ? "Hint: keep your head level" : "Hint: keep your face toward the screen");
             progress.hinted = true;
@@ -291,7 +320,7 @@ private:
         if (step.kind == StepKind::LookStraight && progress.captured > 0) {
             m_straight = {.yaw = progress.poseSum.yaw / progress.captured, .pitch = progress.poseSum.pitch / progress.captured};
         } else if (step.kind == StepKind::Turn && progress.captured == 0) {
-            m_progress("Skipped, that turn wasn't seen");
+            m_progress(skippedMessage(progress));
             if (!step.opposesPrevious) {
                 m_previousTurn = 0;
             }

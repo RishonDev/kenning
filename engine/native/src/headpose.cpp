@@ -42,7 +42,10 @@ TurnVerdict judgeTurn(double turn, double drift, const TurnLimits &limits, bool 
     if (std::abs(turn) >= limits.minimum / 2 && std::abs(drift) > limits.maxDrift) {
         return TurnVerdict::Drifting;
     }
-    if (std::abs(turn) < limits.minimum) {
+    if (limits.direction != 0 && turn * limits.direction <= -limits.minimum) {
+        return TurnVerdict::WrongWay;
+    }
+    if (std::abs(turn) < limits.minimum || turn * limits.direction < 0) {
         return TurnVerdict::TooSmall;
     }
     if (std::abs(turn) > limits.maximum) {

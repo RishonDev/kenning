@@ -62,7 +62,9 @@ public:
     double cameraMs() const;
     double networksMs() const;
 
-    // On Usable, image holds the frame as BGR, scaled down to video/max_height.
+    // Unless Missing or Black, image holds the frame as BGR, scaled down to video/max_height.
+    // Unusable frames are still worth searching: at night an IR picture is mostly
+    // black background around a well-lit face.
     Frame read(cv::Mat &image);
     // The frame to search, plus turned copies when video/rotate asks for them.
     std::vector<cv::Mat> orientations(const cv::Mat &image) const;

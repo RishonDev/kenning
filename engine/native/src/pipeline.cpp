@@ -134,13 +134,9 @@ Pipeline::Frame Pipeline::read(cv::Mat &image)
         cv::cvtColor(frame, grey, cv::COLOR_BGR2GRAY);
     }
 
-    switch (judgeLighting(grey, m_darkThreshold)) {
-    case Lighting::Black:
+    const Lighting lighting = judgeLighting(grey, m_darkThreshold);
+    if (lighting == Lighting::Black) {
         return Frame::Black;
-    case Lighting::Unusable:
-        return Frame::Unusable;
-    case Lighting::Usable:
-        break;
     }
 
     if (m_colour && frame.channels() == 3) {
@@ -151,7 +147,7 @@ Pipeline::Frame Pipeline::read(cv::Mat &image)
     if (image.rows > m_maxHeight) {
         cv::resize(image, image, cv::Size(image.cols * m_maxHeight / image.rows, m_maxHeight));
     }
-    return Frame::Usable;
+    return lighting == Lighting::Usable ? Frame::Usable : Frame::Unusable;
 }
 
 // video/rotate as in Howdy: 0 upright only, 1 upright and portrait, 2 portrait only.

@@ -27,6 +27,7 @@ cv::Mat face(float noseX, float noseY)
 }
 
 constexpr TurnLimits limits{.minimum = 0.12, .maximum = 0.45, .maxDrift = 0.06};
+constexpr TurnLimits tiltDown{.minimum = 0.06, .maximum = 0.3, .maxDrift = 0.1, .direction = 1};
 }
 
 class HeadPoseTest : public QObject
@@ -75,6 +76,14 @@ private Q_SLOTS:
         QFETCH(double, previousTurn);
         QFETCH(int, verdict);
         QCOMPARE(int(judgeTurn(turn, drift, limits, mustOppose, previousTurn)), verdict);
+    }
+
+    void judgesTiltDirection()
+    {
+        QCOMPARE(judgeTurn(0.08, 0, tiltDown, false, 0), TurnVerdict::Accepted);
+        QCOMPARE(judgeTurn(-0.08, 0, tiltDown, false, 0), TurnVerdict::WrongWay);
+        QCOMPARE(judgeTurn(-0.03, 0, tiltDown, false, 0), TurnVerdict::TooSmall);
+        QCOMPARE(judgeTurn(0.04, 0, tiltDown, false, 0), TurnVerdict::TooSmall);
     }
 };
 
