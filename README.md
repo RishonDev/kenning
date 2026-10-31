@@ -14,8 +14,7 @@ Sign in, unlock and approve with your face, on the login screen, the lock screen
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSES/GPL-2.0-or-later.txt)
 
 [![Download](https://img.shields.io/badge/Download-latest%20release-1d99f3?style=for-the-badge&logo=github)](https://github.com/RishonDev/kenning/releases/latest)
-[![Ubuntu PPA](https://img.shields.io/badge/Ubuntu-PPA-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://launchpad.net/~mithicalaviator85/+archive/ubuntu/kenning)
-[![Report a bug](https://img.shields.io/badge/Report-a%20bug-6c757d?style=for-the-badge&logo=github)](https://github.com/RishonDev/kenning/issues/new)
+[![Report a bug](https://img.shields.io/badge/Report-a%20bug-6c757d?style=for-the-badge&logo=github)](https://github.com/RishonDev/kenning/issues/new/choose)
 
 <br>
 
@@ -28,63 +27,140 @@ Sign in, unlock and approve with your face, on the login screen, the lock screen
 
 ## Features
 
-| | |
-|---|---|
-| **Everywhere you sign in** | The lock screen, the login screen, administrator prompts and `sudo`. Your password always works too. |
-| **Plasma's own lock screen** | On Plasma 6.8, Kenning provides the Face sign-in method that Plasma already has a place for. It falls back to your fingerprint or password, and switches to the password as soon as you type. |
-| **Guided setup** | Look straight at the camera, then turn your head when asked, with the steps read aloud if you like. Add more looks for glasses on or off, or different lighting. |
-| **Infrared first** | Uses the IR camera of laptops made for face sign-in. An ordinary webcam works too, with a clear warning about what that means. |
-| **Animated scan** | A face scan animation on the login and lock screens, with installable themes. |
-| **Private by design** | Face models stay on your computer, readable only by Kenning's service, which answers only for your own account. |
+- **Unlock by looking at your screen.** Works on the lock screen, the login screen, administrator prompts and `sudo` in the terminal.
+- **Your password always works.** If your face isn't recognised, or you'd rather type, just type your password.
+- **Easy setup.** System Settings shows you where to look and when to turn your head, and can read the steps aloud.
+- **Best with a face sign-in camera.** Many laptops have an infrared (IR) camera next to the normal one, made for face sign-in. Kenning uses it when it's there, because it works in the dark and is much harder to fool with a photo. An ordinary webcam works too, and Kenning tells you what that means for security.
+- **Fits in with Plasma.** On Plasma 6.8 it appears as Plasma's own Face sign-in option, next to fingerprint and password. You can change how the face scan animation looks, or install new designs.
+- **Your face stays on your computer.** Nothing is uploaded. The saved face data can only be read by Kenning itself, not by other apps or other users.
 
 ## Install
 
-<details open>
-<summary><b>Ubuntu 26.04 and 26.10</b></summary>
+### 1. Check that your computer can use it
 
+You need:
+
+- **KDE Plasma 6.3 or newer.** To check, open **System Settings › About this System** and look at **KDE Plasma Version**.
+- **A camera.** An IR camera, the kind laptops have for signing in with your face, works best. An ordinary webcam works too, but it's easier to fool (see [Security and limitations](#security-and-limitations)).
+
+> [!WARNING]
+> With an ordinary webcam, a photo or video of you may be enough to unlock your computer. Use it only if that's an acceptable risk for you, and keep it off for administrator prompts.
+- **One of these:** Ubuntu 26.04 or 26.10 (including Kubuntu), Debian 13, Fedora 44 or Arch Linux. **About this System** shows which one you have, next to **Operating System**.
+
+### 2. Download the package
+
+Open the [latest release](https://github.com/RishonDev/kenning/releases/latest), scroll down to **Assets** and click the file for your system. It downloads to your **Downloads** folder.
+
+| You have | Download |
+|---|---|
+| Ubuntu or Kubuntu 26.04 | `kenning_…_ubuntu26.04_amd64.deb` |
+| Ubuntu or Kubuntu 26.10 | `kenning_…_ubuntu26.10_amd64.deb` |
+| Debian 13 | `kenning_…_debian13_amd64.deb` |
+| Fedora 44 | `kenning-….fc44.x86_64.rpm` |
+| Arch Linux | `kenning-…-x86_64.pkg.tar.zst` |
+
+Almost every computer needs the **amd64** or **x86_64** file. Take the **arm64** or **aarch64** one only if your laptop has an ARM processor, such as a Snapdragon.
+
+### 3. Install it
+
+Open **Konsole** (search for it in the application launcher), then copy the two lines for your system, paste them with **Ctrl+Shift+V**, and press **Enter**. When asked for your password, type it and press **Enter**. Nothing shows on screen while you type it; that's normal.
+
+**Ubuntu, Kubuntu or Debian**
 ```sh
-sudo add-apt-repository ppa:mithicalaviator85/kenning
-sudo apt install kenning
+cd ~/Downloads
+sudo apt install ./kenning_*.deb
 ```
-</details>
+
+**Fedora**
+```sh
+cd ~/Downloads
+sudo dnf install ./kenning-*.rpm
+```
+
+**Arch Linux**
+```sh
+cd ~/Downloads
+sudo pacman -U kenning-*.pkg.tar.zst
+```
+
+If it says that more than one file matches, you have an older download in the folder too. Delete the older `kenning` file from **Downloads** and try again.
+
+### 4. Set up your face
+
+1. Open **System Settings › Security & Privacy › Face Unlock**. If System Settings was already open, close it and open it again first.
+2. Press **Set Up…** and follow the steps: look at the camera, then turn your head when asked.
+
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="docs/images/setup-dark.png">
+     <img src="docs/images/setup-light.png" alt="Set Up showing an animated head turning left" width="420">
+   </picture>
+
+3. That's it. Face unlock is now on for the lock screen, administrator prompts and `sudo`. Try it by locking the screen with **Meta+L**.
+
+> [!IMPORTANT]
+> Don't forget your password. You still need it after a restart to unlock KWallet, whenever your face isn't recognised, and if you ever remove Kenning.
+
+> [!CAUTION]
+> With face unlock on for `sudo` and administrator prompts, anyone who looks enough like you, or with a webcam, a photo of you, can approve changes to the system while sitting at your computer. If that worries you, untick **Administrator prompts** and **sudo in the terminal** in Face Unlock settings.
+
+To have the steps read aloud, also install `speech-dispatcher` and `espeak-ng` from your software centre (Discover).
 
 <details>
-<summary><b>Debian 13</b></summary>
+<summary><b>Face unlock on the login screen (Arch Linux only, for now)</b></summary>
+<br>
 
-Download `kenning_<version>_debian13_<amd64|arm64>.deb` from the [latest release](https://github.com/RishonDev/kenning/releases/latest), then:
-
-```sh
-sudo apt install ./kenning_*_debian13_amd64.deb
-```
-</details>
-
-<details>
-<summary><b>Fedora 44</b></summary>
-
-Download `kenning-<version>.fc44.<x86_64|aarch64>.rpm` from the [latest release](https://github.com/RishonDev/kenning/releases/latest), then:
+This needs Plasma Login Manager as your login screen. To check, run this in Konsole:
 
 ```sh
-sudo dnf install ./kenning-*.fc44.x86_64.rpm
+systemctl status display-manager
 ```
-</details>
 
-<details>
-<summary><b>Arch Linux</b></summary>
-
-Download `kenning-<version>-x86_64.pkg.tar.zst` from the [latest release](https://github.com/RishonDev/kenning/releases/latest), and for face unlock on the login screen, `plasma-login-manager-kenning` too, then:
+If the first line says **Plasma Login Manager**, download `plasma-login-manager-kenning-…-x86_64.pkg.tar.zst` from the same release, then:
 
 ```sh
-sudo pacman -U kenning-*.pkg.tar.zst plasma-login-manager-kenning-*.pkg.tar.zst
+cd ~/Downloads
+sudo pacman -U plasma-login-manager-kenning-*.pkg.tar.zst
 ```
+
+If it says something else, such as **SDDM**, skip this. Face unlock still works everywhere else.
+
+> [!WARNING]
+> This package replaces Arch's own `plasma-login-manager`, so system updates no longer update your login screen. After each Plasma update, install the newest `plasma-login-manager-kenning` from the [releases page](https://github.com/RishonDev/kenning/releases), or go back to Arch's version.
+>
+> If the login screen ever stops appearing, press **Ctrl+Alt+F3**, sign in with your user name and password, and run:
+> ```sh
+> sudo pacman -S plasma-login-manager
+> sudo reboot
+> ```
+
 </details>
 
-Then open **System Settings › Security & Privacy › Face Unlock** and press **Set Up…**. The camera is found automatically, and once your face is saved, face unlock is switched on for the login screen, the lock screen and `sudo`.
+## Uninstall
 
-To have the setup steps read aloud, install `speech-dispatcher` with a voice such as `espeak-ng`.
+Your password keeps working throughout. To remove Kenning, run the line for your system in Konsole:
+
+| You have | Run |
+|---|---|
+| Ubuntu, Kubuntu or Debian | `sudo apt remove kenning` |
+| Fedora | `sudo dnf remove kenning` |
+| Arch Linux | `sudo pacman -R kenning` |
+
+This also takes it off the lock screen and the sign-in prompts. To delete your saved face as well, do this first: open **System Settings › Face Unlock**, press **Manage…** and remove each saved look.
+
+## Problems?
+
+- **Face unlock didn't recognise me.** Type your password instead; it always works. To improve recognition, press **Add Look…** in Face Unlock settings and set up again with glasses on or off, or in different lighting.
+- **"Too dark or too bright".** Face the light instead of having it behind you, or turn on a lamp. Bright sunlight from behind or beside you can also cause this.
+- **Face Unlock isn't in System Settings.** Close System Settings and open it again. If it still isn't there, restart the computer.
+- **"No camera was found".** Check that the camera works in another app, such as Kamoso, and that no other app is using it.
+- **Anything else:** [open an issue](https://github.com/RishonDev/kenning/issues/new/choose). The form tells you what to include.
 
 ## Animation themes
 
 Pick how the scan looks on the login and lock screens, or install a theme from a file. Themes are QML, like SDDM themes; [THEMES.md](THEMES.md) shows how to make one.
+
+> [!WARNING]
+> A theme runs on your login and lock screens, where it can see what's typed there. Only install themes from people you trust.
 
 <div align="center">
 <picture>
@@ -127,6 +203,18 @@ flowchart LR
 </div>
 </details>
 
+### Security and limitations
+
+Face unlock is a convenience, not a stronger lock than your password. Before you rely on it:
+
+- **An ordinary webcam can be fooled by a photo or video of you.** Kenning has no liveness check. An IR camera is much harder to fool, since a printed photo or a screen looks different in infrared, but Kenning isn't a certified biometric system.
+- **People who look like you**, such as a twin or a close sibling, may be recognised as you. Moving **Match threshold** towards **Strict** helps (Face Unlock settings › **Recognition and security: Configure…**).
+- **Your password always works**, and it is still what protects your data. Face unlock doesn't change disk encryption, and signing in with your face doesn't unlock KWallet, which still needs your password.
+- **Not for shared or high-security computers.** Use your password, a fingerprint or a security key there.
+- **Photos of failed attempts are off by default.** If you turn them on, the camera photographs anyone it doesn't recognise, including people who don't know about it. Tell others who use your computer, and check the law where you live.
+
+Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
+
 ### Plasma versions
 
 | Plasma | Lock screen |
@@ -136,6 +224,12 @@ flowchart LR
 | Older, or unknown | The stock lock screen; look at the camera, then press Unlock |
 
 Face unlock on the login screen needs `plasma-login-manager-kenning`, packaged for Arch Linux so far.
+
+### Known issues
+
+- Face unlock on the login screen needs Plasma Login Manager, so it isn't there yet on Debian and Ubuntu, which use SDDM. Their lock screen, `sudo` and administrator prompts work.
+- The Fedora packages are built and install-tested in containers, but haven't been tried on real hardware yet.
+- Setup and recognition are tested on a few laptops so far. If your camera isn't found, or recognition is slow or unreliable, please [open an issue](https://github.com/RishonDev/kenning/issues/new/choose).
 
 ## Building
 
@@ -150,12 +244,28 @@ Everything comes from your distribution's repositories (OpenCV, Qt, KDE Framewor
 All three share one CMake install, and `tests/containers/` builds and tests them in containers.
 
 <details>
+<summary><b>Development</b></summary>
+
+```sh
+cmake -B build -G Ninja -DKENNING_KCM_SMOKE_TEST=ON
+cmake --build build
+ctest --test-dir build                         # unit tests, and the settings page loading
+cmake --build build --target clang-format      # KDE's code style; also checked before each commit
+packaging/bump-version.sh 0.7.0 "What changed"  # version and changelogs, before tagging a release
+```
+
+CI runs the same build, tests and style check on every push, plus shellcheck and `reuse lint`.
+
+</details>
+
+<details>
 <summary><b>Repository layout</b></summary>
 
 | Folder | What's in it |
 |---|---|
 | `engine/native/` | The `kenning` command (enrol, list, remove, test), the service (`kenning daemon`) and `pam_kenning.so` |
-| `kcm/` | The System Settings page, its KAuth helper and the bundled themes |
+| `autotests/` | Unit tests (QTest) for the engine, the service and the settings checks |
+| `kcm/` | The System Settings page, its KAuth helper (`src/auth`), the code they share (`src/common`) and the bundled themes |
 | `lockscreen/` | The lock screen add-on, re-applied after Plasma updates and undone on removal |
 | `login-manager/` | Patches for Plasma Login Manager, one per version, and `apply.sh`, which picks the one that fits: scans as soon as the login screen appears |
 | `packaging/` | Arch, Debian and Fedora packaging, PAM tidying, and the first-login setup prompt |

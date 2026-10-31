@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/RishonDev/kenning/security/advisories/new
+    about: Please report anything that lets someone sign in as someone else here, privately.
+  - name: Questions and ideas
+    url: https://github.com/RishonDev/kenning/discussions
+    about: Ask a question, share how it works on your computer, or suggest something.

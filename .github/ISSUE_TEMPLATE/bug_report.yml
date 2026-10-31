@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 Rishon Jonathan R
+# SPDX-License-Identifier: CC0-1.0
+name: Bug report
+description: Something doesn't work, or works differently than it should
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Setup in System Settings
+        - Lock screen
+        - Login screen
+        - sudo or an administrator prompt
+        - The kenning command
+        - Installing or updating
+        - Somewhere else
+    validations:
+      required: true
+  - type: input
+    id: distribution
+    attributes:
+      label: Distribution
+      placeholder: Arch Linux, Fedora 44, Ubuntu 26.04…
+    validations:
+      required: true
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma version
+      description: System Settings › About this System
+      placeholder: "6.8.2"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Kenning version
+      description: The output of `kenning version`
+    validations:
+      required: true
+  - type: dropdown
+    id: camera
+    attributes:
+      label: Camera
+      options:
+        - IR camera (made for face sign-in)
+        - Ordinary webcam
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Laptop or camera model
+      placeholder: ThinkPad X1 Carbon Gen 11, Logitech Brio…
+  - type: textarea
+    id: log
+    attributes:
+      label: Service log
+      description: The output of `journalctl -u kenning -b --no-pager | tail -50`. Check it for anything you'd rather not share first.
+      render: text
