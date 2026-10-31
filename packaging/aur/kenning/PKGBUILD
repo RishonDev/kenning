@@ -7,7 +7,7 @@
 
 pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
-pkgver=0.6.0
+pkgver=0.7.0
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64 aarch64)
@@ -18,12 +18,12 @@ makedepends=(cmake extra-cmake-modules meson ninja qt6-tools
              kauth kcmutils kconfig kcoreaddons kdbusaddons ki18n kio kirigami kpackage kservice
              layer-shell-qt libkscreen libplasma libxau pam plasma-workspace qt6-5compat qt6-base qt6-declarative systemd-libs
              # engine
-             opencv)
+             opencv libarchive)
 source=("kenning-$pkgver.tar.gz::https://github.com/RishonDev/kenning/archive/refs/tags/v$pkgver.tar.gz"
         https://download.kde.org/stable/plasma/$_plmver/plasma-login-manager-$_plmver.tar.xz{,.sig}
         https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
         https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx)
-sha256sums=('a78c62c026cda5ea132ed7aebbc8408193c5b941b29b37470a9914aae85c7f8e'
+sha256sums=('c27e7edeeae514d5d3b681f0c1895a8b3d9b5ddcbd1bb0be1505863e37aef4a8'
             '4a6e2b65b5d462fcf43b2a5be3c3e6244f479451b6dcfa00dcbf33fbc5cd093a'
             'SKIP'
             '8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4'
@@ -34,11 +34,7 @@ validpgpkeys=('E0A3EB202F8E57528E13E72FD7574483BB57B18D'  # Jonathan Esk-Riddell
               '1FA881591C26B276D7A5518EEAAF29B42A678C20') # Marco Martin <notmart@gmail.com>
 
 prepare() {
-  local patch="$srcdir/kenning-$pkgver/login-manager/plasma-login-manager-kenning.patch"
-  # makepkg extracts over the previous build's tree, which still has the files the patch adds
-  awk '/^--- \/dev\/null/{n=1;next} n&&/^\+\+\+ b\//{print substr($0,7)} {n=0}' "$patch" |
-    while read -r file; do rm -f "plasma-login-manager-$_plmver/$file"; done
-  patch -d plasma-login-manager-$_plmver -p1 < "$patch"
+  "$srcdir/kenning-$pkgver/login-manager/apply.sh" plasma-login-manager-$_plmver
 }
 
 build() {
@@ -54,7 +50,7 @@ build() {
 package_kenning() {
   pkgdesc='Kenning: face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
-           libarchive libnotify opencv pam python)
+           libarchive libnotify opencv pam python systemd-libs)
   optdepends=('plasma-login-manager-kenning: start face unlock as soon as the login screen appears'
               'qt6-speech: read the setup steps aloud'
               'speech-dispatcher: read the setup steps aloud (with a voice such as espeak-ng)')

@@ -7,7 +7,7 @@
 
 pkgbase=kenning-git
 pkgname=(kenning-git plasma-login-manager-kenning-git)
-pkgver=0.6.0
+pkgver=0.7.0
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64 aarch64)
@@ -18,7 +18,7 @@ makedepends=(git cmake extra-cmake-modules meson ninja qt6-tools
              kauth kcmutils kconfig kcoreaddons kdbusaddons ki18n kio kirigami kpackage kservice
              layer-shell-qt libkscreen libplasma libxau pam plasma-workspace qt6-5compat qt6-base qt6-declarative systemd-libs
              # engine
-             opencv)
+             opencv libarchive)
 source=("kenning::git+https://github.com/RishonDev/kenning.git"
         https://download.kde.org/stable/plasma/$_plmver/plasma-login-manager-$_plmver.tar.xz{,.sig}
         https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
@@ -39,11 +39,7 @@ pkgver() {
 }
 
 prepare() {
-  local patch="$srcdir/kenning/login-manager/plasma-login-manager-kenning.patch"
-  # makepkg extracts over the previous build's tree, which still has the files the patch adds
-  awk '/^--- \/dev\/null/{n=1;next} n&&/^\+\+\+ b\//{print substr($0,7)} {n=0}' "$patch" |
-    while read -r file; do rm -f "plasma-login-manager-$_plmver/$file"; done
-  patch -d plasma-login-manager-$_plmver -p1 < "$patch"
+  "$srcdir/kenning/login-manager/apply.sh" plasma-login-manager-$_plmver
 }
 
 build() {
@@ -60,7 +56,7 @@ package_kenning-git() {
   provides=("kenning=${pkgver%%.r*}")
   pkgdesc='Kenning: face unlock for KDE Plasma'
   depends=(kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma plasma-desktop qt6-base qt6-declarative
-           libarchive libnotify opencv pam python)
+           libarchive libnotify opencv pam python systemd-libs)
   optdepends=('plasma-login-manager-kenning: start face unlock as soon as the login screen appears'
               'qt6-speech: read the setup steps aloud'
               'speech-dispatcher: read the setup steps aloud (with a voice such as espeak-ng)')
