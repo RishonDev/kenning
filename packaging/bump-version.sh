@@ -12,10 +12,13 @@ shift
 [[ $# -gt 0 ]] || { echo "Give at least one changelog line" >&2; exit 1; }
 
 maintainer=$(sed -n 's/^ -- \(.*>\)  .*/\1/p' packaging/debian/changelog | head -1)
+previous=$(sed -n 's/^project(kenning VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
 
 sed -i "s/^project(kenning VERSION [0-9.]*/project(kenning VERSION $version/" CMakeLists.txt
 sed -i "s/^pkgver=.*/pkgver=$version/; s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 sed -i "s/^Version:\( *\).*/Version:\1$version/; s/^Release:\( *\).*/Release:\11%{?dist}/" packaging/rpm/kenning.spec
+# The README's download commands name the release and its files.
+sed -i "/releases\/download\/v${previous//./\\.}\/\|kenning[-_]${previous//./\\.}-1/s/${previous//./\\.}/$version/g" README.md
 
 {
     echo "kenning ($version-1) unstable; urgency=medium"
@@ -43,4 +46,4 @@ assert marker, "no %changelog in the spec"
 open(path, "w").write(head + marker + sys.argv[1] + "\n\n" + rest)
 PY
 
-echo "Version $version written to CMakeLists.txt, PKGBUILD, the RPM spec and the Debian changelog."
+echo "Version $version written to CMakeLists.txt, PKGBUILD, the RPM spec, the Debian changelog and the README."

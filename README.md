@@ -55,45 +55,55 @@ You need:
 >
 > This improves once they ship Plasma 6.8 and Plasma Login Manager.
 
-### 2. Download the package
+### 2. Download and install it
 
-Open the [latest release](https://github.com/RishonDev/kenning/releases/latest), scroll down to **Assets** and click the file for your system. It downloads to your **Downloads** folder.
+Open **Konsole** (search for it in the application launcher). Copy the lines for your system, paste them with **Ctrl+Shift+V**, and press **Enter**. When asked for your password, type it and press **Enter**. Nothing shows on screen while you type it; that's normal.
 
-| You have | Download |
-|---|---|
-| Ubuntu or Kubuntu 26.04 | `kenning_…_ubuntu26.04_amd64.deb` |
-| Ubuntu or Kubuntu 26.10 | `kenning_…_ubuntu26.10_amd64.deb` |
-| Debian 13 | `kenning_…_debian13_amd64.deb` |
-| Fedora 44 | `kenning-….fc44.x86_64.rpm` |
-| Arch Linux | `kenning-…-x86_64.pkg.tar.zst` |
+The first line installs `wget`, which downloads the package; many systems don't have it yet.
 
-Almost every computer needs the **amd64** or **x86_64** file. Take the **arm64** or **aarch64** one only if your laptop has an ARM processor, such as a Snapdragon.
-
-### 3. Install it
-
-Open **Konsole** (search for it in the application launcher), then copy the two lines for your system, paste them with **Ctrl+Shift+V**, and press **Enter**. When asked for your password, type it and press **Enter**. Nothing shows on screen while you type it; that's normal.
-
-**Ubuntu, Kubuntu or Debian**
+**Ubuntu or Kubuntu 26.04**
 ```sh
+sudo apt install wget
 cd ~/Downloads
-sudo apt install ./kenning_*.deb
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/kenning_0.7.0-1_ubuntu26.04_amd64.deb
+sudo apt install ./kenning_0.7.0-1_ubuntu26.04_amd64.deb
 ```
 
-**Fedora**
+**Ubuntu or Kubuntu 26.10**
 ```sh
+sudo apt install wget
 cd ~/Downloads
-sudo dnf install ./kenning-*.rpm
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/kenning_0.7.0-1_ubuntu26.10_amd64.deb
+sudo apt install ./kenning_0.7.0-1_ubuntu26.10_amd64.deb
+```
+
+**Debian 13**
+```sh
+sudo apt install wget
+cd ~/Downloads
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/kenning_0.7.0-1_debian13_amd64.deb
+sudo apt install ./kenning_0.7.0-1_debian13_amd64.deb
+```
+
+**Fedora 44**
+```sh
+sudo dnf install wget
+cd ~/Downloads
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/kenning-0.7.0-1.fc44.x86_64.rpm
+sudo dnf install ./kenning-0.7.0-1.fc44.x86_64.rpm
 ```
 
 **Arch Linux**
 ```sh
+sudo pacman -S --needed wget
 cd ~/Downloads
-sudo pacman -U kenning-*.pkg.tar.zst
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/kenning-0.7.0-1-x86_64.pkg.tar.zst
+sudo pacman -U kenning-0.7.0-1-x86_64.pkg.tar.zst
 ```
 
-If it says that more than one file matches, you have an older download in the folder too. Delete the older `kenning` file from **Downloads** and try again.
+Almost every computer is **amd64** (Fedora calls it **x86_64**). Only on a laptop with an ARM processor, such as a Snapdragon, change `amd64` to `arm64` (Fedora: `x86_64` to `aarch64`) in the last two lines. Arch Linux packages are x86-64 only.
 
-### 4. Set up your face
+### 3. Set up your face
 
 1. Open **System Settings › Security & Privacy › Face Unlock**. If System Settings was already open, close it and open it again first.
 2. Press **Set Up…** and follow the steps: look at the camera, then turn your head when asked.
@@ -123,11 +133,12 @@ This needs Plasma Login Manager as your login screen. To check, run this in Kons
 systemctl status display-manager
 ```
 
-If the first line says **Plasma Login Manager**, download `plasma-login-manager-kenning-…-x86_64.pkg.tar.zst` from the same release, then:
+If the first line says **Plasma Login Manager**, also install Kenning's version of it:
 
 ```sh
 cd ~/Downloads
-sudo pacman -U plasma-login-manager-kenning-*.pkg.tar.zst
+wget https://github.com/RishonDev/kenning/releases/download/v0.7.0/plasma-login-manager-kenning-0.7.0-1-x86_64.pkg.tar.zst
+sudo pacman -U plasma-login-manager-kenning-0.7.0-1-x86_64.pkg.tar.zst
 ```
 
 If it says something else, such as **SDDM**, skip this. Face unlock still works everywhere else.
