@@ -7,9 +7,12 @@
 # The original tarball is the release tag plus the two recognition networks, since
 # Launchpad's builders have no network; debian/ comes from packaging/debian.
 #   packaging/ppa/build-source.sh [version]     (default: the RPM spec's version)
+#   REVISION=2 packaging/ppa/build-source.sh   upload the same release again (for
+#                                               example after enabling an architecture)
 set -eu
 cd "$(dirname "$0")/../.."
 version=${1:-$(awk '/^Version:/ { print $2 }' packaging/rpm/kenning.spec)}
+revision=${REVISION:-1}
 # Ubuntu version and series; a higher version for a newer series keeps upgrades working.
 series=("26.04 resolute" "26.10 stonking")
 # Any image with dpkg-dev; the cached test image, or plain Ubuntu.
@@ -37,9 +40,13 @@ for entry in "${series[@]}"; do
     tar -C "$work/$codename" -xJf "$out/kenning_$version.orig.tar.xz"
     cp -r packaging/debian "$dir/debian"
     {
-        echo "kenning ($version-1~ppa$ubuntu.1) $codename; urgency=medium"
+        echo "kenning ($version-1~ppa$ubuntu.$revision) $codename; urgency=medium"
         echo
-        echo "  * Build for Ubuntu $ubuntu."
+        if [[ $revision == 1 ]]; then
+            echo "  * Build for Ubuntu $ubuntu."
+        else
+            echo "  * Build for Ubuntu $ubuntu again, for all architectures."
+        fi
         echo
         echo " -- $maintainer  $(date -R)"
         echo
@@ -49,13 +56,16 @@ for entry in "${series[@]}"; do
 done
 chmod -R a+rwX "$work"
 
-docker run --rm -v "$work:/w" -v "$PWD/$out:/out" "$image" bash -c '
+# The first revision uploads the original tarball; later ones reuse Launchpad's copy.
+sources=-sa
+[[ $revision == 1 ]] || sources=-sd
+docker run --rm -e sources=$sources -v "$work:/w" -v "$PWD/$out:/out" "$image" bash -c '
     set -e
     for dir in /w/*/kenning-*; do
         cd "$dir"
         dpkg-source -b . > /dev/null
         changes=$(dpkg-parsechangelog -S Source)_$(dpkg-parsechangelog -S Version)_source.changes
-        dpkg-genchanges -S -sa > "../$changes" 2> /dev/null
+        dpkg-genchanges -S $sources > "../$changes" 2> /dev/null
         cd ..
         cp ./*.dsc ./*.debian.tar.xz "$changes" /out/
     done
