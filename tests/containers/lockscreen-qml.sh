@@ -15,11 +15,11 @@ lockscreen=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
 case "$ID" in
 debian | ubuntu)
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq && apt-get install -y -qq --no-install-recommends kscreenlocker plasma-desktop plasma-workspace python3 \
+    apt-get update -qq && apt-get install -y -qq --no-install-recommends libkscreenlocker6 plasma-desktop plasma-workspace dbus-bin python3 \
         > /tmp/install.log 2>&1
     ;;
 fedora)
-    dnf install -y -q --setopt=install_weak_deps=False kscreenlocker plasma-desktop plasma-workspace python3 > /tmp/install.log 2>&1
+    dnf install -y -q --setopt=install_weak_deps=False kscreenlocker plasma-desktop plasma-workspace python3 /usr/bin/dbus-run-session > /tmp/install.log 2>&1
     ;;
 arch)
     pacman -Syu --noconfirm --needed kscreenlocker plasma-desktop plasma-workspace python > /tmp/install.log 2>&1
