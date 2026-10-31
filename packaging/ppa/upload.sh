@@ -56,10 +56,18 @@ done
 
 [[ ${SIGN_ONLY:-} ]] && exit 0
 for changes in "${changes_files[@]}"; do
-    # The .changes goes last: Launchpad processes an upload once it arrives.
-    for file in $(listed "$changes") "${changes##*/}"; do
-        echo "uploading $file"
-        curl -fsS --ftp-pasv -T "dist/ppa/$file" "ftp://ppa.launchpad.net/$ppa/"
-    done
+    # One FTP session per upload: Launchpad treats each session as a separate
+    # upload. The .changes goes last; Launchpad processes the session after it.
+    python3 -I - "$ppa" dist/ppa $(listed "$changes") "${changes##*/}" << 'PY'
+import ftplib, os, sys
+ppa, folder, files = sys.argv[1], sys.argv[2], sys.argv[3:]
+with ftplib.FTP("ppa.launchpad.net", timeout=120) as ftp:
+    ftp.login()
+    ftp.cwd(ppa)
+    for name in files:
+        print(f"uploading {name}", flush=True)
+        with open(os.path.join(folder, name), "rb") as data:
+            ftp.storbinary(f"STOR {name}", data)
+PY
 done
 echo "Uploaded. Launchpad emails the result; builds appear at https://launchpad.net/${ppa%%/*}/+archive/ubuntu/${ppa##*/}"
