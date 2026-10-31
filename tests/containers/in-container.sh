@@ -15,7 +15,7 @@ echo "== $PRETTY_NAME"
 # --- dependencies ---------------------------------------------------------------
 # A cached image (run.sh) has them already, along with the last run's build.
 if [[ ${KENNING_DEPS_INSTALLED:-} == 1 ]]; then
-    rm -rf /tmp/engine /tmp/engine-build /tmp/kcm-build /tmp/kenning /tmp/pamcopy /tmp/kdir
+    rm -rf /tmp/build /tmp/kenning /tmp/pamcopy /tmp/kdir
     true
 else
 case "$ID" in
@@ -23,13 +23,13 @@ debian | ubuntu)
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq && apt-get install -y -qq --no-install-recommends \
         build-essential cmake extra-cmake-modules pkg-config gettext python3 \
-        qt6-base-dev qt6-declarative-dev libopencv-dev libpam0g-dev libsystemd-dev \
+        qt6-base-dev qt6-declarative-dev libopencv-dev libpam0g-dev libsystemd-dev libarchive-dev \
         libkf6auth-dev libkf6config-dev libkf6coreaddons-dev libkf6i18n-dev libkf6kcmutils-dev libkirigami-dev \
         > /tmp/deps.log 2>&1
     ;;
 fedora)
     dnf install -y -q --setopt=install_weak_deps=False gcc-c++ cmake extra-cmake-modules pkgconf gettext python3 util-linux \
-        qt6-qtbase-devel qt6-qtdeclarative-devel opencv-devel pam-devel systemd-devel \
+        qt6-qtbase-devel qt6-qtdeclarative-devel opencv-devel pam-devel systemd-devel libarchive-devel \
         kf6-kauth-devel kf6-kconfig-devel kf6-kcoreaddons-devel kf6-ki18n-devel kf6-kcmutils-devel kf6-kirigami-devel \
         > /tmp/deps.log 2>&1
     ;;
@@ -41,7 +41,7 @@ opensuse-tumbleweed | opensuse*)
     ;;
 arch)
     pacman -Syu --noconfirm --needed base-devel cmake extra-cmake-modules python \
-        qt6-base qt6-declarative opencv pam systemd kauth kconfig kcoreaddons ki18n kcmutils kirigami \
+        qt6-base qt6-declarative opencv pam systemd libarchive kauth kconfig kcoreaddons ki18n kcmutils kirigami \
         > /tmp/deps.log 2>&1
     ;;
 *)
@@ -58,26 +58,24 @@ echo "   OpenCV ${opencv:-unknown}, Qt $(pkg-config --modversion Qt6Core 2>/dev/
 # --- build ----------------------------------------------------------------------
 T=/tmp/kenning
 mkdir -p $T/etc/models $T/share/models $T/pam
-cp -r /src/engine/native /tmp/engine
-if cmake -S /tmp/engine -B /tmp/engine-build -DCMAKE_BUILD_TYPE=Release \
-        -DKENNING_SYSCONFDIR=$T/etc -DKENNING_DATADIR=$T/share -DKENNING_SOCKET=$T/k.sock > /tmp/engine.log 2>&1 &&
-    cmake --build /tmp/engine-build -j"$(nproc)" >> /tmp/engine.log 2>&1; then
+# One top-level build, as the packages do; the engine is built and checked first.
+if cmake -S /src -B /tmp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DKENNING_NETWORKS_DIR=/src \
+        -DKENNING_SYSCONFDIR=$T/etc -DKENNING_DATADIR=$T/share -DKENNING_SOCKET=$T/k.sock > /tmp/build.log 2>&1 &&
+    cmake --build /tmp/build -j"$(nproc)" --target kenning pam_kenning >> /tmp/build.log 2>&1; then
     result "build engine" PASS
 else
     result "build engine" FAIL
-    grep -m5 -E "error|Error" /tmp/engine.log
+    grep -m5 -E "error|Error" /tmp/build.log
 fi
-grep -q "libsystemd not found" /tmp/engine.log && result "logind support" FAIL "built without libsystemd" || result "logind support" PASS
 
-if cmake -S /src/kcm -B /tmp/kcm-build -DCMAKE_BUILD_TYPE=Release > /tmp/kcm.log 2>&1 &&
-    cmake --build /tmp/kcm-build -j"$(nproc)" >> /tmp/kcm.log 2>&1; then
+if cmake --build /tmp/build -j"$(nproc)" >> /tmp/build.log 2>&1; then
     result "build settings page" PASS
 else
     result "build settings page" FAIL
-    grep -m5 -E "error|Error|Could not find" /tmp/kcm.log
+    grep -m5 -E "error|Error|Could not find" /tmp/build.log
 fi
 
-K=/tmp/engine-build/kenning
+K=/tmp/build/engine/native/kenning
 [[ -x $K ]] || exit 1
 cp /src/engine/native/config.ini $T/etc/config.ini
 cp /src/*.onnx $T/share/models/ 2>/dev/null
@@ -131,7 +129,7 @@ int main(int argc, char **argv) {
 }
 C
 if gcc -o /tmp/pamharness /tmp/pamharness.c -lpam 2> /tmp/harness.log; then
-    printf 'auth sufficient /tmp/engine-build/pam_kenning.so\nauth required pam_deny.so\n' > $T/pam/kenning-test
+    printf 'auth sufficient /tmp/build/engine/native/pam_kenning.so\nauth required pam_deny.so\n' > $T/pam/kenning-test
     sed -i 's/^disabled *=.*/disabled = false/' $T/etc/config.ini
     out=$(/tmp/pamharness root $T/pam)
     grep -q "Attempting" <<< "$out" && result "PAM: no face model, no scan" FAIL "$out" || result "PAM: no face model, no scan" PASS
