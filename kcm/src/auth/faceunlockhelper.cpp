@@ -24,6 +24,9 @@
 #include <QSaveFile>
 #include <QTemporaryDir>
 
+#include <archive.h>
+#include <archive_entry.h>
+#include <memory>
 #include <unistd.h>
 
 namespace
@@ -41,6 +44,44 @@ ActionReply failure(const QString &message)
 }
 
 constexpr qsizetype maxThemeArchiveBytes = 32 * 1024 * 1024;
+constexpr qint64 maxThemeUnpackedBytes = 64 * 1024 * 1024;
+constexpr int maxThemeEntries = 1000;
+constexpr int maxThemeDepth = 16;
+
+// Counts what the archive really unpacks to, rather than trusting the sizes it states.
+QString checkThemeArchiveSize(const QString &archivePath)
+{
+    const std::unique_ptr<archive, decltype(&archive_read_free)> reader(archive_read_new(), archive_read_free);
+    archive_read_support_filter_all(reader.get());
+    archive_read_support_format_all(reader.get());
+    if (archive_read_open_filename(reader.get(), QFile::encodeName(archivePath).constData(), 64 * 1024) != ARCHIVE_OK) {
+        return QStringLiteral("The file is not a theme archive that can be unpacked");
+    }
+    qint64 unpackedBytes = 0;
+    int entries = 0;
+    archive_entry *entry = nullptr;
+    int status = ARCHIVE_OK;
+    while ((status = archive_read_next_header(reader.get(), &entry)) == ARCHIVE_OK) {
+        if (++entries > maxThemeEntries) {
+            return QStringLiteral("The theme archive has more than %1 files").arg(maxThemeEntries);
+        }
+        if (QString::fromUtf8(archive_entry_pathname_utf8(entry)).count(QLatin1Char('/')) > maxThemeDepth) {
+            return QStringLiteral("The theme archive's folders are nested too deeply");
+        }
+        char buffer[64 * 1024];
+        la_ssize_t read = 0;
+        while ((read = archive_read_data(reader.get(), buffer, sizeof(buffer))) > 0) {
+            unpackedBytes += read;
+            if (unpackedBytes > maxThemeUnpackedBytes) {
+                return QStringLiteral("The theme unpacks to more than %1 MB").arg(maxThemeUnpackedBytes / 1024 / 1024);
+            }
+        }
+        if (read < 0) {
+            return QStringLiteral("The file is not a theme archive that can be unpacked");
+        }
+    }
+    return status == ARCHIVE_EOF ? QString() : QStringLiteral("The file is not a theme archive that can be unpacked");
+}
 
 // Returns an error message, or an empty string on success.
 QString unpackThemeArchive(const QByteArray &archive, const QString &archivePath, const QString &extractPath)
@@ -49,6 +90,9 @@ QString unpackThemeArchive(const QByteArray &archive, const QString &archivePath
     QSaveFile file(archivePath);
     if (!file.open(QIODevice::WriteOnly) || file.write(archive) != archive.size() || !file.commit()) {
         return QStringLiteral("Could not store the theme archive");
+    }
+    if (const QString error = checkThemeArchiveSize(archivePath); !error.isEmpty()) {
+        return error;
     }
 
     // bsdtar refuses absolute paths and ".." by default; don't keep owners or modes.
@@ -214,17 +258,19 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 namespace
 {
 // The config stays readable: pam_kenning checks it in the caller's process.
-void secureModels()
+bool secureModels()
 {
     const QString &models = FaceUnlock::modelsPath;
     QDir().mkpath(models);
     QFile::setPermissions(models, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     const QString owner = FaceUnlock::serviceUserName + QLatin1Char(':') + FaceUnlock::serviceUserName;
-    QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), owner, models});
+    const bool owned = QProcess::execute(QStringLiteral("/usr/bin/chown"), {QStringLiteral("-R"), QStringLiteral("-h"), owner, models}) == 0;
+    bool secured = owned;
     for (const QFileInfo &model : QDir(models).entryInfoList(QDir::Files)) {
-        QFile::setPermissions(model.absoluteFilePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        secured &= QFile::setPermissions(model.absoluteFilePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     }
     QFile::setPermissions(FaceUnlock::engineConfigPath, standardPermissions);
+    return secured;
 }
 
 void prepareEngine()
@@ -276,7 +322,9 @@ ActionReply FaceUnlockHelper::add(const QVariantMap &args)
     ActionReply reply =
         runStreaming(FaceUnlock::engineBinary,
                      {QStringLiteral("--plain"), QStringLiteral("-y"), QStringLiteral("-U"), callerName(), QStringLiteral("add"), QStringLiteral("--"), label});
-    secureModels();
+    if (!secureModels() && !reply.failed()) {
+        return failure(QStringLiteral("The face was saved, but the Kenning service can't be given access to it"));
+    }
     return reply;
 }
 

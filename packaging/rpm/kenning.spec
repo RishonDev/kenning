@@ -16,6 +16,7 @@ BuildRequires:  extra-cmake-modules
 BuildRequires:  gcc-c++
 BuildRequires:  gettext
 BuildRequires:  kf6-kauth-devel
+BuildRequires:  libarchive-devel
 BuildRequires:  kf6-kcmutils-devel
 BuildRequires:  kf6-kconfig-devel
 BuildRequires:  kf6-kcoreaddons-devel

@@ -10,6 +10,8 @@
 
 #include <chrono>
 #include <map>
+#include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <vector>
 
@@ -33,6 +35,10 @@ public:
     // Returns true when this failure locked the user out.
     bool recordFailure(uid_t uid, const FailureLimits &limits, Clock::time_point now);
     bool isEmpty(Clock::time_point now);
+
+    // Text the limiter can be restored from in a new process, until the next reboot.
+    std::string save() const;
+    void restore(std::string_view text);
 
 private:
     struct Record {

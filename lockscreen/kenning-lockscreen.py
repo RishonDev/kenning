@@ -16,7 +16,7 @@ from pathlib import Path
 # VERSION changes whenever the edits do, so an older patch is redone from the saved original.
 MARKER = "kenning lock screen patch"
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 12"
+VERSION = "face unlock patch 14"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -192,17 +192,19 @@ UI_FUNCTION = ("""    property string pendingPassword
     // pam_howdy runs once per PAM conversation, so a new scan needs a fresh one. Never while typing.
     property bool faceNeedsRetry: false
 
+    // Returns whether a new scan was started.
     function rescanFace() {{
         if (authenticator.unlocked || mainBlock.mainPasswordBox.text.length > 0) {{
-            return;
+            return false;
         }}
         faceNeedsRetry = false;
         if (authenticator.authenticator === 0 && faceOffered) {{
             switchMethod(3);
-            return;
+            return true;
         }}
         authenticator.stopAuthenticating();
         authenticator.startAuthenticating();
+        return true;
     }}
 
     Timer {{
@@ -330,10 +332,9 @@ UI_WAKE = ("""            } else if (uiVisible) {
             authenticator.startAuthenticating();""", """            } else if (uiVisible) {
                 fadeoutTimer.restart();
             }
-            if (uiVisible && lockScreenUi.faceNeedsRetry) {
-                lockScreenUi.rescanFace();
-            }
-            authenticator.startAuthenticating();""")
+            if (!(uiVisible && lockScreenUi.faceNeedsRetry && lockScreenUi.rescanFace())) {
+                authenticator.startAuthenticating();
+            }""")
 
 # Typing a password drops the pending face retry, so the keypress that wakes the screen doesn't scan.
 UI_KEYS = ("""        Keys.onPressed: event => {
@@ -475,15 +476,6 @@ UI_PASSWORD_BEFORE_6_8 = ("""                onPasswordResult: password => {
                              && mainBlock.mainPasswordBox.text.length === 0
                     text: lockScreenUi.faceMessage
                     textFormat: Text.PlainText
-                }
-
-                PlasmaComponents3.Button {
-                    Layout.alignment: Qt.AlignHCenter
-                    visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceRetryable && lockScreenUi.faceState !== 1
-                             && mainBlock.mainPasswordBox.text.length === 0
-                    icon.name: "view-refresh"
-                    text: i18nc("@action:button", "Try Face Again")
-                    onClicked: lockScreenUi.rescanFace()
                 }
 """)
 

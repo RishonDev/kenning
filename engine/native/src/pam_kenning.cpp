@@ -10,14 +10,13 @@
 #include <security/pam_ext.h>
 #include <security/pam_modules.h>
 
-#ifdef KENNING_HAVE_LOGIND
 #include <systemd/sd-login.h>
-#endif
 
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <syslog.h>
+#include <unistd.h>
 
 namespace
 {
@@ -41,6 +40,18 @@ bool lidClosed()
     return false;
 }
 
+// A local, active session of this user, such as the desktop they are sitting at.
+bool hasLocalSession(uid_t uid)
+{
+    char *session = nullptr;
+    if (sd_uid_get_display(uid, &session) < 0 || !session) {
+        return false;
+    }
+    const bool local = sd_session_is_remote(session) == 0 && sd_session_is_active(session) > 0;
+    std::free(session);
+    return local;
+}
+
 // True when the person asking may not be at this computer: logind decides, the environment can only add a refusal.
 bool remoteSession(pam_handle_t *pamh)
 {
@@ -52,15 +63,16 @@ bool remoteSession(pam_handle_t *pamh)
     if (std::getenv("SSH_CONNECTION") || std::getenv("SSH_CLIENT") || std::getenv("SSH_TTY")) {
         return true;
     }
-#ifdef KENNING_HAVE_LOGIND
     char *session = nullptr;
     if (sd_pid_get_session(0, &session) >= 0 && session) {
         const int remote = sd_session_is_remote(session);
         std::free(session);
         return remote != 0; // remote, or logind can't tell
     }
-#endif
-    return false;
+    // Outside any session (on Plasma 6, apps run under the user's service manager): only for
+    // a user at this computer. Root callers, such as the login manager, have no session yet.
+    const uid_t caller = getuid();
+    return caller != 0 && !hasLocalSession(caller);
 }
 }
 

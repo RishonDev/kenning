@@ -5,6 +5,7 @@
 #include "failurelimiter.h"
 
 #include <algorithm>
+#include <sstream>
 
 namespace FaceUnlock
 {
@@ -53,6 +54,43 @@ bool FailureLimiter::isEmpty(Clock::time_point now)
 {
     forgetExpired(now);
     return m_records.empty();
+}
+
+// One line per user: uid, lockedUntil, forgetAfter, then each failure, in clock ticks.
+std::string FailureLimiter::save() const
+{
+    std::ostringstream text;
+    for (const auto &[uid, record] : m_records) {
+        text << uid << ' ' << record.lockedUntil.time_since_epoch().count() << ' ' << record.forgetAfter.time_since_epoch().count();
+        for (const Clock::time_point failure : record.failures) {
+            text << ' ' << failure.time_since_epoch().count();
+        }
+        text << '\n';
+    }
+    return text.str();
+}
+
+void FailureLimiter::restore(std::string_view text)
+{
+    const auto at = [](Clock::rep ticks) {
+        return Clock::time_point(Clock::duration(ticks));
+    };
+    std::istringstream lines{std::string(text)};
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::istringstream fields(line);
+        uid_t uid = 0;
+        Clock::rep lockedUntil = 0;
+        Clock::rep forgetAfter = 0;
+        if (!(fields >> uid >> lockedUntil >> forgetAfter)) {
+            continue;
+        }
+        Record record{.failures = {}, .lockedUntil = at(lockedUntil), .forgetAfter = at(forgetAfter)};
+        for (Clock::rep failure = 0; fields >> failure;) {
+            record.failures.push_back(at(failure));
+        }
+        m_records[uid] = record;
+    }
 }
 
 void FailureLimiter::forgetExpired(Clock::time_point now)

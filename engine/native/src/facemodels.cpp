@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QSaveFile>
 
+#include <iostream>
 #include <pwd.h>
 #include <unistd.h>
 
@@ -103,21 +104,19 @@ bool saveModels(const std::string &user, const std::vector<FaceModel> &models)
         QFile::setPermissions(directory, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     }
     const std::string path = modelPath(user);
-    if (!writeModels(path, models)) {
-        return false;
-    }
-    giveToService(path);
-    return true;
+    return writeModels(path, models) && giveToService(path);
 }
 
-void giveToService(const std::string &path)
+bool giveToService(const std::string &path)
 {
     if (geteuid() != 0) {
-        return;
+        return true;
     }
-    if (const passwd *account = getpwnam(serviceUser)) {
-        chown(path.c_str(), account->pw_uid, account->pw_gid);
-        chown(modelsDir, account->pw_uid, account->pw_gid);
+    const passwd *account = getpwnam(serviceUser);
+    if (!account || chown(path.c_str(), account->pw_uid, account->pw_gid) != 0 || chown(modelsDir, account->pw_uid, account->pw_gid) != 0) {
+        std::cerr << "Could not hand " << path << " to the " << serviceUser << " user, so face unlock can't read it\n";
+        return false;
     }
+    return true;
 }
 }

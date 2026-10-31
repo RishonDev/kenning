@@ -10,8 +10,11 @@
 #include "service.h"
 #include "snapshots.h"
 
+#include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <poll.h>
 #include <pwd.h>
 #include <sys/stat.h>
@@ -25,6 +28,8 @@ constexpr int idleExitMs = 5 * 60 * 1000;
 // A client that connects and says nothing must not hold up everyone else.
 constexpr int clientTimeoutSeconds = 2;
 constexpr std::size_t maxRequestLength = 255;
+// In /run like pam_faillock's records: kept across service restarts, cleared at reboot.
+constexpr const char *failuresPath = "/run/kenning/failures";
 
 void reply(int client, int code)
 {
@@ -84,6 +89,11 @@ int ownSocket()
 class Service
 {
 public:
+    Service()
+    {
+        restoreFailures();
+    }
+
     void serve(int client)
     {
         const timeval timeout{clientTimeoutSeconds, 0};
@@ -153,10 +163,24 @@ private:
         }
     }
 
+    void restoreFailures()
+    {
+        std::ifstream file(failuresPath);
+        m_failures.restore(std::string(std::istreambuf_iterator<char>(file), {}));
+    }
+
+    void saveFailures()
+    {
+        const std::string temporary = std::string(failuresPath) + ".new";
+        std::ofstream(temporary) << m_failures.save();
+        std::rename(temporary.c_str(), failuresPath);
+    }
+
     void recordResult(const std::string &user, uid_t uid, const ScanResult &result, const FailureLimits &limits)
     {
         if (result.code == Recognized) {
             m_failures.recordSuccess(uid);
+            saveFailures();
             return;
         }
         // Only a face that was seen and not recognized counts.
@@ -167,6 +191,7 @@ private:
             std::cerr << "kenning daemon: face unlock locked for " << user << " for " << limits.lockout.count() << " minutes after " << limits.maxFailures
                       << " unrecognized faces\n";
         }
+        saveFailures();
     }
 
     FailureLimiter m_failures;

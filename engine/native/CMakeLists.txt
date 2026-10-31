@@ -5,10 +5,8 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect videoio
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_library(PAM_LIBRARY pam REQUIRED)
 # logind tells the PAM module whether a request comes from a remote session
-find_package(PkgConfig)
-if(PkgConfig_FOUND)
-    pkg_check_modules(LIBSYSTEMD IMPORTED_TARGET libsystemd)
-endif()
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBSYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 
 set(KENNING_BINARY ${CMAKE_INSTALL_FULL_BINDIR}/kenning)
 set(KENNING_SYSCONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/kenning CACHE PATH "Config and face models")
@@ -47,13 +45,7 @@ target_link_libraries(kenning PRIVATE kenning-engine)
 # The PAM module only asks the service; OpenCV stays out of the programs that authenticate.
 add_library(pam_kenning MODULE src/pam_kenning.cpp)
 set_target_properties(pam_kenning PROPERTIES PREFIX "")
-target_link_libraries(pam_kenning PRIVATE kenning-config ${PAM_LIBRARY})
-if(LIBSYSTEMD_FOUND)
-    target_compile_definitions(pam_kenning PRIVATE KENNING_HAVE_LOGIND)
-    target_link_libraries(pam_kenning PRIVATE PkgConfig::LIBSYSTEMD)
-else()
-    message(WARNING "libsystemd not found: remote sessions are only recognised by SSH_* variables")
-endif()
+target_link_libraries(pam_kenning PRIVATE kenning-config ${PAM_LIBRARY} PkgConfig::LIBSYSTEMD)
 
 install(TARGETS kenning RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS pam_kenning LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/security)

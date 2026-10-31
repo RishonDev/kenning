@@ -94,7 +94,9 @@ webcam:
       (uptime under 10 minutes) offers Set Up once if there is an IR camera
 - [x] A "Try Face Again" button on the lock screen after face unlock fails
       (add-on patch 10): calls rescanFace(), hidden while a password is typed,
-      during a lockout and without a face model
+      during a lockout and without a face model. Plasma 6.8 and newer only
+      (patch 14): before 6.8 the rescan may not start until !388 lands, so the
+      button would do nothing; the failure reason still shows there
 - [x] The same button on the login screen (plasma-login-manager-kenning): runs
       the empty-password attempt again
 - [x] Photos of failed attempts ([snapshots] save_failed, off by default): the
@@ -136,8 +138,9 @@ webcam:
       user's face unlock for lockout_minutes after max_failures faces that were
       seen but not recognized within failure_window minutes (config.ini;
       5 / 15 / 10 by default, 0 turns it off). Nobody in front of the camera,
-      darkness or a scan cancelled by typing doesn't count. The service stays
-      running while it remembers failures, so its idle exit can't reset them
+      darkness or a scan cancelled by typing doesn't count. The record is kept
+      in /run/kenning/failures (like pam_faillock's in /run), so a crash or
+      restart of the service doesn't reset it; a reboot does
 - [x] Guided enrolment: Set Up asks for looking straight, then turning left,
       right, up and down, and keeps encodings for each angle (the head pose comes
       from the detector's landmarks; a turn that isn't seen in time is skipped).
@@ -163,3 +166,13 @@ webcam:
       KVision (Kotlin framework), KGlance (Glance face unlock) and Kognize (close
       to the KOGNIZA trademark application) were ruled out. A formal trademark
       search (USPTO, EUIPO) is still needed before a commercial release
+- [ ] Measured recognition accuracy before any stronger security claim:
+      false accepts and false rejects across cameras (IR and webcam), lighting,
+      glasses, several people and attack types (photos, screens, look-alikes),
+      from testers on many devices, not just the developer's laptop
+- [ ] End-to-end tests of signing in: PAM stack, socket activation, the real
+      greeter and retries on each supported Plasma and distribution, with a
+      fake camera (v4l2loopback feeding recorded frames) in the containers
+- [ ] All-or-nothing settings save: the helper writes config.ini, the PAM
+      files and kenningrc in turn and stops at the first error, which can leave
+      part of a save applied (reported as an error; Apply again finishes it)

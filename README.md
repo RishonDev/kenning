@@ -189,7 +189,7 @@ flowchart LR
 - **Safeguards** limit what a face can do:
   - after five faces that weren't yours in 15 minutes, face unlock pauses for 10 minutes, like `pam_faillock`
   - Kenning's lock screen service fails closed
-  - face unlock stays off over SSH and with the lid closed
+  - face unlock stays off with the lid closed, and over SSH: a request that logind can't place in a local session is refused unless you're signed in at this computer
   - an ordinary webcam is never used to approve system changes unless you choose it
 
 <details>
@@ -210,6 +210,7 @@ Face unlock is a convenience, not a stronger lock than your password. Before you
 - **An ordinary webcam can be fooled by a photo or video of you.** Kenning has no liveness check. An IR camera is much harder to fool, since a printed photo or a screen looks different in infrared, but Kenning isn't a certified biometric system.
 - **People who look like you**, such as a twin or a close sibling, may be recognised as you. Moving **Match threshold** towards **Strict** helps (Face Unlock settings › **Recognition and security: Configure…**).
 - **Your password always works**, and it is still what protects your data. Face unlock doesn't change disk encryption, and signing in with your face doesn't unlock KWallet, which still needs your password.
+- **While you're signed in at the computer and over SSH at the same time**, a program started from the SSH login outside a session (for example with `systemd-run --user`) can still start a face scan, which the camera answers with whoever sits at the computer.
 - **Not for shared or high-security computers.** Use your password, a fingerprint or a security key there.
 - **Photos of failed attempts are off by default.** If you turn them on, the camera photographs anyone it doesn't recognise, including people who don't know about it. Tell others who use your computer, and check the law where you live.
 

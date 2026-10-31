@@ -27,5 +27,5 @@ std::vector<FaceModel> loadModels(const std::string &user);
 bool saveModels(const std::string &user, const std::vector<FaceModel> &models);
 
 // Hands a file in the models directory to the service user (when run as root).
-void giveToService(const std::string &path);
+bool giveToService(const std::string &path);
 }

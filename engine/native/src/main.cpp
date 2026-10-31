@@ -121,9 +121,12 @@ int list(const std::string &user, bool plain)
     // Face models belong to the service user; others can only ask whether there are any.
     if (geteuid() != 0) {
         const int code = askService("has-model", user, quickTimeoutSeconds);
-        if (code == Recognized) {
+        if (code == Recognized || code == LockedOut) {
             if (!plain) {
                 std::cout << "Face recognition is set up for " << user << ". To see the face models, run:\n\n\tsudo kenning list\n";
+                if (code == LockedOut) {
+                    std::cout << "\nFace unlock is paused for a few minutes after too many faces that weren't recognized.\n";
+                }
             }
             return 0;
         }

@@ -51,6 +51,22 @@ private Q_SLOTS:
         QVERIFY(!limiter.isLockedOut(user, limits, start + 16min));
     }
 
+    void survivesARestart()
+    {
+        FailureLimiter limiter;
+        for (int i = 0; i < limits.maxFailures; ++i) {
+            limiter.recordFailure(user, limits, start);
+        }
+        limiter.recordFailure(user + 1, limits, start);
+        FailureLimiter restarted;
+        restarted.restore(limiter.save());
+        QVERIFY(restarted.isLockedOut(user, limits, start + 9min));
+        QVERIFY(!restarted.isLockedOut(user, limits, start + 10min));
+        QVERIFY(!restarted.recordFailure(user + 1, limits, start + 1min));
+        restarted.restore("not a record\n");
+        QVERIFY(!restarted.isEmpty(start + 1min));
+    }
+
     void successClearsFailures()
     {
         FailureLimiter limiter;
