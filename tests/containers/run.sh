@@ -8,7 +8,7 @@
 # Defaults to the newest release of each; openSUSE (opensuse/tumbleweed:latest) is
 # left out because its mirrors are slow, but can be named.
 set -u
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 images=("$@")
 [[ ${#images[@]} -gt 0 ]] || images=(archlinux:latest debian:latest ubuntu:latest ubuntu:rolling fedora:latest)
 mkdir -p tests/containers/logs

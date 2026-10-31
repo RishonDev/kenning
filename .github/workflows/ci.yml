@@ -28,7 +28,7 @@ jobs:
               qt6-base qt6-declarative qt6-speech opencv pam systemd-libs \
               kauth kcmutils kconfig kcoreaddons ki18n kirigami libplasma
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch the recognition networks
         run: bash tests/containers/fetch-sources.sh
@@ -53,7 +53,7 @@ jobs:
     name: Scripts and licences
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Shell scripts (shellcheck)
         run: |

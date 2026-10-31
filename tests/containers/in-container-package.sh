@@ -76,14 +76,14 @@ test_package() {
         installed=$?
         files() { dpkg -L kenning; }
         remove() { apt-get remove -y -qq kenning; }
-        lockscreen_package=plasma-desktop-data
-        install_lockscreen() { apt-get install -y -qq --no-install-recommends $lockscreen_package; }
+        lockscreen_package="plasma-desktop-data"
+        install_lockscreen() { apt-get install -y -qq --no-install-recommends "$lockscreen_package"; }
     elif [[ $format == arch ]]; then
         pacman -U --noconfirm /out/kenning-0*.pkg.tar.zst > /tmp/install.log 2>&1
         installed=$?
         files() { pacman -Qlq kenning; }
         remove() { pacman -R --noconfirm kenning; }
-        lockscreen_package=plasma-desktop
+        lockscreen_package="plasma-desktop"
         # Already installed with Kenning; installing it again runs the package hook.
         install_lockscreen() { pacman -S --noconfirm plasma-desktop; }
     else
@@ -91,8 +91,8 @@ test_package() {
         installed=$?
         files() { rpm -ql kenning; }
         remove() { dnf remove -y -q kenning; }
-        lockscreen_package=plasma-desktop
-        install_lockscreen() { rpm -i --nodeps --excludedocs $(dnf -q download --destdir /tmp/pd plasma-desktop > /dev/null && ls /tmp/pd/plasma-desktop-*.$(uname -m).rpm); }
+        lockscreen_package="plasma-desktop"
+        install_lockscreen() { dnf -q download --destdir /tmp/pd plasma-desktop > /dev/null && rpm -i --nodeps --excludedocs /tmp/pd/plasma-desktop-*."$(uname -m)".rpm; }
     fi
     [[ $installed -eq 0 ]] && result install PASS || { result install FAIL; tail -8 /tmp/install.log; return 1; }
 

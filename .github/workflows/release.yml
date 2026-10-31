@@ -36,7 +36,7 @@ jobs:
           # The official Arch image is x86-64 only; Arch Linux ARM users build from source.
           - { distro: arch, image: "archlinux:latest", arch: x86_64, runner: ubuntu-24.04 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fetch the recognition networks and the login manager source
         run: bash tests/containers/fetch-sources.sh

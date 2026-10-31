@@ -41,7 +41,7 @@ qml_problems() { # log file
 }
 # The greeter runs as an ordinary user, as it does in a session.
 useradd -m tester 2> /dev/null
-mkdir -p -m 700 /tmp/runtime && chown tester /tmp/runtime
+mkdir -p /tmp/runtime && chmod 700 /tmp/runtime && chown tester /tmp/runtime
 command -v dbus-run-session > /dev/null || { result "greeter" FAIL "no dbus-run-session"; exit 1; }
 
 qml_problems /tmp/stock.log > /tmp/stock.txt

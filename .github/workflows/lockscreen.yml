@@ -29,7 +29,7 @@ jobs:
       matrix:
         image: ["debian:13", "ubuntu:26.04", "ubuntu:26.10", "fedora:44", "archlinux:latest"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Patch and load the lock screen
         run: |
           set -o pipefail

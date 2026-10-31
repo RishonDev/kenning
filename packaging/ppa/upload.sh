@@ -58,7 +58,8 @@ done
 for changes in "${changes_files[@]}"; do
     # One FTP session per upload: Launchpad treats each session as a separate
     # upload. The .changes goes last; Launchpad processes the session after it.
-    python3 -I - "$ppa" dist/ppa $(listed "$changes") "${changes##*/}" << 'PY'
+    mapfile -t uploads < <(listed "$changes")
+    python3 -I - "$ppa" dist/ppa "${uploads[@]}" "${changes##*/}" << 'PY'
 import ftplib, os, sys
 ppa, folder, files = sys.argv[1], sys.argv[2], sys.argv[3:]
 with ftplib.FTP("ppa.launchpad.net", timeout=120) as ftp:

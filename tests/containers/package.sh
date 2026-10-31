@@ -6,7 +6,7 @@
 # removing it. Uses the kenning-test/<image> images from run.sh (run that first).
 #   tests/containers/package.sh [image ...]      packages land in dist/<image>/
 set -u
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 images=("$@")
 [[ ${#images[@]} -gt 0 ]] || images=(ubuntu:latest ubuntu:rolling fedora:latest)
 mkdir -p tests/containers/logs
