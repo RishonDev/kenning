@@ -67,7 +67,12 @@ webcam:
   a face; lowering the detector threshold to 0.4 found one in 1-2 of ~100
   frames, scoring 6.9-10.8 (rejected). With a bright window behind the user no
   face was found either. Lighting is the limit, not the preprocessing.
-- [ ] Later: a liveness check (blink or a head turn) to make photos useless
+- [ ] ~~Liveness check (blink or head turn)~~: decided against (2026-10-31). On
+  the IR camera a blink spans at most one usable frame (the emitter lights every
+  other frame, ~7 face frames/s, eyes ~38 px apart), glasses glare blanks an eye, and
+  open/closed eye detail overlaps. A head turn would stop a held-up photo on a
+  webcam but not a replayed video, and IR already rejects prints and screens. The
+  answer stays: recommend IR, warn about webcams, keep webcams off sudo
 
 ## Follow-ups (not yet ordered)
 
