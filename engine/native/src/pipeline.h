@@ -36,13 +36,13 @@ constexpr int confidence = 14;
 }
 
 enum class Lighting {
-    Black, // nothing lit at all, e.g. the IR emitter's off frames
-    Unusable, // too dark or washed out by bright light
+    Black, // e.g. the IR emitter's off frames
+    Dark,
+    WashedOut,
     Usable,
 };
 
-// Share of near-black pixels as Howdy measures it (the darkest of 8 histogram bins),
-// plus a check for frames washed out by sunlight or a bright lamp.
+// Howdy's darkness measure (the darkest of 8 histogram bins), plus a washed-out check.
 Lighting judgeLighting(const cv::Mat &grey, double darkThresholdPercent);
 
 class Pipeline
@@ -51,7 +51,8 @@ public:
     enum class Frame {
         Missing,
         Black,
-        Unusable,
+        Dark,
+        WashedOut,
         Usable
     };
 

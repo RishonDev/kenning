@@ -38,9 +38,10 @@ private Q_SLOTS:
         QTest::addColumn<int>("lighting");
 
         QTest::newRow("all black") << 100 << 0 << int(Lighting::Black);
-        QTest::newRow("mostly dark") << 70 << 0 << int(Lighting::Unusable);
+        QTest::newRow("mostly dark") << 70 << 0 << int(Lighting::Dark);
         QTest::newRow("at the dark threshold") << 60 << 0 << int(Lighting::Usable);
-        QTest::newRow("washed out") << 0 << 60 << int(Lighting::Unusable);
+        QTest::newRow("washed out") << 0 << 60 << int(Lighting::WashedOut);
+        QTest::newRow("washed out beats dark") << 45 << 55 << int(Lighting::WashedOut);
         QTest::newRow("half bright") << 0 << 50 << int(Lighting::Usable);
         QTest::newRow("mid grey") << 0 << 0 << int(Lighting::Usable);
     }

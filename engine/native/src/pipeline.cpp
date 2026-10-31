@@ -69,15 +69,17 @@ Lighting judgeLighting(const cv::Mat &grey, double darkThresholdPercent)
     if (darkPercent >= 100) {
         return Lighting::Black;
     }
-    if (darkPercent > darkThresholdPercent || brightPercent > washedOutPercent) {
-        return Lighting::Unusable;
+    if (brightPercent > washedOutPercent) {
+        return Lighting::WashedOut;
+    }
+    if (darkPercent > darkThresholdPercent) {
+        return Lighting::Dark;
     }
     return Lighting::Usable;
 }
 
 Pipeline::Pipeline(const Config &config)
 {
-    // Lower finds faces in poor light; every face still has to match the user's.
     const auto detectionThreshold = float(config.number("video/detection_threshold", 0.8));
     // Opening the camera wakes it from USB suspend (~250 ms); load the networks meanwhile.
     auto loading = std::async(std::launch::async, loadNetworks, detectionThreshold);
@@ -147,7 +149,14 @@ Pipeline::Frame Pipeline::read(cv::Mat &image)
     if (image.rows > m_maxHeight) {
         cv::resize(image, image, cv::Size(image.cols * m_maxHeight / image.rows, m_maxHeight));
     }
-    return lighting == Lighting::Usable ? Frame::Usable : Frame::Unusable;
+    switch (lighting) {
+    case Lighting::Dark:
+        return Frame::Dark;
+    case Lighting::WashedOut:
+        return Frame::WashedOut;
+    default:
+        return Frame::Usable;
+    }
 }
 
 // video/rotate as in Howdy: 0 upright only, 1 upright and portrait, 2 portrait only.

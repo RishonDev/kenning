@@ -242,8 +242,8 @@ index 68395e9..0ba58a8 100644
 +                greeterState.faceMessage = i18nd("plasma_login", "Welcome, %1", displayNameFor(greeterState.lastLoggedInUser));
 +                greeterState.faceState = GreeterState.FaceState.Recognized;
 +            } else if (greeterState.faceState === GreeterState.FaceState.Scanning && greeterState.isFaceMessage(message)) {
-+                if (message.includes("too dark")) {
-+                    greeterState.faceMessage = i18nd("plasma_login", "Too dark or bright to see you");
++                if (/too (dark|bright)/.test(message)) {
++                    greeterState.faceMessage = message.includes("too dark") ? i18nd("plasma_login", "Too dark to see you") : i18nd("plasma_login", "Too bright to see you");
 +                } else if (message.includes("no face model")) {
 +                    greeterState.faceMessage = i18nd("plasma_login", "Face unlock isn't set up");
 +                } else if (message.includes("too many attempts")) {

@@ -19,23 +19,21 @@
 
 namespace FaceUnlock
 {
-// Score as Howdy reports it: lower means a closer match. For SFace this is
-// (1 - cosine similarity) * 10, so the recommended cosine of 0.363 is 6.37.
+// Lower is closer, as in Howdy: (1 - cosine) * 10, so SFace's recommended 0.363 is 6.37.
 double matchScore(double cosine);
-// The score reported when no face was compared at all.
 constexpr double noMatchScore = 99;
 
-// What a scan saw, for kenning test.
 struct ScanStats {
-    double cameraMs = 0; // opening the camera
-    double networksMs = 0; // loading YuNet and SFace
-    double firstFrameMs = 0; // from the start of the scan to the first frame
-    double detectMs = 0; // total time in the detector
-    double encodeMs = 0; // total time aligning and encoding faces
+    double cameraMs = 0;
+    double networksMs = 0;
+    double firstFrameMs = 0; // since the scan started
+    double detectMs = 0;
+    double encodeMs = 0;
     int frames = 0;
-    int unusableFrames = 0; // too dark or too bright
-    int faceFrames = 0; // frames with at least one face
-    double bestDetection = 0; // highest detector confidence, 0 to 1
+    int darkFrames = 0; // including black ones
+    int brightFrames = 0;
+    int faceFrames = 0;
+    double bestDetection = 0; // 0 to 1
 };
 
 struct ScanResult {

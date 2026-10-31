@@ -22,6 +22,21 @@ bool hasEncodings(const std::vector<FaceModel> &models)
     });
 }
 
+// Too dark only for a covered camera, or for a webcam: an IR camera lights the face itself.
+std::optional<ExitCode> lightingFailure(int darkFrames, int brightFrames, int litFrames, bool colour)
+{
+    if (litFrames == 0) {
+        return TooDark;
+    }
+    if (darkFrames + brightFrames < litFrames) {
+        return std::nullopt;
+    }
+    if (brightFrames >= darkFrames) {
+        return TooBright;
+    }
+    return colour ? std::optional(TooDark) : std::nullopt;
+}
+
 double bestScoreAgainst(const Pipeline &pipeline, const cv::Mat &feature, const std::vector<FaceModel> &models)
 {
     double best = noMatchScore;
@@ -58,6 +73,7 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
     const bool keepSnapshot = config.boolean("snapshots/save_failed", false);
     double best = noMatchScore;
     cv::Mat snapshot;
+    int blackFrames = 0;
 
     while (Clock::now() < deadline) {
         if (cancelled && cancelled()) {
@@ -71,12 +87,12 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
         if (++stats.frames == 1) {
             stats.firstFrameMs = millisecondsSince(scanStart);
         }
-        if (frame != Pipeline::Frame::Usable) {
-            ++stats.unusableFrames;
-        }
         if (frame == Pipeline::Frame::Black) {
+            ++blackFrames;
             continue;
         }
+        stats.darkFrames += frame == Pipeline::Frame::Dark ? 1 : 0;
+        stats.brightFrames += frame == Pipeline::Frame::WashedOut ? 1 : 0;
         bool sawFace = false;
         for (const cv::Mat &view : pipeline.orientations(image)) {
             auto start = Clock::now();
@@ -104,9 +120,15 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
         }
     }
 
-    if (stats.frames > 0 && stats.unusableFrames == stats.frames && stats.faceFrames == 0) {
-        return {.code = TooDark, .bestScore = best, .message = "Failure, image too dark", .stats = stats};
+    const int litFrames = stats.frames - blackFrames;
+    if (stats.faceFrames == 0 && stats.frames > 0) {
+        if (const auto failure = lightingFailure(stats.darkFrames, stats.brightFrames, litFrames, pipeline.colour())) {
+            const char *message = *failure == TooBright ? "Failure, image too bright" : "Failure, image too dark";
+            stats.darkFrames += blackFrames;
+            return {.code = *failure, .bestScore = best, .message = message, .stats = stats};
+        }
     }
+    stats.darkFrames += blackFrames;
     // A photo only when someone was seen: a face that wasn't the user's.
     return {.code = Timeout, .bestScore = best, .message = "Failure, timeout reached", .stats = stats, .snapshot = stats.faceFrames > 0 ? snapshot : cv::Mat()};
 }
@@ -222,9 +244,8 @@ public:
                 continue;
             }
             ++m_litFrames;
-            if (frame == Pipeline::Frame::Unusable) {
-                ++m_unusableFrames;
-            }
+            m_darkFrames += frame == Pipeline::Frame::Dark ? 1 : 0;
+            m_brightFrames += frame == Pipeline::Frame::WashedOut ? 1 : 0;
             bool sawFace = false;
             for (const cv::Mat &view : m_pipeline.orientations(image)) {
                 const cv::Mat faces = m_pipeline.detectFaces(view);
@@ -255,8 +276,10 @@ public:
                     .message = m_pipeline.colour() ? "Camera saw only black frames - is it covered or switched off?"
                                                    : "Camera saw only black frames - is IR emitter working?"};
         }
-        if (m_unusableFrames == m_litFrames) {
-            return {.code = TooDark, .message = "All frames were too dark or too bright, please check dark_threshold in config"};
+        if (const auto failure = lightingFailure(m_darkFrames, m_brightFrames, m_litFrames, m_pipeline.colour())) {
+            return {.code = *failure,
+                    .message = *failure == TooBright ? "All frames were too bright, move out of direct sunlight or away from a bright lamp"
+                                                     : "All frames were too dark, please check dark_threshold in config"};
         }
         return {.code = Aborted, .message = "No face detected, aborting"};
     }
@@ -331,9 +354,10 @@ private:
     std::vector<cv::Mat> &m_encodings;
     const ProgressCallback &m_progress;
     int m_litFrames = 0;
-    int m_unusableFrames = 0;
+    int m_darkFrames = 0;
+    int m_brightFrames = 0;
     HeadPose m_straight;
-    double m_previousTurn = 0; // the last accepted turn on the current axis
+    double m_previousTurn = 0;
 };
 }
 

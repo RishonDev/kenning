@@ -35,8 +35,10 @@ KCM.SimpleKCM {
         case 0: return i18n("Recognized you. Face unlock is working.");
         case 10: return i18n("No face is set up yet.");
         case 11: return i18n("Didn't see a matching face in time. Try adding another look.");
-        case 13: return kcm.colourCamera ? i18n("The camera picture was too dark or too bright. Light your face from the front, with no bright window behind you.")
-                                         : i18n("The camera picture was too dark or too bright. Is the IR emitter on, and are you out of direct sunlight?");
+        case 13: return kcm.colourCamera ? i18n("The camera picture was too dark. Is the camera covered? Otherwise, light your face from the front.")
+                                         : i18n("The camera saw nothing. Is it covered?");
+        case 15: return kcm.colourCamera ? i18n("The camera picture was too bright. Light your face from the front, with no bright window behind you.")
+                                         : i18n("The camera picture was too bright. Move out of direct sunlight or away from a bright lamp.");
         case 14: return i18n("Face unlock is paused for a few minutes after too many faces that weren't yours.");
         case -1: return message;
         default: return i18n("Face recognition stopped (%1).", message);

@@ -176,6 +176,9 @@ int testAsUser(const Config &config, const std::string &user)
     case TooDark:
         std::cout << "Failure, image too dark\n";
         break;
+    case TooBright:
+        std::cout << "Failure, image too bright\n";
+        break;
     case LockedOut:
         std::cout << "Failure, too many attempts; face unlock is locked for a few minutes\n";
         break;
@@ -200,7 +203,8 @@ int test(const std::string &user)
     const ScanStats &stats = result.stats;
     std::cout << result.message << '\n'
               << "  best score       " << result.bestScore << " (needs " << config.number("video/certainty", 6.0) << " or lower)\n"
-              << "  frames           " << stats.frames << " read, " << stats.unusableFrames << " too dark or bright, " << stats.faceFrames << " with a face\n"
+              << "  frames           " << stats.frames << " read, " << stats.darkFrames << " too dark, " << stats.brightFrames << " too bright, "
+              << stats.faceFrames << " with a face\n"
               << "  face confidence  " << stats.bestDetection << " (detector keeps " << config.number("video/detection_threshold", 0.8) << " or higher)\n"
               << "  camera open      " << stats.cameraMs << " ms\n"
               << "  networks load    " << stats.networksMs << " ms\n"

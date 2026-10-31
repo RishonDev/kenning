@@ -49,6 +49,7 @@ enum ExitCode {
     Aborted = 12,
     TooDark = 13,
     LockedOut = 14, // too many failed attempts (the service's rate limit)
+    TooBright = 15, // washed out by sunlight or a bright lamp (Kenning only)
 };
 
 // config.ini values keyed "section/key"

@@ -17,12 +17,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-# MARKER tags every patched file; VERSION changes whenever the edits do, so an
-# older patch is replaced by re-patching the saved original (see ORIGINALS).
+# VERSION changes whenever the edits do, so an older patch is redone from the saved original.
 MARKER = "kenning lock screen patch"
-# Markers of earlier releases, so files they patched are re-patched from the original.
 LEGACY_MARKERS = ("lazysetup face unlock", "plasma-faceunlock lock screen patch")
-VERSION = "face unlock patch 10"
+VERSION = "face unlock patch 12"
 
 RESTORE = len(sys.argv) > 1 and sys.argv[1] == "--restore"
 if RESTORE:
@@ -190,7 +188,8 @@ UI_FUNCTION = ("""    property string pendingPassword
         if (/^(Failure, |Face detection image too dark)/.test(msg)) {{
             faceState = 3;
             faceRetryable = !msg.includes("too many attempts") && !msg.includes("no face model");
-            faceMessage = msg.includes("too dark") ? i18nc("@info:status", "Too dark or bright to see you")
+            faceMessage = msg.includes("too dark") ? i18nc("@info:status", "Too dark to see you")
+                        : msg.includes("too bright") ? i18nc("@info:status", "Too bright to see you")
                         : msg.includes("too many attempts") ? i18nc("@info:status", "Too many attempts. Use your password.")
                         : msg.includes("no face model") ? i18nc("@info:status", "Face unlock isn't set up")
                         : i18nc("@info:status", "Couldn't recognize you");
@@ -439,6 +438,14 @@ UI_INDICATOR = ("""                authenticationTypeItem: RowLayout {
                         style: config.faceAnimation || "hello"
                     }
 
+                    PlasmaComponents3.Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceState === 0 && lockScreenUi.faceMessage !== ""
+                                 && mainBlock.mainPasswordBox.text.length === 0
+                        text: lockScreenUi.faceMessage
+                        textFormat: Text.PlainText
+                    }
+
                     PlasmaComponents3.Button {
                         Layout.alignment: Qt.AlignHCenter
                         visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceRetryable && lockScreenUi.faceState !== 1
@@ -492,6 +499,14 @@ UI_PASSWORD_BEFORE_6_8 = ("""                onPasswordResult: password => {
                     faceState: lockScreenUi.faceState
                     message: lockScreenUi.faceMessage
                     style: config.faceAnimation || "hello"
+                }
+
+                PlasmaComponents3.Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: lockScreenUi.faceNeedsRetry && lockScreenUi.faceState === 0 && lockScreenUi.faceMessage !== ""
+                             && mainBlock.mainPasswordBox.text.length === 0
+                    text: lockScreenUi.faceMessage
+                    textFormat: Text.PlainText
                 }
 
                 PlasmaComponents3.Button {

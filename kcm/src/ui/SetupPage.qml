@@ -118,8 +118,11 @@ KCM.SimpleKCM {
                                     : i18n("The camera only saw black frames. Is the IR emitter working?");
         }
         if (line.includes("too dark")) {
-            return kcm.colourCamera ? i18n("It's too dark or too bright for the camera to see you. Light your face from the front, with no bright window behind you.")
-                                    : i18n("It's too dark or too bright for the camera to see you. Move out of direct sunlight or away from a bright lamp.");
+            return i18n("It's too dark for the camera to see you. Is it covered? Otherwise, light your face from the front.");
+        }
+        if (line.includes("too bright")) {
+            return kcm.colourCamera ? i18n("It's too bright for the camera to see you. Light your face from the front, with no bright window behind you.")
+                                    : i18n("It's too bright for the camera to see you. Move out of direct sunlight or away from a bright lamp.");
         }
         if (line.includes("No face detected")) {
             return kcm.colourCamera ? i18n("No face was found. Make sure your face is lit from the front, not by a window behind you, and try again.")

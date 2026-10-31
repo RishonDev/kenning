@@ -87,7 +87,7 @@ KCM.SimpleKCM {
                 onValueModified: kcm.setValue("video/dark_threshold", value)
             }
             Kirigami.ContextualHelpButton {
-                toolTipText: i18n("The share of nearly black pixels above which a frame counts as too dark. It is still used if a face is clearly found in it, as at night, when an infrared picture is mostly dark room around a lit face. Infrared cameras flash their light every other frame, and the unlit ones are always skipped.")
+                toolTipText: i18n("The share of nearly black pixels above which an ordinary webcam's picture counts as too dark. A dark frame is still used if a face is clearly found in it. Infrared cameras light your face themselves, so a dark room doesn't matter to them; they only report too dark when covered.")
             }
         }
 

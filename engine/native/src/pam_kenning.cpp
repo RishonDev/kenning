@@ -145,6 +145,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
     case FaceUnlock::TooDark:
         say(pamh, "Failure, image too dark");
         break;
+    case FaceUnlock::TooBright:
+        say(pamh, "Failure, image too bright");
+        break;
     default:
         say(pamh, "Failure, general abort");
         break;
