@@ -147,6 +147,7 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("core/no_confirmation"), false},
         {QStringLiteral("core/abort_if_ssh"), true},
         {QStringLiteral("core/abort_if_lid_closed"), true},
+        {QStringLiteral("core/password_after_boot"), true},
         {QStringLiteral("video/certainty"), 6.0},
         {QStringLiteral("video/timeout"), 4},
         {QStringLiteral("video/dark_threshold"), 60},

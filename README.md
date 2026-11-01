@@ -29,6 +29,7 @@ Sign in, unlock and approve with your face, on the login screen, the lock screen
 
 - **Unlock by looking at your screen.** Works on the lock screen, the login screen, administrator prompts and `sudo` in the terminal.
 - **Your password always works.** If your face isn't recognised, or you'd rather type, just type your password.
+- **Password first after a restart.** Like a phone, face unlock starts working once you've signed in with your password since the computer started, so a laptop stolen while switched off can't be opened with your face alone.
 - **Easy setup.** System Settings shows you where to look and when to turn your head, and can read the steps aloud.
 - **Best with a face sign-in camera.** Many laptops have an infrared (IR) camera next to the normal one, made for face sign-in. Kenning uses it when it's there, because it works in the dark and is much harder to fool with a photo. An ordinary webcam works too, and Kenning tells you what that means for security.
 - **Fits in with Plasma.** On Plasma 6.8 it appears as Plasma's own Face sign-in option, next to fingerprint and password. You can change how the face scan animation looks, or install new designs.
@@ -230,6 +231,7 @@ Face unlock is a convenience, not a stronger lock than your password. Before you
 - **People who look like you**, such as a twin or a close sibling, may be recognised as you. Moving **Match threshold** towards **Strict** helps (Face Unlock settings › **Recognition and security: Configure…**).
 - **Your password always works**, and it is still what protects your data. Face unlock doesn't change disk encryption, and signing in with your face doesn't unlock KWallet, which still needs your password.
 - **While you're signed in at the computer and over SSH at the same time**, a program started from the SSH login outside a session (for example with `systemd-run --user`) can still start a face scan, which the camera answers with whoever sits at the computer.
+- **After a restart, face unlock waits for your password** (or fingerprint) on the login screen. After that it works until the next restart, also after signing out. Automatic login counts as signing in, so with it on this protection is gone. You can turn this off in **Recognition and security**.
 - **Not for shared or high-security computers.** Use your password, a fingerprint or a security key there.
 
 Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.

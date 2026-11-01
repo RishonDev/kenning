@@ -215,7 +215,7 @@ index 68395e9..0ba58a8 100644
  
          PlasmaLogin.Authenticator.login(username, password, sessionType, sessionFileName);
      }
-@@ -154,6 +199,41 @@ Item {
+@@ -154,6 +199,46 @@ Item {
              PlasmaLogin.StateConfig.lastLoggedInUser = greeterState.lastLoggedInUser;
              PlasmaLogin.StateConfig.lastLoggedInSession = greeterState.lastLoggedInSession;
              PlasmaLogin.StateConfig.save();
@@ -241,6 +241,11 @@ index 68395e9..0ba58a8 100644
 +            } else if (message.startsWith("Identified face as")) {
 +                greeterState.faceMessage = i18nd("plasma_login", "Welcome, %1", displayNameFor(greeterState.lastLoggedInUser));
 +                greeterState.faceState = GreeterState.FaceState.Recognized;
++            } else if (message.includes("after a restart")) {
++                // Refused before any scan, so there is no Scanning state to leave.
++                greeterState.faceMessage = i18nd("plasma_login", "Use your password once after a restart");
++                greeterState.faceState = GreeterState.FaceState.Failed;
++                greeterState.faceCanRetry = false;
 +            } else if (greeterState.faceState === GreeterState.FaceState.Scanning && greeterState.isFaceMessage(message)) {
 +                if (/too (dark|bright)/.test(message)) {
 +                    greeterState.faceMessage = message.includes("too dark") ? i18nd("plasma_login", "Too dark to see you") : i18nd("plasma_login", "Too bright to see you");

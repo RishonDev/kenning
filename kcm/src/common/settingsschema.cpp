@@ -47,6 +47,7 @@ std::optional<Setting> engineSetting(const QString &id)
         {QStringLiteral("core/no_confirmation"), isBoolText},
         {QStringLiteral("core/abort_if_ssh"), isBoolText},
         {QStringLiteral("core/abort_if_lid_closed"), isBoolText},
+        {QStringLiteral("core/password_after_boot"), isBoolText},
         {QStringLiteral("video/certainty"), numberIn(1, 10)},
         {QStringLiteral("video/timeout"), numberIn(1, 30)},
         {QStringLiteral("video/dark_threshold"), numberIn(0, 100)},

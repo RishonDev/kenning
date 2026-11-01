@@ -165,6 +165,14 @@ webcam:
       KVision (Kotlin framework), KGlance (Glance face unlock) and Kognize (close
       to the KOGNIZA trademark application) were ruled out. A formal trademark
       search (USPTO, EUIPO) is still needed before a commercial release
+- [x] Password first after a restart (2026-11-01, `[core] password_after_boot`,
+      on by default), like phones: the service refuses face unlock (code 16) for
+      a user with no local logind session of class "user" since boot, so the
+      first sign-in needs the password or a fingerprint. Users seen signed in
+      are kept in /run/kenning/signed-in, so signing out doesn't undo it and a
+      reboot does. No PAM changes: sudo and the lock screen always run inside a
+      session. Autologin counts as signed in. Not yet: also asking again after
+      48 hours without the password, as phones do
 - [ ] Measured recognition accuracy before any stronger security claim:
       false accepts and false rejects across cameras (IR and webcam), lighting,
       glasses, several people and attack types (photos, screens, look-alikes),

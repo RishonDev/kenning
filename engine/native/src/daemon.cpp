@@ -8,6 +8,7 @@
 #include "engine.h"
 #include "failurelimiter.h"
 #include "service.h"
+#include "signedin.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -17,6 +18,7 @@
 #include <poll.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <systemd/sd-login.h>
 
 namespace FaceUnlock
 {
@@ -29,6 +31,7 @@ constexpr int clientTimeoutSeconds = 2;
 constexpr std::size_t maxRequestLength = 255;
 // In /run like pam_faillock's records: kept across service restarts, cleared at reboot.
 constexpr const char *failuresPath = "/run/kenning/failures";
+constexpr const char *signedInPath = "/run/kenning/signed-in";
 
 void reply(int client, int code)
 {
@@ -51,6 +54,25 @@ std::optional<Request> receiveRequest(int client)
         received += size_t(count);
     }
     return parseRequest(std::string_view(buffer, received));
+}
+
+// A local login of this user: the login screen refuses face unlock until there is one,
+// so it was made with a password (or fingerprint, or autologin).
+bool hasLocalLogin(uid_t uid)
+{
+    char **sessions = nullptr;
+    const int count = sd_uid_get_sessions(uid, 0, &sessions);
+    bool found = false;
+    for (int i = 0; i < count; ++i) {
+        char *sessionClass = nullptr;
+        if (!found && sd_session_is_remote(sessions[i]) == 0 && sd_session_get_class(sessions[i], &sessionClass) >= 0) {
+            found = std::strcmp(sessionClass, "user") == 0;
+        }
+        std::free(sessionClass);
+        std::free(sessions[i]);
+    }
+    std::free(sessions);
+    return found;
 }
 
 bool clientHungUp(int client)
@@ -91,6 +113,8 @@ public:
     Service()
     {
         restoreFailures();
+        std::ifstream file(signedInPath);
+        m_signedIn.restore(std::string(std::istreambuf_iterator<char>(file), {}));
     }
 
     void serve(int client)
@@ -114,6 +138,9 @@ public:
             return reply(client, Aborted);
         }
 
+        if (Config().boolean("core/password_after_boot", true) && !signedInSinceBoot(account->pw_uid)) {
+            return reply(client, NeedsPassword);
+        }
         if (request->command == "has-model") {
             return reply(client, hasModel(request->user, account->pw_uid));
         }
@@ -130,6 +157,22 @@ public:
     }
 
 private:
+    bool signedInSinceBoot(uid_t uid)
+    {
+        if (m_signedIn.contains(uid)) {
+            return true;
+        }
+        if (!hasLocalLogin(uid)) {
+            return false;
+        }
+        // Remembered so face unlock still works on the login screen after signing out.
+        m_signedIn.add(uid);
+        const std::string temporary = std::string(signedInPath) + ".new";
+        std::ofstream(temporary) << m_signedIn.save();
+        std::rename(temporary.c_str(), signedInPath);
+        return true;
+    }
+
     int hasModel(const std::string &user, uid_t uid)
     {
         if (!std::filesystem::exists(modelPath(user))) {
@@ -191,6 +234,7 @@ private:
     }
 
     FailureLimiter m_failures;
+    SignedInUsers m_signedIn;
 };
 }
 

@@ -37,6 +37,11 @@ KCM.SimpleKCM {
             visible: !settings["core/abort_if_ssh"]
             text: i18n("Over SSH the person signing in is somewhere else, but the camera looks at whoever is in front of this computer. Anyone sitting here could approve a remote sudo.")
         }
+        HeaderMessage {
+            type: Kirigami.MessageType.Warning
+            visible: !settings["core/password_after_boot"]
+            text: i18n("Face unlock works right after a restart, so someone with your laptop and a face like yours, or with an ordinary webcam a photo of you, could sign in without ever knowing your password.")
+        }
     }
 
     Kirigami.FormLayout {
@@ -128,6 +133,17 @@ KCM.SimpleKCM {
             text: i18n("Over SSH")
             checked: settings["core/abort_if_ssh"]
             onToggled: kcm.setValue("core/abort_if_ssh", checked)
+        }
+        RowLayout {
+            spacing: 0
+            QQC2.CheckBox {
+                text: i18n("After a restart, until you sign in with your password")
+                checked: settings["core/password_after_boot"]
+                onToggled: kcm.setValue("core/password_after_boot", checked)
+            }
+            Kirigami.ContextualHelpButton {
+                toolTipText: i18n("Like a phone: if your computer is stolen while switched off, your face alone can't sign in. Once you have signed in with your password, face unlock works until the next restart, also after signing out.")
+            }
         }
 
         Item {

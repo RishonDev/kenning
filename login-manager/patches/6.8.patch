@@ -217,7 +217,7 @@ index f3233e1..d44b455 100644
  
          let sessionType = PlasmaLogin.SessionModel.data(PlasmaLogin.SessionModel.index(greeterState.sessionIndex, 0), PlasmaLogin.SessionModel.TypeRole)
          let sessionFileName = PlasmaLogin.SessionModel.data(PlasmaLogin.SessionModel.index(greeterState.sessionIndex, 0), PlasmaLogin.SessionModel.FileNameRole)
-@@ -218,10 +263,43 @@ Item {
+@@ -218,10 +263,48 @@ Item {
              PlasmaLogin.StateConfig.lastLoggedInUser = greeterState.lastLoggedInUser;
              setLastLoggedInSessionForUser(greeterState.lastLoggedInUser, greeterState.lastLoggedInSession);
              PlasmaLogin.StateConfig.save();
@@ -245,6 +245,11 @@ index f3233e1..d44b455 100644
 +            } else if (message.startsWith("Identified face as")) {
 +                greeterState.faceMessage = i18nd("plasma_login", "Welcome, %1", displayNameFor(greeterState.lastLoggedInUser));
 +                greeterState.faceState = GreeterState.FaceState.Recognized;
++            } else if (message.includes("after a restart")) {
++                // Refused before any scan, so there is no Scanning state to leave.
++                greeterState.faceMessage = i18nd("plasma_login", "Use your password once after a restart");
++                greeterState.faceState = GreeterState.FaceState.Failed;
++                greeterState.faceCanRetry = false;
 +            } else if (greeterState.faceState === GreeterState.FaceState.Scanning && greeterState.isFaceMessage(message)) {
 +                if (/too (dark|bright)/.test(message)) {
 +                    greeterState.faceMessage = message.includes("too dark") ? i18nd("plasma_login", "Too dark to see you") : i18nd("plasma_login", "Too bright to see you");

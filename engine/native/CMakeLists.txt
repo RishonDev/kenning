@@ -31,13 +31,14 @@ add_library(kenning-engine STATIC
     src/headpose.cpp src/headpose.h
     src/pipeline.cpp src/pipeline.h
     src/service.h
+    src/signedin.h
 )
 target_link_libraries(kenning-engine PUBLIC ${OpenCV_LIBS} Qt6::Core kenning-config)
 target_include_directories(kenning-engine PUBLIC ${OpenCV_INCLUDE_DIRS})
 
 add_executable(kenning src/main.cpp src/daemon.cpp src/daemon.h)
 target_compile_definitions(kenning PRIVATE KENNING_VERSION="${PROJECT_VERSION}")
-target_link_libraries(kenning PRIVATE kenning-engine)
+target_link_libraries(kenning PRIVATE kenning-engine PkgConfig::LIBSYSTEMD)
 
 # The PAM module only asks the service; OpenCV stays out of the programs that authenticate.
 add_library(pam_kenning MODULE src/pam_kenning.cpp)
