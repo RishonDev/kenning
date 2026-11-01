@@ -1,3 +1,11 @@
+kenning (0.8.0-1) unstable; urgency=medium
+
+  * Face unlock waits for a password sign-in after each restart, like a phone
+    (on by default, can be turned off)
+  * README privacy section and docs/DESIGN.md, a design document for review
+
+ -- Rishon Jonathan R <mithicalaviator85@gmail.com>  Sun, 01 Nov 2026 18:19:01 +0530
+
 kenning (0.7.1-1) unstable; urgency=medium
 
   * Removed the optional photos of failed attempts, which could photograph
