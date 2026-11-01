@@ -70,9 +70,7 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
     ScanStats stats{.cameraMs = pipeline.cameraMs(), .networksMs = pipeline.networksMs()};
     const double certainty = config.number("video/certainty", 6.0);
     const auto deadline = Clock::now() + std::chrono::duration<double>(config.number("video/timeout", 4));
-    const bool keepSnapshot = config.boolean("snapshots/save_failed", false);
     double best = noMatchScore;
-    cv::Mat snapshot;
     int blackFrames = 0;
 
     while (Clock::now() < deadline) {
@@ -105,9 +103,6 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
                 const cv::Mat feature = pipeline.encode(view, faces.row(row));
                 stats.encodeMs += millisecondsSince(start);
                 const double score = bestScoreAgainst(pipeline, feature, models);
-                if (keepSnapshot && (score < best || snapshot.empty())) {
-                    snapshot = view.clone();
-                }
                 best = std::min(best, score);
                 if (best <= certainty) {
                     ++stats.faceFrames;
@@ -129,8 +124,7 @@ ScanResult compare(const Config &config, const std::string &user, const std::fun
         }
     }
     stats.darkFrames += blackFrames;
-    // A photo only when someone was seen: a face that wasn't the user's.
-    return {.code = Timeout, .bestScore = best, .message = "Failure, timeout reached", .stats = stats, .snapshot = stats.faceFrames > 0 ? snapshot : cv::Mat()};
+    return {.code = Timeout, .bestScore = best, .message = "Failure, timeout reached", .stats = stats};
 }
 
 namespace

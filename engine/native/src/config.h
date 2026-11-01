@@ -24,10 +24,6 @@ namespace FaceUnlock
 inline constexpr const char *configPath = KENNING_SYSCONFDIR "/config.ini";
 inline constexpr const char *modelsDir = KENNING_SYSCONFDIR "/models";
 inline constexpr int maxLabelLength = 24;
-#ifndef KENNING_SNAPSHOTSDIR
-#define KENNING_SNAPSHOTSDIR "/var/lib/kenning/snapshots"
-#endif
-inline constexpr const char *snapshotsDir = KENNING_SNAPSHOTSDIR;
 #ifndef KENNING_SERVICE_USER
 #define KENNING_SERVICE_USER "kenning"
 #endif

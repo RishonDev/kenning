@@ -150,7 +150,6 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("video/certainty"), 6.0},
         {QStringLiteral("video/timeout"), 4},
         {QStringLiteral("video/dark_threshold"), 60},
-        {QStringLiteral("snapshots/save_failed"), false},
         {QStringLiteral("pam/login"), true},
         {Key::lockScreenFace, true},
         {QStringLiteral("pam/sudo"), true},
@@ -404,46 +403,6 @@ void FaceUnlockKcm::refreshFaces()
             });
         }
         Q_EMIT facesChanged();
-    });
-    job->start();
-}
-
-QVariantList FaceUnlockKcm::snapshots() const
-{
-    return m_snapshots;
-}
-
-void FaceUnlockKcm::refreshSnapshots()
-{
-    auto *job = helperJob(QStringLiteral("snapshots"));
-    connect(job, &KJob::result, this, [this, job] {
-        if (job->error()) {
-            return;
-        }
-        m_snapshots.clear();
-        for (const QVariant &value : job->data().value(QStringLiteral("photos")).toList()) {
-            const QVariantMap photo = value.toMap();
-            m_snapshots.append(QVariantMap{
-                {QStringLiteral("time"), QDateTime::fromSecsSinceEpoch(photo.value(QStringLiteral("time")).toLongLong())},
-                {QStringLiteral("source"),
-                 QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(photo.value(QStringLiteral("data")).toByteArray().toBase64()))},
-            });
-        }
-        Q_EMIT snapshotsChanged();
-    });
-    job->start();
-}
-
-void FaceUnlockKcm::clearSnapshots()
-{
-    auto *job = helperJob(QStringLiteral("clearsnapshots"));
-    connect(job, &KJob::result, this, [this, job] {
-        if (job->error()) {
-            Q_EMIT errorOccurred(job->errorString());
-            return;
-        }
-        m_snapshots.clear();
-        Q_EMIT snapshotsChanged();
     });
     job->start();
 }

@@ -23,7 +23,7 @@ Only the latest release gets security fixes.
 Examples of what to report:
 
 - signing in, unlocking or approving as someone without their face or password
-- reading or replacing someone's face models, or the photos of failed attempts
+- reading or replacing someone's face models
 - a way to make Kenning's service or its root helper run something for another user
 - getting around the rate limit on failed attempts
 

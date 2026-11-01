@@ -40,8 +40,6 @@ option trades security or privacy for convenience:
 - [x] "Don't use when the lid is closed" or "Don't use over SSH" turned off
 - [x] Dismiss the lock screen automatically: unlocks as soon as you are seen,
       without a key press
-- [x] Take a photo of failed attempts: hidden instead, since the native engine
-      doesn't take photos yet (see Follow-ups); warn when it is implemented
 - [x] "Say when face recognition starts" turned off: the login and lock screen
       animation depends on it
 
@@ -99,11 +97,12 @@ webcam:
       button would do nothing; the failure reason still shows there
 - [x] The same button on the login screen (plasma-login-manager-kenning): runs
       the empty-password attempt again
-- [x] Photos of failed attempts ([snapshots] save_failed, off by default): the
-      service keeps the frame with the closest face that didn't match, the newest
-      20 per user in /var/lib/kenning/snapshots (service-only, StateDirectory);
-      System Settings shows and deletes them through the root helper after the
-      user's own password, with a privacy note while it is on
+- [x] ~~Photos of failed attempts~~: added in 0.7.0, removed after release
+      (2026-11-01). It photographed anyone who wasn't recognized, including
+      people in public who never agreed to it, and kept face photos that root
+      or anyone holding the disk could read. Encrypting them wouldn't help: the
+      service must save them while the user is away, so the key sits on the
+      same machine. Package upgrades delete /var/lib/kenning/snapshots.
 - [x] A root service that owns the camera and face models (like fprintd), so
       models no longer have to be readable by local users: `kenning daemon`,
       socket-activated, answering only for root or the user's own account

@@ -50,7 +50,6 @@ std::optional<Setting> engineSetting(const QString &id)
         {QStringLiteral("video/certainty"), numberIn(1, 10)},
         {QStringLiteral("video/timeout"), numberIn(1, 30)},
         {QStringLiteral("video/dark_threshold"), numberIn(0, 100)},
-        {QStringLiteral("snapshots/save_failed"), isBoolText},
     };
     return findSetting(settings, id);
 }

@@ -39,7 +39,6 @@ struct ScanResult {
     double bestScore = noMatchScore;
     std::string message;
     ScanStats stats = {};
-    cv::Mat snapshot = {}; // with [snapshots] save_failed
 };
 
 // Looks for the user's face until video/timeout, or until cancelled() returns true.

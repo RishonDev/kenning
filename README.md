@@ -231,7 +231,6 @@ Face unlock is a convenience, not a stronger lock than your password. Before you
 - **Your password always works**, and it is still what protects your data. Face unlock doesn't change disk encryption, and signing in with your face doesn't unlock KWallet, which still needs your password.
 - **While you're signed in at the computer and over SSH at the same time**, a program started from the SSH login outside a session (for example with `systemd-run --user`) can still start a face scan, which the camera answers with whoever sits at the computer.
 - **Not for shared or high-security computers.** Use your password, a fingerprint or a security key there.
-- **Photos of failed attempts are off by default.** If you turn them on, the camera photographs anyone it doesn't recognise, including people who don't know about it. Tell others who use your computer, and check the law where you live.
 
 Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
 

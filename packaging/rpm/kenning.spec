@@ -68,6 +68,9 @@ mkdir -p %{_sysconfdir}/kenning/models
 chown -R kenning:kenning %{_sysconfdir}/kenning/models || :
 chmod 700 %{_sysconfdir}/kenning/models
 find %{_sysconfdir}/kenning/models -type f -exec chmod 600 {} +
+# Photos of failed attempts are no longer kept; delete any saved before.
+rm -rf /var/lib/kenning/snapshots
+rmdir /var/lib/kenning 2>/dev/null || :
 /usr/lib/kenning/pam-tidy tidy || :
 if [ -d /run/systemd/system ]; then
     systemctl daemon-reload || :

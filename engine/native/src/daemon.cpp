@@ -8,7 +8,6 @@
 #include "engine.h"
 #include "failurelimiter.h"
 #include "service.h"
-#include "snapshots.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -153,9 +152,6 @@ private:
                 return clientHungUp(client);
             });
             recordResult(user, uid, result, limits);
-            if (result.code == Timeout && !result.snapshot.empty()) {
-                saveSnapshot(std::filesystem::path(snapshotsDir) / user, result.snapshot);
-            }
             return result.code;
         } catch (const std::exception &error) {
             std::cerr << "kenning daemon: scan failed: " << error.what() << '\n';

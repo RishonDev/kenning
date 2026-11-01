@@ -18,7 +18,7 @@ kenning_add_tests(
     LINK_LIBRARIES kenning-config Qt6::Core
 )
 kenning_add_tests(
-    TESTS facemodelstest failurelimitertest headposetest lightingtest snapshotstest
+    TESTS facemodelstest failurelimitertest headposetest lightingtest
     LINK_LIBRARIES kenning-engine
 )
 

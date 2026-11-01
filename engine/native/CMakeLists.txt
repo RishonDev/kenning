@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Rishon Jonathan R
 # SPDX-License-Identifier: CC0-1.0
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs objdetect videoio dnn)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc objdetect videoio dnn)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 find_library(PAM_LIBRARY pam REQUIRED)
 # logind tells the PAM module whether a request comes from a remote session
@@ -11,7 +11,6 @@ pkg_check_modules(LIBSYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 set(KENNING_BINARY ${CMAKE_INSTALL_FULL_BINDIR}/kenning)
 set(KENNING_SYSCONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/kenning CACHE PATH "Config and face models")
 set(KENNING_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}/kenning CACHE PATH "Recognition networks")
-set(KENNING_SNAPSHOTSDIR ${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/lib/kenning/snapshots CACHE PATH "Photos of failed attempts")
 set(KENNING_SOCKET /run/kenning.sock CACHE STRING "Socket of the face unlock service")
 set(KENNING_SERVICE_USER kenning CACHE STRING "System user the service runs as and that owns the face models")
 
@@ -20,7 +19,6 @@ target_include_directories(kenning-config INTERFACE src)
 target_compile_definitions(kenning-config INTERFACE
     KENNING_SYSCONFDIR="${KENNING_SYSCONFDIR}"
     KENNING_DATADIR="${KENNING_DATADIR}"
-    KENNING_SNAPSHOTSDIR="${KENNING_SNAPSHOTSDIR}"
     KENNING_SOCKET="${KENNING_SOCKET}"
     KENNING_SERVICE_USER="${KENNING_SERVICE_USER}"
 )
@@ -33,7 +31,6 @@ add_library(kenning-engine STATIC
     src/headpose.cpp src/headpose.h
     src/pipeline.cpp src/pipeline.h
     src/service.h
-    src/snapshots.cpp src/snapshots.h
 )
 target_link_libraries(kenning-engine PUBLIC ${OpenCV_LIBS} Qt6::Core kenning-config)
 target_include_directories(kenning-engine PUBLIC ${OpenCV_INCLUDE_DIRS})

@@ -10,7 +10,7 @@
 #include <QVariantMap>
 
 // settings is one flat map that QML edits through setValue():
-//   "core/…", "video/…", "snapshots/…"  /etc/kenning/config.ini (helper)
+//   "core/…", "video/…"                  /etc/kenning/config.ini (helper)
 //   "pam/<service>"                      pam_kenning.so in /etc/pam.d (helper)
 //   "Appearance/…", "LoginScreen/…"      /etc/xdg/kenningrc (helper)
 //   "lock/…"                             ~/.config/kscreenlockerrc (written directly)
@@ -20,7 +20,6 @@ class FaceUnlockKcm : public KQuickConfigModule
     Q_PROPERTY(QVariantMap settings READ settings NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList faces READ faces NOTIFY facesChanged)
     Q_PROPERTY(QVariantList themes READ themes NOTIFY themesChanged)
-    Q_PROPERTY(QVariantList snapshots READ snapshots NOTIFY snapshotsChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString userName READ userName CONSTANT)
     Q_PROPERTY(QString displayName READ displayName CONSTANT)
@@ -40,7 +39,6 @@ public:
     QVariantMap settings() const;
     QVariantList faces() const;
     QVariantList themes() const;
-    QVariantList snapshots() const;
     bool busy() const;
     QString userName() const;
     QString displayName() const;
@@ -60,8 +58,6 @@ public:
     Q_INVOKABLE void refreshThemes();
     Q_INVOKABLE void installTheme(const QUrl &archive);
     Q_INVOKABLE void removeTheme(const QString &id);
-    Q_INVOKABLE void refreshSnapshots();
-    Q_INVOKABLE void clearSnapshots();
 
 public Q_SLOTS:
     void load() override;
@@ -72,7 +68,6 @@ Q_SIGNALS:
     void settingsChanged();
     void facesChanged();
     void themesChanged();
-    void snapshotsChanged();
     void busyChanged();
     void progress(const QString &line);
     // exitCode is -1 if authorization failed or the helper couldn't run.
@@ -89,7 +84,6 @@ private:
     QVariantMap m_loaded;
     QVariantList m_faces;
     QVariantList m_themes;
-    QVariantList m_snapshots;
     QString m_devicePath;
     QString m_previewPath;
     bool m_colourCamera = false;

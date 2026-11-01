@@ -37,11 +37,6 @@ KCM.SimpleKCM {
             visible: !settings["core/abort_if_ssh"]
             text: i18n("Over SSH the person signing in is somewhere else, but the camera looks at whoever is in front of this computer. Anyone sitting here could approve a remote sudo.")
         }
-        HeaderMessage {
-            type: Kirigami.MessageType.Information
-            visible: settings["snapshots/save_failed"]
-            text: i18n("Photos are taken of anyone the camera sees who isn't recognized, including people who don't know about it. Let others who use this computer know.")
-        }
     }
 
     Kirigami.FormLayout {
@@ -133,28 +128,6 @@ KCM.SimpleKCM {
             text: i18n("Over SSH")
             checked: settings["core/abort_if_ssh"]
             onToggled: kcm.setValue("core/abort_if_ssh", checked)
-        }
-
-        Item {
-            Kirigami.FormData.isSection: true
-        }
-
-        RowLayout {
-            Kirigami.FormData.label: i18n("Failed attempts:")
-            spacing: 0
-            QQC2.CheckBox {
-                text: i18n("Take a photo of faces that weren't recognized")
-                checked: settings["snapshots/save_failed"]
-                onToggled: kcm.setValue("snapshots/save_failed", checked)
-            }
-            Kirigami.ContextualHelpButton {
-                toolTipText: i18n("Shows who tried to sign in as you. The newest 20 photos are kept, and only you (with your password) and administrators can see them.")
-            }
-        }
-        QQC2.Button {
-            icon.name: "camera-photo"
-            text: i18nc("@action:button", "View Photos…")
-            onClicked: kcm.push("SnapshotsPage.qml")
         }
 
         Item {

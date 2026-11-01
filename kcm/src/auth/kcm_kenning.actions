@@ -36,15 +36,3 @@ Name=Remove a face unlock theme
 Description=Authentication is required to remove a theme
 Policy=auth_admin
 Persistence=session
-
-[org.kde.kcontrol.kcmkenning.snapshots]
-Name=View photos of failed attempts
-Description=Authentication is required to view photos of faces that weren't recognized
-Policy=auth_self
-Persistence=session
-
-[org.kde.kcontrol.kcmkenning.clearsnapshots]
-Name=Delete photos of failed attempts
-Description=Authentication is required to delete photos of faces that weren't recognized
-Policy=auth_self
-Persistence=session

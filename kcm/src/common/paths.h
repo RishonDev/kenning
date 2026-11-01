@@ -14,7 +14,6 @@ namespace FaceUnlock
 {
 inline const QString engineConfigPath = QString::fromUtf8(configPath);
 inline const QString modelsPath = QString::fromUtf8(modelsDir);
-inline const QString snapshotsPath = QString::fromUtf8(snapshotsDir);
 inline const QString serviceUserName = QString::fromUtf8(serviceUser);
 
 inline QString modelPath(const QString &user)
