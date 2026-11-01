@@ -33,7 +33,7 @@ Sign in, unlock and approve with your face, on the login screen, the lock screen
 - **Easy setup.** System Settings shows you where to look and when to turn your head, and can read the steps aloud.
 - **Best with a face sign-in camera.** Many laptops have an infrared (IR) camera next to the normal one, made for face sign-in. Kenning uses it when it's there, because it works in the dark and is much harder to fool with a photo. An ordinary webcam works too, and Kenning tells you what that means for security.
 - **Fits in with Plasma.** On Plasma 6.8 it appears as Plasma's own Face sign-in option, next to fingerprint and password. You can change how the face scan animation looks, or install new designs.
-- **Your face stays on your computer.** Nothing is uploaded. The saved face data can only be read by Kenning itself, not by other apps or other users.
+- **Your face stays on your computer.** Kenning never connects to the network, and the saved face data can only be read by Kenning itself, not by other apps or other users. See [Privacy](#privacy).
 
 ## Install
 
@@ -222,6 +222,17 @@ flowchart LR
 </picture>
 </div>
 </details>
+
+### Privacy
+
+Kenning never connects to the network.
+
+- **The service can't reach the network at all.** Its systemd sandbox (`PrivateNetwork=yes`, `RestrictAddressFamilies=AF_UNIX`) gives it no network devices and only local sockets, so the kernel would stop it even if its code tried. Check with `systemctl show kenning -p PrivateNetwork -p RestrictAddressFamilies`.
+- **Nothing else in Kenning has network code.** The PAM module only talks to the service through `/run/kenning.sock`, and themes are installed from a file on your computer.
+- **Your face is saved as numbers, not photos,** in `/etc/kenning/models`, readable only by the service. Kenning keeps no camera pictures.
+- **Backups may copy it.** If Timeshift, Snapper or another backup includes `/etc`, your face data goes wherever the backup goes.
+- **Installing downloads software, not your data:** Kenning itself and, when building, the two recognition networks from OpenCV and the Plasma Login Manager source.
+- **Reading setup steps aloud** uses speech-dispatcher, which is local unless you've set it up with an online voice yourself.
 
 ### Security and limitations
 
