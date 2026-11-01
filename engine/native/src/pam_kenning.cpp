@@ -10,12 +10,15 @@
 #include <security/pam_ext.h>
 #include <security/pam_modules.h>
 
+#include <systemd/sd-bus.h>
 #include <systemd/sd-login.h>
 
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <syslog.h>
+#include <thread>
 #include <unistd.h>
 
 namespace
@@ -38,6 +41,38 @@ bool lidClosed()
         }
     }
     return false;
+}
+
+bool preparingForSleep(sd_bus *bus)
+{
+    int preparing = 0;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    const int result = sd_bus_get_property_trivial(bus,
+                                                   "org.freedesktop.login1",
+                                                   "/org/freedesktop/login1",
+                                                   "org.freedesktop.login1.Manager",
+                                                   "PreparingForSleep",
+                                                   &error,
+                                                   'b',
+                                                   &preparing);
+    sd_bus_error_free(&error);
+    return result >= 0 && preparing;
+}
+
+// Plasma locks the screen on the way into suspend, and the lock screen asks for a face at once:
+// wait until the computer has woken up, when someone may be there to look at it.
+void waitUntilAwake()
+{
+    sd_bus *bus = nullptr;
+    if (sd_bus_open_system(&bus) < 0) {
+        return;
+    }
+    // Steady time stands still while suspended, so this only bounds a sleep that never happens.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (preparingForSleep(bus) && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+    sd_bus_flush_close_unref(bus);
 }
 
 // A local, active session of this user, such as the desktop they are sitting at.
@@ -92,6 +127,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
     if (config.boolean("core/abort_if_ssh", true) && remoteSession(pamh)) {
         return PAM_AUTHINFO_UNAVAIL;
     }
+    waitUntilAwake();
     if (config.boolean("core/abort_if_lid_closed", true) && lidClosed()) {
         return PAM_AUTHINFO_UNAVAIL;
     }
