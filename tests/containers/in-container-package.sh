@@ -138,7 +138,15 @@ C
     # A dummy face model makes the module announce a scan, which proves PAM found it
     # by name and it reached the service (the scan itself fails: no camera).
     python3 -c "import json; print(json.dumps([{'id': 0, 'label': 'dummy', 'time': 0, 'data': [[0.0] * 128]}]))" > /etc/kenning/models/root.dat
-    gcc -o /tmp/h /tmp/h.c -lpam 2> /dev/null && out=$(/tmp/h root)
+    gcc -o /tmp/h /tmp/h.c -lpam 2> /dev/null
+    # No login session here, as right after a restart.
+    if grep -q "after a restart" <<< "$(/tmp/h root 2>&1)"; then
+        result "PAM: password first after a restart" PASS
+    else
+        result "PAM: password first after a restart" FAIL "no restart message"
+    fi
+    sed -i 's/^password_after_boot *=.*/password_after_boot = false/' /etc/kenning/config.ini
+    out=$(/tmp/h root)
     if grep -q "Attempting facial authentication" <<< "${out:-}"; then
         result "PAM module loads by name" PASS "$(grep message <<< "$out" | tail -1)"
     else

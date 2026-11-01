@@ -106,6 +106,9 @@ chmod 666 $T/k.sock 2>/dev/null
 check() { # name expected actual
     [[ $3 == "$2" ]] && result "$1" PASS || result "$1" FAIL "expected $2, got $3"
 }
+# No login session here, as right after a restart: refused until a password sign-in.
+check "service: password first after a restart" 16 "$(ask root $'has-model root\n')"
+sed -i 's/^password_after_boot *=.*/password_after_boot = false/' $T/etc/config.ini
 check "service: has-model, no model" 10 "$(ask root $'has-model root\n')"
 check "service: compare, no model" 10 "$(ask root $'compare root\n')"
 check "service: malformed request" 12 "$(ask root $'bogus\n')"
