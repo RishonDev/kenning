@@ -1,3 +1,10 @@
+kenning (0.7.1-1) unstable; urgency=medium
+
+  * Removed the optional photos of failed attempts, which could photograph
+    people who never agreed to it; photos already saved are deleted on upgrade
+
+ -- Rishon Jonathan R <mithicalaviator85@gmail.com>  Sun, 01 Nov 2026 14:33:41 +0530
+
 kenning (0.7.0-1) unstable; urgency=medium
 
   * Works in dim rooms: dark infrared frames that show a face are used, about

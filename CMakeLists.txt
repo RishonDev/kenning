@@ -4,7 +4,7 @@
 # One build for every package format; distribution-specific pieces live under packaging/.
 
 cmake_minimum_required(VERSION 3.20)
-project(kenning VERSION 0.7.0 LANGUAGES CXX)
+project(kenning VERSION 0.7.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(GNUInstallDirs)
