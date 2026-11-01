@@ -173,6 +173,11 @@ webcam:
       reboot does. No PAM changes: sudo and the lock screen always run inside a
       session. Autologin counts as signed in. Not yet: also asking again after
       48 hours without the password, as phones do
+- [ ] Set Up captures faces as root: the settings helper runs `kenning add`, so
+      OpenCV decodes camera frames with root rights during Set Up. Move capture
+      into the sandboxed service (an enrol request over the socket, root or the
+      user only), leaving the helper to start it and secure the saved model.
+      Found while writing docs/DESIGN.md (2026-11-01)
 - [ ] Measured recognition accuracy before any stronger security claim:
       false accepts and false rejects across cameras (IR and webcam), lighting,
       glasses, several people and attack types (photos, screens, look-alikes),
