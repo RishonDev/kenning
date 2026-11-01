@@ -59,6 +59,9 @@ post_install() {
 post_upgrade() {
     /usr/lib/kenning/pam-tidy tidy
     secure_models
+    # Photos of failed attempts are no longer kept; delete any saved before.
+    rm -rf /var/lib/kenning/snapshots
+    rmdir /var/lib/kenning 2>/dev/null || true
     # A running service keeps the old engine until it exits; start the new one.
     start_service
     systemctl try-restart kenning.service 2>/dev/null || true

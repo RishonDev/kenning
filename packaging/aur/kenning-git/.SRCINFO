@@ -1,5 +1,5 @@
 pkgbase = kenning-git
-	pkgver = 0.7.0
+	pkgver = 0.7.1
 	pkgrel = 1
 	url = https://github.com/RishonDev/kenning
 	arch = x86_64
@@ -72,7 +72,7 @@ pkgname = kenning-git
 	optdepends = plasma-login-manager-kenning: start face unlock as soon as the login screen appears
 	optdepends = qt6-speech: read the setup steps aloud
 	optdepends = speech-dispatcher: read the setup steps aloud (with a voice such as espeak-ng)
-	provides = kenning=0.7.0
+	provides = kenning=0.7.1
 	conflicts = kenning
 	conflicts = plasma-faceunlock
 	replaces = plasma-faceunlock
@@ -106,7 +106,7 @@ pkgname = plasma-login-manager-kenning-git
 	depends = systemd-libs
 	optdepends = kenning: face unlock settings and themes
 	provides = plasma-login-manager=6.8.2
-	provides = plasma-login-manager-kenning=0.7.0
+	provides = plasma-login-manager-kenning=0.7.1
 	conflicts = plasma-login-manager
 	conflicts = plasma-login-manager-kenning
 	conflicts = plasma-login-manager-faceunlock
