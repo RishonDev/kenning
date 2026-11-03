@@ -82,7 +82,9 @@ service reads the caller's identity from the kernel (`SO_PEERCRED`) and answers 
 - root, which is how the login manager, `sudo` and polkit ask;
 - the user asking about their own face.
 
-A request about another user is refused (code 12). It reads one short line per
+A request about another user is refused (code 12), except `password-first <user>`: the
+login screen asks it so it can go straight to the password after a restart, and it only
+says whether that user has signed in since boot, which `last` shows anyone anyway. It reads one short line per
 connection and serves one request at a time, so a client that says nothing is dropped
 after 2 seconds.
 
@@ -131,7 +133,9 @@ unlock until then.
 
 Users seen signed in are remembered in `/run/kenning/signed-in`, so signing out
 doesn't undo it, and `/run` is emptied at every boot. `sudo` and the lock screen always
-run inside a session, so they are never affected.
+run inside a session, so they are never affected. The login screen asks
+`password-first <user>` before its automatic scan and skips the scan while the answer
+is 16, so after a restart it opens on the password box.
 
 ### Rate limit
 

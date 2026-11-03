@@ -75,7 +75,7 @@ index be8ea32..ec07934 100644
      RESOURCES
      qml/faces/.face.icon
 diff --git a/src/frontend/greeter/main.cpp b/src/frontend/greeter/main.cpp
-index d859db0..06c61a7 100644
+index 2137b61..a74ebc5 100644
 --- a/src/frontend/greeter/main.cpp
 +++ b/src/frontend/greeter/main.cpp
 @@ -9,8 +9,11 @@
@@ -90,7 +90,60 @@ index d859db0..06c61a7 100644
  #include <KLocalizedString>
  #include <KWindowSystem>
  #include <LayerShellQt/Window>
-@@ -132,6 +135,13 @@ int main(int argc, char *argv[])
+@@ -27,6 +30,52 @@
+ #include "plasmaloginsettings.h"
+ #include "stateconfig.h"
+ 
++#include <cstring>
++#include <sys/socket.h>
++#include <sys/un.h>
++#include <unistd.h>
++
++// Asks the Kenning face unlock service about a user.
++class FaceUnlockService : public QObject
++{
++    Q_OBJECT
++public:
++    using QObject::QObject;
++
++    // True while the user has to sign in with their password first after a restart.
++    Q_INVOKABLE bool passwordFirst(const QString &user) const
++    {
++        constexpr int needsPassword = 16;
++        return ask(QStringLiteral("password-first"), user) == needsPassword;
++    }
++
++private:
++    static int ask(const QString &command, const QString &user)
++    {
++        const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
++        if (fd < 0) {
++            return -1;
++        }
++        sockaddr_un address{};
++        address.sun_family = AF_UNIX;
++        std::strncpy(address.sun_path, "/run/kenning.sock", sizeof(address.sun_path) - 1);
++        const timeval timeout{1, 0};
++        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
++        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
++        const QByteArray request = (command + QLatin1Char(' ') + user + QLatin1Char('\n')).toUtf8();
++        char reply[16] = {};
++        ssize_t received = -1;
++        if (::connect(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == 0
++            && send(fd, request.constData(), request.size(), MSG_NOSIGNAL) == request.size()) {
++            received = recv(fd, reply, sizeof(reply) - 1, 0);
++        }
++        close(fd);
++        bool ok = false;
++        const int code = received > 0 ? QByteArray(reply, received).trimmed().toInt(&ok) : -1;
++        return ok ? code : -1;
++    }
++};
++
+ class LoginGreeter : public QObject
+ {
+     Q_OBJECT
+@@ -129,6 +178,14 @@ int main(int argc, char *argv[])
      qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "StateConfig", StateConfig::self());
      qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "BlurScreenBridge", new BlurScreenBridge);
  
@@ -100,6 +153,7 @@ index d859db0..06c61a7 100644
 +    faceUnlock->insert(QStringLiteral("animationStyle"), faceUnlockConfig.group(QStringLiteral("Appearance")).readEntry("AnimationStyle", QStringLiteral("hello")));
 +    faceUnlock->insert(QStringLiteral("autoScan"), faceUnlockConfig.group(QStringLiteral("LoginScreen")).readEntry("AutoScan", true));
 +    qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "FaceUnlockConfig", faceUnlock);
++    qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "FaceUnlockService", new FaceUnlockService(&app));
 +
      LoginGreeter greeter;
      return app.exec();
@@ -139,7 +193,7 @@ index f5ea2ab..5de5530 100644
          QTimer::singleShot(100, this, &MockGreeterProxy::loginSucceeded);
          QTimer::singleShot(800, []() {
 diff --git a/src/frontend/greeter/qml/GreeterState.qml b/src/frontend/greeter/qml/GreeterState.qml
-index 68395e9..0ba58a8 100644
+index 68395e9..7340ac7 100644
 --- a/src/frontend/greeter/qml/GreeterState.qml
 +++ b/src/frontend/greeter/qml/GreeterState.qml
 @@ -18,6 +18,13 @@ Item {
@@ -263,7 +317,7 @@ index 68395e9..0ba58a8 100644
      }
  }
 diff --git a/src/frontend/greeter/qml/Login.qml b/src/frontend/greeter/qml/Login.qml
-index 3243462..7a0bd07 100644
+index 3243462..a76b046 100644
 --- a/src/frontend/greeter/qml/Login.qml
 +++ b/src/frontend/greeter/qml/Login.qml
 @@ -31,6 +31,25 @@ SessionManagementScreen {
@@ -292,17 +346,19 @@ index 3243462..7a0bd07 100644
      signal loginRequest(string username, string password)
  
      onUserSelected: {
-@@ -172,6 +191,18 @@ SessionManagementScreen {
+@@ -172,6 +191,20 @@ SessionManagementScreen {
              }
  
              passwordBox.showPassword = PlasmaLogin.GreeterState.showPassword;
 +
 +            // Try PAM once without a password so face unlock starts on its own.
 +            // On failure the password box takes focus as after any failed login.
++            // After a restart Kenning wants the password first, so don't scan then.
 +            if (sync.isUserList && PlasmaLogin.FaceUnlockConfig.autoScan && !PlasmaLogin.GreeterState.autoLoginAttempted) {
 +                PlasmaLogin.GreeterState.autoLoginAttempted = true;
 +                Qt.callLater(() => {
-+                    if (root.userList.selectedUser && !passwordBox.text) {
++                    if (root.userList.selectedUser && !passwordBox.text
++                            && !PlasmaLogin.FaceUnlockService.passwordFirst(root.userList.selectedUser)) {
 +                        PlasmaLogin.GreeterState.activateWindow(root.Window.window);
 +                        startLogin();
 +                    }

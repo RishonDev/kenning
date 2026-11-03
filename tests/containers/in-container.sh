@@ -108,7 +108,10 @@ check() { # name expected actual
 }
 # No login session here, as right after a restart: refused until a password sign-in.
 check "service: password first after a restart" 16 "$(ask root $'has-model root\n')"
+check "service: login screen asks password-first" 16 "$(ask nobody $'password-first root\n')"
+check "service: password-first, unknown user" 12 "$(ask nobody $'password-first no-such-user\n')"
 sed -i 's/^password_after_boot *=.*/password_after_boot = false/' $T/etc/config.ini
+check "service: password-first when not required" 0 "$(ask nobody $'password-first root\n')"
 check "service: has-model, no model" 10 "$(ask root $'has-model root\n')"
 check "service: compare, no model" 10 "$(ask root $'compare root\n')"
 check "service: malformed request" 12 "$(ask root $'bogus\n')"

@@ -132,13 +132,22 @@ public:
         if (!request) {
             return reply(client, Aborted);
         }
-        // Only root, or the user asking about their own face.
         const passwd *account = request->user.find('/') == std::string::npos ? getpwnam(request->user.c_str()) : nullptr;
-        if (!account || (peer.uid != 0 && peer.uid != account->pw_uid)) {
+        if (!account) {
+            return reply(client, Aborted);
+        }
+        const bool needsPassword = Config().boolean("core/password_after_boot", true) && !signedInSinceBoot(account->pw_uid);
+        // Asked by the login screen so it can skip the face scan after a restart. Open to anyone:
+        // who has signed in since boot is public already (last, loginctl).
+        if (request->command == "password-first") {
+            return reply(client, needsPassword ? NeedsPassword : Recognized);
+        }
+        // Only root, or the user asking about their own face.
+        if (peer.uid != 0 && peer.uid != account->pw_uid) {
             return reply(client, Aborted);
         }
 
-        if (Config().boolean("core/password_after_boot", true) && !signedInSinceBoot(account->pw_uid)) {
+        if (needsPassword) {
             return reply(client, NeedsPassword);
         }
         if (request->command == "has-model") {
