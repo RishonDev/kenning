@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Name:           kenning
-Version:        0.8.0
+Version:        0.8.1
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
@@ -119,6 +119,10 @@ python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
 %{_datadir}/applications/kcm_kenning.desktop
 
 %changelog
+* Tue Nov 03 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.8.1-1
+- Login screen: after a restart, open on the password box instead of a face scan that is refused anyway
+- Lock screen: wait until the computer has woken up before scanning, instead of scanning on the way into suspend
+
 * Sun Nov 01 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.8.0-1
 - Face unlock waits for a password sign-in after each restart, like a phone (on by default, can be turned off)
 - README privacy section and docs/DESIGN.md, a design document for review

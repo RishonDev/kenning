@@ -66,40 +66,40 @@ The first line installs `wget`, which downloads the package; many systems don't 
 ```sh
 sudo apt install wget
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/kenning_0.8.0-1_ubuntu26.04_amd64.deb
-sudo apt install ./kenning_0.8.0-1_ubuntu26.04_amd64.deb
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/kenning_0.8.1-1_ubuntu26.04_amd64.deb
+sudo apt install ./kenning_0.8.1-1_ubuntu26.04_amd64.deb
 ```
 
 **Ubuntu or Kubuntu 26.10**
 ```sh
 sudo apt install wget
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/kenning_0.8.0-1_ubuntu26.10_amd64.deb
-sudo apt install ./kenning_0.8.0-1_ubuntu26.10_amd64.deb
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/kenning_0.8.1-1_ubuntu26.10_amd64.deb
+sudo apt install ./kenning_0.8.1-1_ubuntu26.10_amd64.deb
 ```
 
 **Debian 13**
 ```sh
 sudo apt install wget
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/kenning_0.8.0-1_debian13_amd64.deb
-sudo apt install ./kenning_0.8.0-1_debian13_amd64.deb
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/kenning_0.8.1-1_debian13_amd64.deb
+sudo apt install ./kenning_0.8.1-1_debian13_amd64.deb
 ```
 
 **Fedora 44**
 ```sh
 sudo dnf install wget
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/kenning-0.8.0-1.fc44.x86_64.rpm
-sudo dnf install ./kenning-0.8.0-1.fc44.x86_64.rpm
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/kenning-0.8.1-1.fc44.x86_64.rpm
+sudo dnf install ./kenning-0.8.1-1.fc44.x86_64.rpm
 ```
 
 **Arch Linux**
 ```sh
 sudo pacman -S --needed wget
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/kenning-0.8.0-1-x86_64.pkg.tar.zst
-sudo pacman -U kenning-0.8.0-1-x86_64.pkg.tar.zst
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/kenning-0.8.1-1-x86_64.pkg.tar.zst
+sudo pacman -U kenning-0.8.1-1-x86_64.pkg.tar.zst
 ```
 
 Almost every computer is **amd64** (Fedora calls it **x86_64**). Only on a laptop with an ARM processor, such as a Snapdragon, change `amd64` to `arm64` (Fedora: `x86_64` to `aarch64`) in the last two lines. Arch Linux packages are x86-64 only.
@@ -138,8 +138,8 @@ If the first line says **Plasma Login Manager**, also install Kenning's version 
 
 ```sh
 cd ~/Downloads
-wget https://github.com/RishonDev/kenning/releases/download/v0.8.0/plasma-login-manager-kenning-0.8.0-1-x86_64.pkg.tar.zst
-sudo pacman -U plasma-login-manager-kenning-0.8.0-1-x86_64.pkg.tar.zst
+wget https://github.com/RishonDev/kenning/releases/download/v0.8.1/plasma-login-manager-kenning-0.8.1-1-x86_64.pkg.tar.zst
+sudo pacman -U plasma-login-manager-kenning-0.8.1-1-x86_64.pkg.tar.zst
 ```
 
 If it says something else, such as **SDDM**, skip this. Face unlock still works everywhere else.
