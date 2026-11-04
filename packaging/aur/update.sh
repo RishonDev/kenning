@@ -57,6 +57,7 @@ open("packaging/aur/kenning-git/PKGBUILD", "w").write(make(True))
 PY
 for dir in packaging/aur/kenning packaging/aur/kenning-git; do
     cp packaging/arch/kenning.install "$dir/"
+    rm -rf "$dir/keys" && cp -r keys "$dir/"
     (cd "$dir" && makepkg --printsrcinfo > .SRCINFO)
 done
 echo "packaging/aur: kenning $version ($sum) and kenning-git"

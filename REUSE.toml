@@ -8,6 +8,12 @@ path = ["**/PKGBUILD", ".gitignore", "README.md", "THEMES.md", "ROADMAP.md", "SE
 SPDX-FileCopyrightText = "2026 Rishon Jonathan R"
 SPDX-License-Identifier = "CC0-1.0"
 
+# Public keys of KDE's release signers, as published on keyservers
+[[annotations]]
+path = ["keys/pgp/*.asc", "packaging/aur/*/keys/pgp/*.asc"]
+SPDX-FileCopyrightText = "KDE release signers"
+SPDX-License-Identifier = "CC0-1.0"
+
 # Changes to KDE's Plasma Login Manager; the patched files keep their licences.
 [[annotations]]
 path = "login-manager/patches/*.patch"

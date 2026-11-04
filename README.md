@@ -269,11 +269,20 @@ Everything comes from your distribution's repositories (OpenCV, Qt, KDE Framewor
 
 | Distribution | Build |
 |---|---|
-| Arch Linux | `makepkg -si`, which also builds `plasma-login-manager-kenning` |
+| Arch Linux | `gpg --import keys/pgp/*.asc && makepkg -si`, which also builds `plasma-login-manager-kenning` |
 | Debian, Ubuntu | `cp -r packaging/debian debian && dpkg-buildpackage -b -uc -us -jauto` |
 | Fedora | `rpmbuild -bb packaging/rpm/kenning.spec` |
 
 All three share one CMake install, and `tests/containers/` builds and tests them in containers.
+
+On Arch, `makepkg` checks KDE's signature on the Plasma Login Manager tarball. Without the signers' keys in your keyring, it stops with:
+
+```
+plasma-login-manager-6.8.2.tar.xz ... FAILED (unknown public key 11968C44928CAEFC)
+==> ERROR: One or more PGP signatures could not be verified!
+```
+
+`gpg --import keys/pgp/*.asc` imports them, and you only need to do it once. The keys are the ones listed in the PKGBUILD's `validpgpkeys`, as published on keyservers. AUR helpers such as `yay` and `paru` offer to fetch them for you.
 
 <details>
 <summary><b>Development</b></summary>
