@@ -173,6 +173,7 @@ This also takes it off the lock screen and the sign-in prompts. To delete your s
 - **"Too dark or too bright".** Face the light instead of having it behind you, or turn on a lamp. Bright sunlight from behind or beside you can also cause this.
 - **Face Unlock isn't in System Settings.** Close System Settings and open it again. If it still isn't there, restart the computer.
 - **"No camera was found".** Check that the camera works in another app, such as Kamoso, and that no other app is using it.
+- **`systemctl enable kenning` says the unit has no installation config.** You don't need to enable anything. The package already sets the service to start with the computer, and it runs the first time it's needed. `systemctl status kenning.socket` shows it listening, even when it says "disabled".
 - **Anything else:** [open an issue](https://github.com/RishonDev/kenning/issues/new/choose). The form tells you what to include.
 
 ## Animation themes
