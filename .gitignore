@@ -14,3 +14,5 @@ plasma-login-manager-*.tar.xz*
 /tests/containers/logs/
 /dist/
 .clang-format
+# graphify knowledge graph of this repository, built locally
+/graphify-out/
