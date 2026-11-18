@@ -118,13 +118,15 @@ webcam:
       password when you type
 - [ ] Upstream route, still to do: the login manager auto-scan as a merge
       request, the settings page as a KCM or part of Users
-- [ ] kscreenlocker fixes to send: (1) a remembered method that has since been
-      switched off crashes the lock screen until KWin gives up ("loginctl"
-      screen): bug 528042, merge request !387 with an autotest. Kenning never
-      switches Face off without forgetting a remembered Face.
-      (2) a method started before its PAM worker is ready isn't retried until
-      a key or mouse wakes the screen (the add-on retries for fingerprint;
-      being fixed in !352).
+- [x] kscreenlocker fix: a remembered method that has since been switched off
+      crashed the lock screen until KWin gave up ("loginctl" screen): bug 528042,
+      merge request !387 with an autotest, merged into master on 2026-11-18 (after
+      6.8.3, so in the next feature release unless backported). Kenning keeps
+      forgetting a remembered Face when it switches Face off until the oldest
+      supported Plasma has the fix.
+- [ ] kscreenlocker fixes to send: (2) a method started before its PAM worker
+      is ready isn't retried until a key or mouse wakes the screen (the add-on
+      retries for fingerprint; being fixed in !352).
       (3) a real preferred-method setting, and starting fingerprint only after
       face fails: done in the add-on (preferredMethod, fingerprintFallback); only
       upstreaming is left, so the workaround can go
