@@ -121,7 +121,14 @@ The module refuses (`abort_if_ssh`, on by default) when:
 - the environment shows an SSH login;
 - logind says the caller's session is remote, or can't tell;
 - the caller is outside any session (as programs started by the user's service manager
-  are on Plasma 6) and isn't root, and the user has no active, local graphical session.
+  are on Plasma 6), isn't root, and either is setuid root (`sudo`, `su`, polkit's helper:
+  refused unless `allow_outside_session` is on) or its user has no active, local session.
+
+Any program of the user can run outside a session, including one started over SSH with
+`systemd-run --user`, so outside a session nothing says who asked. Refusing only programs
+that raise the user to root keeps the lock screen working (on Plasma 6 it runs under the
+service manager too) while a remote shell can't borrow the face of whoever sits at the
+camera for `sudo`.
 
 ### After a restart
 
@@ -139,10 +146,23 @@ is 16, so after a restart it opens on the password box.
 
 ### Rate limit
 
-Like `pam_faillock`: 5 faces that were seen and not recognized within 15 minutes lock
-face unlock for that user for 10 minutes. Frames with no face, or too dark or bright,
-don't count. The record is kept in `/run/kenning/failures`, so restarting the service
+Like `pam_faillock`: once both 3 faces that were seen and not recognized and 3 wrong
+passwords fall within 15 minutes, face unlock is locked for that user for 10 minutes
+(`max_failures`, `max_password_failures`, `failure_window`, `lockout_minutes`;
+`max_password_failures = 0` lets faces alone lock). A scan counts once it has seen a face,
+however it ends, so a client that hangs up just before the timeout gets no extra tries.
+Frames with no face, or too dark or bright, don't count.
+
+The service never sees passwords. `pam_kenning`, first in the stack, leaves PAM data whose
+cleanup `pam_end` calls with the application's final result; when that is a failure and a
+password was typed (`PAM_AUTHTOK` is set), the module sends `password-failed <user>`.
+Face-only stacks (`kde-face`) and the login screen's automatic attempt type no password,
+so they aren't counted. An application that doesn't pass its result to `pam_end` isn't
+counted either. The record is kept in `/run/kenning/failures`, so restarting the service
 doesn't clear it.
+
+Requests are read side by side with a 2 second deadline for the whole request, at most 4
+unfinished per user and 64 in all, so a client sending slowly only holds up itself.
 
 ### Ordinary webcams
 
@@ -166,8 +186,9 @@ These are where review would help most.
   to capture the face, so OpenCV handles camera frames with root rights during Set Up.
   Moving capture into the sandboxed service would remove this.
 - **Signed in at the computer and over SSH at once:** a program started from the SSH
-  login outside any session passes the "at the computer" rule, because the user has a
-  local session, and the camera answers with whoever sits there.
+  login outside any session still passes the "at the computer" rule for the lock screen,
+  which only unlocks a session the SSH login can use already. `sudo` and administrator
+  prompts are refused there unless `allow_outside_session` is on.
 - **The world-writable socket** relies entirely on the kernel's peer credentials and
   the service's request parsing.
 - **Automatic login** counts as signing in after a restart.

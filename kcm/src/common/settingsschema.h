@@ -29,6 +29,8 @@ inline const QString pamLine = QStringLiteral("auth       sufficient            
 bool isPamLine(const QString &line);
 // pam_kenning or a leftover pam_howdy; both are removed so only one engine runs.
 bool isFacePamLine(const QString &line);
+// Where the face line goes: the first auth line, or Debian's "@include common-auth" that holds them.
+bool isAuthPamLine(const QString &line);
 
 struct PamService {
     QString id; // as in the settings page's "pam/<id>"

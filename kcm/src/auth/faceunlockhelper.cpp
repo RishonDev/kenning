@@ -246,9 +246,11 @@ bool setPamFace(const FaceUnlock::PamService &service, bool enabled)
 
     lines.erase(std::remove_if(lines.begin(), lines.end(), FaceUnlock::isFacePamLine), lines.end());
     if (enabled) {
-        const auto firstAuth = std::find_if(lines.begin(), lines.end(), [](const QString &line) {
-            return line.trimmed().startsWith(QLatin1String("auth"));
-        });
+        const auto firstAuth = std::find_if(lines.begin(), lines.end(), FaceUnlock::isAuthPamLine);
+        // Appended after the password check, it would never run.
+        if (firstAuth == lines.end()) {
+            return false;
+        }
         lines.insert(firstAuth, FaceUnlock::pamLine);
     }
     return writeFile(service.path, lines.join(QLatin1Char('\n')).toUtf8(), standardPermissions);

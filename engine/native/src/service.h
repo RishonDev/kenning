@@ -5,7 +5,8 @@
 #pragma once
 
 // The service (kenning daemon) owns the camera and the face models. One request per
-// connection: "<command> <user>\n" (compare or has-model), answered "<ExitCode>\n".
+// connection: "<command> <user>\n" (compare, has-model, password-first or password-failed),
+// answered "<ExitCode>\n".
 // It answers only for root or the user's own account. Header-only, for pam_kenning.
 
 #include "config.h"

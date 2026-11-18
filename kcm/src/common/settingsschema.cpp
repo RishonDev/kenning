@@ -48,6 +48,7 @@ std::optional<Setting> engineSetting(const QString &id)
         {QStringLiteral("core/abort_if_ssh"), isBoolText},
         {QStringLiteral("core/abort_if_lid_closed"), isBoolText},
         {QStringLiteral("core/password_after_boot"), isBoolText},
+        {QStringLiteral("core/allow_outside_session"), isBoolText},
         {QStringLiteral("video/certainty"), numberIn(1, 10)},
         {QStringLiteral("video/timeout"), numberIn(1, 30)},
         {QStringLiteral("video/dark_threshold"), numberIn(0, 100)},
@@ -84,6 +85,12 @@ bool isPamLine(const QString &line)
 bool isFacePamLine(const QString &line)
 {
     return isPamLine(line) || isActiveLineWith(line, QLatin1StringView("pam_howdy.so"));
+}
+
+bool isAuthPamLine(const QString &line)
+{
+    static const QRegularExpression pattern(QStringLiteral("^\\s*(-?auth\\s|@include\\s+common-auth(\\s|$))"));
+    return pattern.match(line).hasMatch();
 }
 
 QList<PamService> pamServices()

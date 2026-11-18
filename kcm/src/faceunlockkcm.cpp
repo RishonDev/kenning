@@ -148,6 +148,7 @@ QVariantMap FaceUnlockKcm::defaultSettings()
         {QStringLiteral("core/abort_if_ssh"), true},
         {QStringLiteral("core/abort_if_lid_closed"), true},
         {QStringLiteral("core/password_after_boot"), true},
+        {QStringLiteral("core/allow_outside_session"), false},
         {QStringLiteral("video/certainty"), 6.0},
         {QStringLiteral("video/timeout"), 4},
         {QStringLiteral("video/dark_threshold"), 60},
@@ -259,6 +260,7 @@ void FaceUnlockKcm::save()
         config->group(QStringLiteral("Authenticators")).writeEntry("Face", face);
         if (!face) {
             // A remembered method that is switched off crashes the lock screen (https://bugs.kde.org/528042).
+            // Fixed in kscreenlocker master (!387, after 6.8.3); needed while released Plasma lacks it.
             auto state = KSharedConfig::openStateConfig(QStringLiteral("kscreenlockerrc"));
             KConfigGroup greeter = state->group(QStringLiteral("Greeter"));
             if (greeter.readEntry("Authenticator") == QLatin1String("Face")) {

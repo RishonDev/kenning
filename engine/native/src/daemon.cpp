@@ -10,7 +10,10 @@
 #include "service.h"
 #include "signedin.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -19,6 +22,7 @@
 #include <pwd.h>
 #include <sys/stat.h>
 #include <systemd/sd-login.h>
+#include <vector>
 
 namespace FaceUnlock
 {
@@ -26,9 +30,14 @@ namespace
 {
 // Socket activated: exits after this long without a request.
 constexpr int idleExitMs = 5 * 60 * 1000;
-// A client that connects and says nothing must not hold up everyone else.
-constexpr int clientTimeoutSeconds = 2;
+// A request must arrive whole within this time, however slowly it trickles in. Requests
+// are read side by side, so a slow client only holds up itself.
+constexpr auto requestDeadline = std::chrono::seconds(2);
+constexpr int replyTimeoutSeconds = 2;
 constexpr std::size_t maxRequestLength = 255;
+// Connections still sending their request: per user, and in all.
+constexpr std::size_t maxPendingPerUser = 4;
+constexpr std::size_t maxPending = 64;
 // In /run like pam_faillock's records: kept across service restarts, cleared at reboot.
 constexpr const char *failuresPath = "/run/kenning/failures";
 constexpr const char *signedInPath = "/run/kenning/signed-in";
@@ -37,23 +46,6 @@ void reply(int client, int code)
 {
     const std::string text = std::to_string(code) + '\n';
     send(client, text.data(), text.size(), MSG_NOSIGNAL);
-}
-
-std::optional<Request> receiveRequest(int client)
-{
-    char buffer[maxRequestLength + 1] = {};
-    size_t received = 0;
-    while (received < maxRequestLength && !std::memchr(buffer, '\n', received)) {
-        const ssize_t count = recv(client, buffer + received, maxRequestLength - received, 0);
-        if (count < 0 && errno == EINTR) {
-            continue;
-        }
-        if (count <= 0) {
-            return std::nullopt;
-        }
-        received += size_t(count);
-    }
-    return parseRequest(std::string_view(buffer, received));
 }
 
 // A local login of this user: the login screen refuses face unlock until there is one,
@@ -107,6 +99,111 @@ int ownSocket()
     return fd;
 }
 
+using Clock = std::chrono::steady_clock;
+
+struct PendingClient {
+    int fd = -1;
+    ucred peer{};
+    Clock::time_point deadline;
+    std::string buffer;
+    bool complete = false; // a newline arrived
+    bool done = false; // complete, hung up, or out of room
+};
+
+// Connections whose request hasn't fully arrived, read without blocking.
+class PendingClients
+{
+public:
+    const std::vector<PendingClient> &clients() const
+    {
+        return m_clients;
+    }
+
+    void accept(int listener, Clock::time_point now)
+    {
+        const int fd = accept4(listener, nullptr, nullptr, SOCK_CLOEXEC | SOCK_NONBLOCK);
+        if (fd < 0) {
+            return;
+        }
+        PendingClient client{.fd = fd, .peer = {}, .deadline = now + requestDeadline, .buffer = {}};
+        socklen_t peerSize = sizeof(client.peer);
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &client.peer, &peerSize) != 0 || m_clients.size() >= maxPending
+            || pendingFrom(client.peer.uid) >= maxPendingPerUser) {
+            close(fd);
+            return;
+        }
+        m_clients.push_back(std::move(client));
+    }
+
+    void read(int fd)
+    {
+        const auto found = std::find_if(m_clients.begin(), m_clients.end(), [fd](const PendingClient &client) {
+            return client.fd == fd;
+        });
+        if (found == m_clients.end() || found->done) {
+            return;
+        }
+        char chunk[maxRequestLength];
+        for (;;) {
+            const std::size_t room = maxRequestLength - found->buffer.size();
+            const ssize_t count = recv(fd, chunk, room, 0);
+            if (count < 0 && errno == EINTR) {
+                continue;
+            }
+            if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                return;
+            }
+            if (count <= 0) {
+                found->done = true;
+                return;
+            }
+            found->buffer.append(chunk, std::size_t(count));
+            if (found->buffer.find('\n') != std::string::npos) {
+                found->complete = found->done = true;
+                return;
+            }
+            if (found->buffer.size() >= maxRequestLength) {
+                found->done = true;
+                return;
+            }
+        }
+    }
+
+    // Removes and returns the clients to answer now, made blocking again.
+    std::vector<PendingClient> takeFinished(Clock::time_point now)
+    {
+        std::vector<PendingClient> finished;
+        std::erase_if(m_clients, [&](PendingClient &client) {
+            if (!client.done && now < client.deadline) {
+                return false;
+            }
+            fcntl(client.fd, F_SETFL, fcntl(client.fd, F_GETFL) & ~O_NONBLOCK);
+            finished.push_back(std::move(client));
+            return true;
+        });
+        return finished;
+    }
+
+    int millisecondsUntilNextDeadline(Clock::time_point now) const
+    {
+        auto next = m_clients.front().deadline;
+        for (const PendingClient &client : m_clients) {
+            next = std::min(next, client.deadline);
+        }
+        return int(std::max<long long>(0, std::chrono::duration_cast<std::chrono::milliseconds>(next - now).count() + 1));
+    }
+
+private:
+    std::size_t pendingFrom(uid_t uid) const
+    {
+        return std::size_t(std::count_if(m_clients.cbegin(), m_clients.cend(), [uid](const PendingClient &client) {
+            return client.peer.uid == uid;
+        }));
+    }
+
+    std::vector<PendingClient> m_clients;
+};
+
 class Service
 {
 public:
@@ -117,18 +214,11 @@ public:
         m_signedIn.restore(std::string(std::istreambuf_iterator<char>(file), {}));
     }
 
-    void serve(int client)
+    // client is blocking again, with the request read in full.
+    void serve(int client, const ucred &peer, const std::optional<Request> &request)
     {
-        const timeval timeout{clientTimeoutSeconds, 0};
-        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        const timeval timeout{replyTimeoutSeconds, 0};
         setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-
-        ucred peer{};
-        socklen_t peerSize = sizeof(peer);
-        if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &peer, &peerSize) != 0) {
-            return;
-        }
-        const std::optional<Request> request = receiveRequest(client);
         if (!request) {
             return reply(client, Aborted);
         }
@@ -145,6 +235,12 @@ public:
         // Only root, or the user asking about their own face.
         if (peer.uid != 0 && peer.uid != account->pw_uid) {
             return reply(client, Aborted);
+        }
+        // From pam_kenning when PAM ends: a typed password was wrong. Counted even before the
+        // first sign-in after a restart, as pam_faillock would.
+        if (request->command == "password-failed") {
+            recordFailure(request->user, account->pw_uid, FailureLimiter::Kind::Password, FailureLimits::fromConfig(Config()));
+            return reply(client, Recognized);
         }
 
         if (needsPassword) {
@@ -231,13 +327,18 @@ private:
             saveFailures();
             return;
         }
-        // Only a face that was seen and not recognized counts.
-        if (result.code != Timeout || result.stats.faceFrames == 0) {
-            return;
+        // A face that was seen and not recognized counts, however the scan ended: a client
+        // that hangs up just before the timeout must not get unlimited tries.
+        if (result.stats.faceFrames > 0) {
+            recordFailure(user, uid, FailureLimiter::Kind::Face, limits);
         }
-        if (m_failures.recordFailure(uid, limits, FailureLimiter::Clock::now())) {
+    }
+
+    void recordFailure(const std::string &user, uid_t uid, FailureLimiter::Kind kind, const FailureLimits &limits)
+    {
+        if (m_failures.recordFailure(uid, kind, limits, FailureLimiter::Clock::now())) {
             std::cerr << "kenning daemon: face unlock locked for " << user << " for " << limits.lockout.count() << " minutes after " << limits.maxFailures
-                      << " unrecognized faces\n";
+                      << " unrecognized faces and " << limits.maxPasswordFailures << " wrong passwords\n";
         }
         saveFailures();
     }
@@ -260,27 +361,49 @@ int runDaemon()
     }
 
     Service service;
+    PendingClients pending;
+    auto idleSince = Clock::now();
     for (;;) {
-        pollfd waiting{listener, POLLIN, 0};
-        const int ready = poll(&waiting, 1, activated ? idleExitMs : -1);
-        if (ready == 0) {
-            if (service.canExit()) {
-                return 0;
-            }
-            continue;
+        std::vector<pollfd> waiting{{listener, POLLIN, 0}};
+        for (const PendingClient &client : pending.clients()) {
+            waiting.push_back({client.fd, POLLIN, 0});
         }
+        int timeoutMs = -1;
+        if (!pending.clients().empty()) {
+            timeoutMs = pending.millisecondsUntilNextDeadline(Clock::now());
+        } else if (activated) {
+            timeoutMs = int(std::max<long long>(0, idleExitMs - std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - idleSince).count()));
+        }
+        const int ready = poll(waiting.data(), waiting.size(), timeoutMs);
         if (ready < 0) {
             if (errno == EINTR) {
                 continue;
             }
             return Error;
         }
-        const int client = accept4(listener, nullptr, nullptr, SOCK_CLOEXEC);
-        if (client < 0) {
+        const auto now = Clock::now();
+        if (ready == 0 && pending.clients().empty()) {
+            if (service.canExit()) {
+                return 0;
+            }
+            idleSince = now;
             continue;
         }
-        service.serve(client);
-        close(client);
+
+        for (std::size_t i = 1; i < waiting.size(); ++i) {
+            if (waiting[i].revents) {
+                pending.read(waiting[i].fd);
+            }
+        }
+        // Whole requests, then ones out of time (answered "aborted"), oldest first.
+        for (PendingClient &client : pending.takeFinished(now)) {
+            service.serve(client.fd, client.peer, client.complete ? parseRequest(client.buffer) : std::nullopt);
+            close(client.fd);
+        }
+        if (waiting[0].revents & POLLIN) {
+            pending.accept(listener, now);
+        }
+        idleSince = Clock::now();
     }
 }
 }

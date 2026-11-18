@@ -83,6 +83,18 @@ private Q_SLOTS:
         QVERIFY(!isFacePamLine(QStringLiteral("auth include system-login")));
     }
 
+    void findsWhereAuthStarts()
+    {
+        QVERIFY(isAuthPamLine(QStringLiteral("auth       include      system-auth")));
+        QVERIFY(isAuthPamLine(QStringLiteral("-auth optional pam_gnome_keyring.so")));
+        // Debian and Ubuntu keep their auth lines in common-auth.
+        QVERIFY(isAuthPamLine(QStringLiteral("@include common-auth")));
+        QVERIFY(!isAuthPamLine(QStringLiteral("@include common-account")));
+        QVERIFY(!isAuthPamLine(QStringLiteral("account required pam_unix.so")));
+        QVERIFY(!isAuthPamLine(QStringLiteral("# auth sufficient pam_unix.so")));
+        QVERIFY(!isAuthPamLine(QStringLiteral("session required pam_env.so readenv=1")));
+    }
+
     void parsesLockScreenStatus()
     {
         const LockScreenState face = parseLockScreenStatus(QStringLiteral("face on\n"));

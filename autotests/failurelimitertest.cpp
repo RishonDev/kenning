@@ -12,7 +12,11 @@ using namespace std::chrono_literals;
 namespace
 {
 constexpr uid_t user = 1000;
-constexpr FailureLimits limits{.maxFailures = 3, .window = 15min, .lockout = 10min};
+// Faces alone lock, as with max_password_failures = 0.
+constexpr FailureLimits limits{.maxFailures = 3, .maxPasswordFailures = 0, .window = 15min, .lockout = 10min};
+constexpr FailureLimits both{.maxFailures = 3, .maxPasswordFailures = 3, .window = 15min, .lockout = 10min};
+constexpr auto face = FailureLimiter::Kind::Face;
+constexpr auto password = FailureLimiter::Kind::Password;
 const FailureLimiter::Clock::time_point start{};
 }
 
@@ -24,9 +28,9 @@ private Q_SLOTS:
     void locksAfterTooManyFailures()
     {
         FailureLimiter limiter;
-        QVERIFY(!limiter.recordFailure(user, limits, start));
-        QVERIFY(!limiter.recordFailure(user, limits, start + 1min));
-        QVERIFY(limiter.recordFailure(user, limits, start + 2min));
+        QVERIFY(!limiter.recordFailure(user, face, limits, start));
+        QVERIFY(!limiter.recordFailure(user, face, limits, start + 1min));
+        QVERIFY(limiter.recordFailure(user, face, limits, start + 2min));
         QVERIFY(limiter.isLockedOut(user, limits, start + 3min));
         QVERIFY(!limiter.isLockedOut(user + 1, limits, start + 3min));
     }
@@ -35,7 +39,7 @@ private Q_SLOTS:
     {
         FailureLimiter limiter;
         for (int i = 0; i < limits.maxFailures; ++i) {
-            limiter.recordFailure(user, limits, start);
+            limiter.recordFailure(user, face, limits, start);
         }
         QVERIFY(limiter.isLockedOut(user, limits, start + 9min));
         QVERIFY(!limiter.isLockedOut(user, limits, start + 10min));
@@ -45,9 +49,9 @@ private Q_SLOTS:
     void forgetsFailuresOutsideTheWindow()
     {
         FailureLimiter limiter;
-        limiter.recordFailure(user, limits, start);
-        limiter.recordFailure(user, limits, start + 1min);
-        QVERIFY(!limiter.recordFailure(user, limits, start + 16min));
+        limiter.recordFailure(user, face, limits, start);
+        limiter.recordFailure(user, face, limits, start + 1min);
+        QVERIFY(!limiter.recordFailure(user, face, limits, start + 16min));
         QVERIFY(!limiter.isLockedOut(user, limits, start + 16min));
     }
 
@@ -55,14 +59,14 @@ private Q_SLOTS:
     {
         FailureLimiter limiter;
         for (int i = 0; i < limits.maxFailures; ++i) {
-            limiter.recordFailure(user, limits, start);
+            limiter.recordFailure(user, face, limits, start);
         }
-        limiter.recordFailure(user + 1, limits, start);
+        limiter.recordFailure(user + 1, face, limits, start);
         FailureLimiter restarted;
         restarted.restore(limiter.save());
         QVERIFY(restarted.isLockedOut(user, limits, start + 9min));
         QVERIFY(!restarted.isLockedOut(user, limits, start + 10min));
-        QVERIFY(!restarted.recordFailure(user + 1, limits, start + 1min));
+        QVERIFY(!restarted.recordFailure(user + 1, face, limits, start + 1min));
         restarted.restore("not a record\n");
         QVERIFY(!restarted.isEmpty(start + 1min));
     }
@@ -70,19 +74,77 @@ private Q_SLOTS:
     void successClearsFailures()
     {
         FailureLimiter limiter;
-        limiter.recordFailure(user, limits, start);
-        limiter.recordFailure(user, limits, start);
+        limiter.recordFailure(user, face, limits, start);
+        limiter.recordFailure(user, face, limits, start);
         limiter.recordSuccess(user);
-        QVERIFY(!limiter.recordFailure(user, limits, start));
+        QVERIFY(!limiter.recordFailure(user, face, limits, start));
         QVERIFY(!limiter.isEmpty(start));
+    }
+
+    void needsBothFacesAndPasswords()
+    {
+        FailureLimiter limiter;
+        for (int i = 0; i < 5; ++i) {
+            QVERIFY(!limiter.recordFailure(user, face, both, start + 1min * i));
+        }
+        QVERIFY(!limiter.recordFailure(user, password, both, start + 5min));
+        QVERIFY(!limiter.recordFailure(user, password, both, start + 6min));
+        QVERIFY(!limiter.isLockedOut(user, both, start + 6min));
+        QVERIFY(limiter.recordFailure(user, password, both, start + 7min));
+        QVERIFY(limiter.isLockedOut(user, both, start + 8min));
+    }
+
+    void passwordsAloneDontLock()
+    {
+        FailureLimiter limiter;
+        for (int i = 0; i < 10; ++i) {
+            QVERIFY(!limiter.recordFailure(user, password, both, start));
+        }
+        QVERIFY(!limiter.recordFailure(user, face, both, start));
+        QVERIFY(!limiter.recordFailure(user, face, both, start));
+        QVERIFY(limiter.recordFailure(user, face, both, start));
+    }
+
+    void bothMustFallInTheWindow()
+    {
+        FailureLimiter limiter;
+        for (int i = 0; i < 3; ++i) {
+            limiter.recordFailure(user, password, both, start);
+        }
+        limiter.recordFailure(user, face, both, start + 10min);
+        limiter.recordFailure(user, face, both, start + 11min);
+        // The passwords have aged out by now.
+        QVERIFY(!limiter.recordFailure(user, face, both, start + 16min));
+        QVERIFY(!limiter.isLockedOut(user, both, start + 16min));
+    }
+
+    void restoresBothKinds()
+    {
+        FailureLimiter limiter;
+        limiter.recordFailure(user, face, both, start);
+        limiter.recordFailure(user, face, both, start);
+        limiter.recordFailure(user, face, both, start);
+        limiter.recordFailure(user, password, both, start);
+        limiter.recordFailure(user, password, both, start);
+        FailureLimiter restarted;
+        restarted.restore(limiter.save());
+        QVERIFY(restarted.recordFailure(user, password, both, start + 1min));
+    }
+
+    void restoresTheOlderFormat()
+    {
+        // Before password failures were counted: every failure after the first three fields is a face.
+        FailureLimiter restarted;
+        restarted.restore("1000 0 900000000000 1 2\n");
+        QVERIFY(restarted.recordFailure(user, face, limits, start));
     }
 
     void zeroMeansNoLimit()
     {
         FailureLimiter limiter;
-        const FailureLimits unlimited{.maxFailures = 0, .window = 15min, .lockout = 10min};
+        const FailureLimits unlimited{.maxFailures = 0, .maxPasswordFailures = 3, .window = 15min, .lockout = 10min};
         for (int i = 0; i < 10; ++i) {
-            QVERIFY(!limiter.recordFailure(user, unlimited, start));
+            QVERIFY(!limiter.recordFailure(user, face, unlimited, start));
         }
         QVERIFY(!limiter.isLockedOut(user, unlimited, start));
         QVERIFY(limiter.isEmpty(start));

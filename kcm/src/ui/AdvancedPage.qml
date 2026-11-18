@@ -39,6 +39,11 @@ KCM.SimpleKCM {
         }
         HeaderMessage {
             type: Kirigami.MessageType.Warning
+            visible: settings["core/allow_outside_session"]
+            text: i18n("Any program running as you can start sudo outside a sign-in session, including one started over SSH, and the camera will answer with whoever is in front of this computer.")
+        }
+        HeaderMessage {
+            type: Kirigami.MessageType.Warning
             visible: !settings["core/password_after_boot"]
             text: i18n("Face unlock works right after a restart, so someone with your laptop and a face like yours, or with an ordinary webcam a photo of you, could sign in without ever knowing your password.")
         }
@@ -133,6 +138,19 @@ KCM.SimpleKCM {
             text: i18n("Over SSH")
             checked: settings["core/abort_if_ssh"]
             onToggled: kcm.setValue("core/abort_if_ssh", checked)
+        }
+        RowLayout {
+            spacing: 0
+            QQC2.CheckBox {
+                text: i18n("For sudo and administrator prompts outside a sign-in session")
+                // Unchecked means allowed, like the other "Don't use" boxes here.
+                checked: !settings["core/allow_outside_session"]
+                enabled: settings["core/abort_if_ssh"]
+                onToggled: kcm.setValue("core/allow_outside_session", !checked)
+            }
+            Kirigami.ContextualHelpButton {
+                toolTipText: i18n("On Plasma 6, terminals such as Konsole run outside a sign-in session, so with this checked sudo there asks for your password. Kenning can't tell them apart from a program started over SSH. The lock screen isn't affected.")
+            }
         }
         RowLayout {
             spacing: 0

@@ -15,6 +15,16 @@ lockscreen_dir=${LOCKSCREEN_DIR:-/usr/share/plasma/shells/org.kde.plasma.desktop
 face_service=$pam_dir/kde-face
 face_marker='# kenning: kde-fingerprint with pam_kenning.so in place of pam_fprintd.so; removed with Kenning'
 
+# Whether a PAM module is installed in any directory PAM may load it from (it differs by
+# distribution: /usr/lib/security, /usr/lib/<triplet>/security, /usr/lib64/security, /lib...).
+module_installed() {
+    local dir
+    for dir in ${PAM_MODULE_DIRS:-/usr/lib/security /usr/lib64/security /usr/lib/*/security /lib/security /lib64/security /lib/*/security}; do
+        [[ -e $dir/$1 ]] && return 0
+    done
+    return 1
+}
+
 # PAM files using a module on a non-comment line. Never kde-face, which is only written or removed whole.
 files_using() {
     local file
@@ -58,7 +68,13 @@ add_to() { # service
         cp "$vendor_pam_dir/$1" "$file"
     fi
     uses "$file" pam_kenning.so && return 0
-    rewrite "$file" -v line="$face_line" '!done && /^[[:space:]]*auth/ { print line; done = 1 } { print }'
+    # In front of the first auth line, or Debian's "@include common-auth", which holds them.
+    local first_auth='/^[[:space:]]*(auth[[:space:]]|-auth[[:space:]]|@include[[:space:]]+common-auth([[:space:]]|$))/'
+    if ! awk "$first_auth { found = 1 } END { exit !found }" "$file"; then
+        echo "  kenning: $file has no auth lines; face unlock not added" >&2
+        return 0
+    fi
+    rewrite "$file" -v line="$face_line" "!done && $first_auth { print line; done = 1 } { print }"
     echo "  kenning: face unlock switched on in $file"
 }
 
@@ -182,7 +198,7 @@ migrate() {
 
 case "${1:-}" in
 tidy)
-    [[ -e /usr/lib/security/pam_howdy.so ]] || drop pam_howdy.so
+    module_installed pam_howdy.so || drop pam_howdy.so
     tidy_lockscreen
     ;;
 migrate)

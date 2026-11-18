@@ -88,7 +88,7 @@ bool hasLocalSession(uid_t uid)
 }
 
 // True when the person asking may not be at this computer: logind decides, the environment can only add a refusal.
-bool remoteSession(pam_handle_t *pamh)
+bool remoteSession(pam_handle_t *pamh, const Config &config)
 {
     const void *rhost = nullptr;
     if (pam_get_item(pamh, PAM_RHOST, &rhost) == PAM_SUCCESS && rhost && *static_cast<const char *>(rhost)
@@ -104,10 +104,103 @@ bool remoteSession(pam_handle_t *pamh)
         std::free(session);
         return remote != 0; // remote, or logind can't tell
     }
-    // Outside any session (on Plasma 6, apps run under the user's service manager): only for
-    // a user at this computer. Root callers, such as the login manager, have no session yet.
+    // Outside any session. Root callers, such as the login manager, have no session yet.
     const uid_t caller = getuid();
-    return caller != 0 && !hasLocalSession(caller);
+    if (caller == 0) {
+        return false;
+    }
+    // A setuid program raising the user to root: sudo or su from a Plasma 6 terminal, or
+    // polkit's helper. Any program of this user can run outside a session, including one
+    // started over SSH with systemd-run --user, so whoever sits at the camera would approve
+    // it: only when allowed. The lock screen runs as the user and isn't affected.
+    if (geteuid() == 0 && !config.boolean("core/allow_outside_session", false)) {
+        return true;
+    }
+    // On Plasma 6 the lock screen and apps run under the user's service manager: only for a
+    // user at this computer.
+    return !hasLocalSession(caller);
+}
+
+// --- wrong passwords -----------------------------------------------------------------
+// The service locks face unlock only after wrong passwords too. A module can't run after a
+// password module that failed (the stack stops), so pam_kenning, first in the stack, watches
+// the conversation for a typed password and leaves data whose cleanup pam_end calls with the
+// application's final result. (PAM_AUTHTOK can't tell: pam_authenticate clears it on return.)
+constexpr const char *passwordWatchKey = "kenning-password-watch";
+
+struct PasswordWatch {
+    pam_conv original{}; // the application's
+    pam_conv wrapper{};
+    bool typed = false; // in the current attempt
+};
+
+// Passes everything to the application's conversation, noting a non-empty answer to a
+// hidden prompt. Face-only stacks (kde-face) and the login screen's automatic attempt,
+// which answers with an empty password, type none.
+int watchConversation(int count, const pam_message **messages, pam_response **responses, void *data)
+{
+    auto *watch = static_cast<PasswordWatch *>(data);
+    const int result = watch->original.conv(count, messages, responses, watch->original.appdata_ptr);
+    if (result == PAM_SUCCESS && responses && *responses) {
+        for (int i = 0; i < count; ++i) {
+            const char *answer = (*responses)[i].resp;
+            watch->typed |= messages[i]->msg_style == PAM_PROMPT_ECHO_OFF && answer && *answer;
+        }
+    }
+    return result;
+}
+
+void reportPasswordFailure(pam_handle_t *pamh)
+{
+    const void *user = nullptr;
+    if (pam_get_item(pamh, PAM_USER, &user) == PAM_SUCCESS && user && *static_cast<const char *>(user)) {
+        FaceUnlock::askService("password-failed", static_cast<const char *>(user), FaceUnlock::quickTimeoutSeconds);
+    }
+}
+
+void finishPasswordWatch(pam_handle_t *pamh, void *data, int status)
+{
+    auto *watch = static_cast<PasswordWatch *>(data);
+    // sudo adds PAM_DATA_SILENT to its result; PAM_DATA_REPLACE never happens (watchPassword
+    // reuses its data), but would carry no result.
+    const int result = status & ~(PAM_DATA_SILENT | PAM_DATA_REPLACE);
+    if (!(status & PAM_DATA_REPLACE) && result != PAM_SUCCESS && watch->typed) {
+        reportPasswordFailure(pamh);
+    }
+    delete watch;
+}
+
+void watchPassword(pam_handle_t *pamh)
+{
+    const void *existing = nullptr;
+    PasswordWatch *watch = nullptr;
+    if (pam_get_data(pamh, passwordWatchKey, &existing) == PAM_SUCCESS && existing) {
+        // Another attempt on the same handle, as sudo makes up to three: the last one failed.
+        watch = static_cast<PasswordWatch *>(const_cast<void *>(existing));
+        if (watch->typed) {
+            reportPasswordFailure(pamh);
+        }
+        watch->typed = false;
+    } else {
+        watch = new PasswordWatch;
+        if (pam_set_data(pamh, passwordWatchKey, watch, finishPasswordWatch) != PAM_SUCCESS) {
+            delete watch;
+            return;
+        }
+    }
+    // Wrap the application's conversation, unless it is wrapped already.
+    const void *item = nullptr;
+    if (pam_get_item(pamh, PAM_CONV, &item) != PAM_SUCCESS || !item) {
+        return;
+    }
+    const auto *conversation = static_cast<const pam_conv *>(item);
+    if (conversation->conv == watchConversation || !conversation->conv) {
+        return;
+    }
+    // pam_set_item copies the struct and frees the old one, so keep the original by value.
+    watch->original = *conversation;
+    watch->wrapper = {watchConversation, watch};
+    pam_set_item(pamh, PAM_CONV, &watch->wrapper);
 }
 }
 
@@ -117,6 +210,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
 {
     // Set by the login manager while checking a typed password.
     if (const char *skip = pam_getenv(pamh, "FACEUNLOCK_SKIP"); skip && std::strcmp(skip, "1") == 0) {
+        watchPassword(pamh);
         return PAM_AUTHINFO_UNAVAIL;
     }
 
@@ -124,7 +218,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int, int, const char **)
     if (config.boolean("core/disabled", false)) {
         return PAM_AUTHINFO_UNAVAIL;
     }
-    if (config.boolean("core/abort_if_ssh", true) && remoteSession(pamh)) {
+    // Whatever happens to the face, a password may follow.
+    watchPassword(pamh);
+    if (config.boolean("core/abort_if_ssh", true) && remoteSession(pamh, config)) {
         return PAM_AUTHINFO_UNAVAIL;
     }
     waitUntilAwake();
