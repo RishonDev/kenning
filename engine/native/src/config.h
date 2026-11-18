@@ -28,6 +28,10 @@ inline constexpr int maxLabelLength = 24;
 #define KENNING_SERVICE_USER "kenning"
 #endif
 inline constexpr const char *serviceUser = KENNING_SERVICE_USER;
+#ifndef KENNING_PAM_DIR
+#define KENNING_PAM_DIR "/usr/lib/security"
+#endif
+inline constexpr const char *pamModuleFile = KENNING_PAM_DIR "/pam_kenning.so";
 inline constexpr const char *detectorModel = KENNING_DATADIR "/models/face_detection_yunet_2023mar.onnx";
 inline constexpr const char *recognizerModel = KENNING_DATADIR "/models/face_recognition_sface_2021dec.onnx";
 

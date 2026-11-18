@@ -22,7 +22,7 @@ inline QString modelPath(const QString &user)
 }
 
 inline const QString engineBinary = QStringLiteral("/usr/bin/kenning");
-inline const QString pamModulePath = QStringLiteral("/usr/lib/security/pam_kenning.so");
+inline const QString pamModulePath = QString::fromUtf8(pamModuleFile);
 inline const QString systemConfigPath = QStringLiteral("/etc/xdg/kenningrc");
 inline const QString lockScreenPath = QStringLiteral("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml");
 inline const QString lockScreenMarker = QStringLiteral("kenning lock screen patch");

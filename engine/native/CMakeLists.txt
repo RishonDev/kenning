@@ -13,6 +13,8 @@ set(KENNING_SYSCONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/kenning CACHE PATH "Conf
 set(KENNING_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}/kenning CACHE PATH "Recognition networks")
 set(KENNING_SOCKET /run/kenning.sock CACHE STRING "Socket of the face unlock service")
 set(KENNING_SERVICE_USER kenning CACHE STRING "System user the service runs as and that owns the face models")
+# Distributions differ: /usr/lib/security (Arch), /usr/lib/x86_64-linux-gnu/security (Debian), /usr/lib64/security (Fedora)
+set(KENNING_PAM_DIR ${CMAKE_INSTALL_FULL_LIBDIR}/security CACHE PATH "Directory PAM loads modules from")
 
 add_library(kenning-config INTERFACE)
 target_include_directories(kenning-config INTERFACE src)
@@ -21,6 +23,7 @@ target_compile_definitions(kenning-config INTERFACE
     KENNING_DATADIR="${KENNING_DATADIR}"
     KENNING_SOCKET="${KENNING_SOCKET}"
     KENNING_SERVICE_USER="${KENNING_SERVICE_USER}"
+    KENNING_PAM_DIR="${KENNING_PAM_DIR}"
 )
 
 add_library(kenning-engine STATIC
@@ -46,7 +49,7 @@ set_target_properties(pam_kenning PROPERTIES PREFIX "")
 target_link_libraries(pam_kenning PRIVATE kenning-config ${PAM_LIBRARY} PkgConfig::LIBSYSTEMD)
 
 install(TARGETS kenning RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(TARGETS pam_kenning LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/security)
+install(TARGETS pam_kenning LIBRARY DESTINATION ${KENNING_PAM_DIR})
 configure_file(systemd/kenning.service.in kenning.service @ONLY)
 configure_file(systemd/kenning-sysusers.conf.in kenning-sysusers.conf @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kenning-sysusers.conf DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/sysusers.d RENAME kenning.conf)
