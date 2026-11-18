@@ -5,7 +5,7 @@
 
 pkgbase=kenning
 pkgname=(kenning plasma-login-manager-kenning)
-pkgver=0.8.1
+pkgver=1.0.0
 _plmver=6.8.2
 pkgrel=1
 arch=(x86_64 aarch64)

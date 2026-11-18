@@ -1,3 +1,20 @@
+kenning (1.0.0-1) unstable; urgency=medium
+
+  * Security: sudo and administrator prompts started outside a sign-in
+    session no longer use face unlock unless allowed, so a remote shell can't
+    borrow the face of whoever sits at the computer
+  * Security: a cancelled scan that saw a face counts as a failure; face
+    unlock locks after 3 unrecognized faces and 3 wrong passwords within 15
+    minutes
+  * Security: a client sending its request slowly can no longer block face
+    unlock for everyone
+  * Debian and Ubuntu: face unlock is added in front of @include common-auth,
+    and the settings page finds the installed PAM module
+  * pam-tidy keeps Howdy when it is installed in a multiarch or lib64
+    directory
+
+ -- Rishon Jonathan R <mithicalaviator85@gmail.com>  Thu, 19 Nov 2026 00:14:22 +0530
+
 kenning (0.8.1-1) unstable; urgency=medium
 
   * Login screen: after a restart, open on the password box instead of a face

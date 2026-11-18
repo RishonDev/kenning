@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 Name:           kenning
-Version:        0.8.1
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Face unlock for KDE Plasma
 License:        GPL-2.0-or-later AND LGPL-2.0-or-later AND MIT AND Apache-2.0
@@ -119,6 +119,13 @@ python3 -I /usr/lib/kenning/kenning-lockscreen.py || :
 %{_datadir}/applications/kcm_kenning.desktop
 
 %changelog
+* Thu Nov 19 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 1.0.0-1
+- Security: sudo and administrator prompts started outside a sign-in session no longer use face unlock unless allowed, so a remote shell can't borrow the face of whoever sits at the computer
+- Security: a cancelled scan that saw a face counts as a failure; face unlock locks after 3 unrecognized faces and 3 wrong passwords within 15 minutes
+- Security: a client sending its request slowly can no longer block face unlock for everyone
+- Debian and Ubuntu: face unlock is added in front of @include common-auth, and the settings page finds the installed PAM module
+- pam-tidy keeps Howdy when it is installed in a multiarch or lib64 directory
+
 * Tue Nov 03 2026 Rishon Jonathan R <mithicalaviator85@gmail.com> - 0.8.1-1
 - Login screen: after a restart, open on the password box instead of a face scan that is refused anyway
 - Lock screen: wait until the computer has woken up before scanning, instead of scanning on the way into suspend
