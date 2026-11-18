@@ -79,7 +79,7 @@ test_package() {
         lockscreen_package="plasma-desktop-data"
         install_lockscreen() { apt-get install -y -qq --no-install-recommends "$lockscreen_package"; }
     elif [[ $format == arch ]]; then
-        pacman -U --noconfirm /out/kenning-0*.pkg.tar.zst > /tmp/install.log 2>&1
+        pacman -U --noconfirm /out/kenning-[0-9]*.pkg.tar.zst > /tmp/install.log 2>&1
         installed=$?
         files() { pacman -Qlq kenning; }
         remove() { pacman -R --noconfirm kenning; }
@@ -87,7 +87,7 @@ test_package() {
         # Already installed with Kenning; installing it again runs the package hook.
         install_lockscreen() { pacman -S --noconfirm plasma-desktop; }
     else
-        dnf install -y -q --setopt=install_weak_deps=False /out/kenning-0*.rpm > /tmp/install.log 2>&1
+        dnf install -y -q --setopt=install_weak_deps=False /out/kenning-[0-9]*.rpm > /tmp/install.log 2>&1
         installed=$?
         files() { rpm -ql kenning; }
         remove() { dnf remove -y -q kenning; }
